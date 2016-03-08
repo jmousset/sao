@@ -5,6 +5,7 @@ Prerequisites
 -------------
 
  * Node.js 0.8.0 or later (http://nodejs.org/)
+ * grunt-cli: npm install -g grunt-cli
 
 Installation
 ------------
