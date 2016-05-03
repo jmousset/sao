@@ -506,7 +506,8 @@
             }.bind(this));
         },
         save: function() {
-            if (!Sao.common.MODELACCESS.get(this.screen.model_name).write) {
+            var access = Sao.common.MODELACCESS.get(this.screen.model_name);
+            if (!(access.write || access.create)) {
                 return jQuery.when();
             }
             return this.screen.save_current().then(
@@ -657,7 +658,7 @@
                 return function(revision) {
                     if (revision) {
                         // Add a millisecond as microseconds are truncated
-                        revision.setMilliseconds(revision.getMilliseconds() + 1);
+                        revision.add(1, 'milliseconds');
                     }
                     if ((this.screen.current_view.view_type == 'form') &&
                             (revision < revisions[revisions.length - 1][0])) {
