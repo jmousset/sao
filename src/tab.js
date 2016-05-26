@@ -285,12 +285,7 @@
             this.info_bar = new Sao.Window.InfoBar();
             this.create_tabcontent();
 
-            var access = Sao.common.MODELACCESS.get(model_name);
-            [['new', 'create'], ['save', 'write']].forEach(function(e) {
-                var button = e[0];
-                var access_type = e[1];
-                this.buttons[button].prop('disabled', !access[access_type]);
-            }.bind(this));
+            this.set_buttons_sensitive();
 
             this.view_prm = this.screen.switch_view().done(function() {
                 this.set_name(attributes.name ||
@@ -335,7 +330,10 @@
                 Sao.i18n.gettext('Next Record'), 'next'],
                 ['attach', 'glyphicon-paperclip',
                 Sao.i18n.gettext('Attachment'),
-                Sao.i18n.gettext('Add an attachment to the record'), 'attach']
+                Sao.i18n.gettext('Add an attachment to the record'), 'attach'],
+                ['note', 'glyphicon-comment',
+                Sao.i18n.gettext('Note'),
+                Sao.i18n.gettext('Add a note to the record'), 'note']
             ];
         },
         menu_def: function() {
@@ -358,6 +356,7 @@
                 ['glyphicon-remove', Sao.i18n.gettext('Close Tab'), 'close'],
                 ['glyphicon-paperclip', Sao.i18n.gettext('Attachment'),
                     'attach'],
+                ['glyphicon-comment', Sao.i18n.gettext('Note'), 'note'],
                 ['glyphicon-cog', Sao.i18n.gettext('Action'), 'action'],
                 ['glyphicon-share-alt', Sao.i18n.gettext('Relate'), 'relate'],
                 ['glyphicon-print', Sao.i18n.gettext('Print'), 'print']
@@ -706,9 +705,27 @@
                 label = this.name_el.text();
             }
             this.title.html(label);
-            ['new', 'save'].forEach(function(button) {
-                this.buttons[button].prop('disabled', revision);
-            }.bind(this));
+            this.set_buttons_sensitive(revision);
+        },
+        set_buttons_sensitive: function(revision) {
+            if (!revision) {
+                var access = Sao.common.MODELACCESS.get(this.screen.model_name);
+                [['new', access.create],
+                ['save', access.create || access.write]
+                ].forEach(function(e) {
+                    var button = e[0];
+                    var access = e[1];
+                    if (access) {
+                        this.buttons[button].parent().removeClass('disabled');
+                    } else {
+                        this.buttons[button].parent().addClass('disabled');
+                    }
+                }.bind(this));
+            } else {
+                ['new', 'save'].forEach(function(button) {
+                    this.buttons[button].parent().addClass('disabled');
+                }.bind(this));
+            }
         },
         attach: function() {
             var record = this.screen.current_record;
@@ -734,6 +751,31 @@
             var record_id = this.screen.get_id();
             this.buttons.attach.prop('disabled',
                 record_id < 0 || record_id === null);
+        },
+        note: function() {
+            var record = this.screen.current_record;
+            if (!record || (record.id < 0)) {
+                return;
+            }
+            new Sao.Window.Note(record, function() {
+                this.update_unread_note(true);
+            }.bind(this));
+        },
+        update_unread_note: function(reload) {
+            var record = this.screen.current_record;
+            if (record) {
+                record.get_unread_note(reload).always(
+                        this._unread_note.bind(this));
+            } else {
+                this._unread_note(0);
+            }
+        },
+        _unread_note: function(unread) {
+            var label = Sao.i18n.gettext('Note(%1)', unread);
+            this.buttons.note.text(label);
+            var record_id = this.screen.get_id();
+            this.buttons.note.prop('disabled',
+                    record_id < 0 || record_id === null);
         },
         record_message: function() {
             this.info_bar.message();
@@ -816,6 +858,10 @@
             }
         },
         attachment_count: function() {
+        },
+        note: function() {
+        },
+        update_unread_note: function() {
         }
     });
 

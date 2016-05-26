@@ -6,8 +6,9 @@
     Sao.View.tree_column_get = function(type) {
         switch (type) {
             case 'char':
-            case 'text':
                 return Sao.View.Tree.CharColumn;
+            case 'text':
+                return Sao.View.Tree.TextColum;
             case 'many2one':
                 return Sao.View.Tree.Many2OneColumn;
             case 'one2one':
@@ -487,16 +488,18 @@
 
             if (row) {
                 column = row.next_column(null, new_);
-                td = row._get_column_td(column);
-                if (this.editable) {
-                    td.triggerHandler('click');
-                    if (new_) {
+                if (column !== null) {
+                    td = row._get_column_td(column);
+                    if (this.editable) {
                         td.triggerHandler('click');
+                        if (new_) {
+                            td.triggerHandler('click');
+                        } else {
+                            td.find(':input,[tabindex=0]').focus();
+                        }
                     } else {
                         td.find(':input,[tabindex=0]').focus();
                     }
-                } else {
-                    td.find(':input,[tabindex=0]').focus();
                 }
             }
         }
@@ -856,7 +859,7 @@
             }
         },
         next_column: function(path, editable, sign) {
-            var i, readonly;
+            var i, readonly, invisible;
             var column, column_index, state_attrs;
 
             sign = sign || 1;
@@ -876,17 +879,20 @@
                 }
                 column = this.tree.columns[column_index];
                 state_attrs = column.field.get_state_attrs(this.record);
+                invisible = state_attrs.invisible;
+                if (column.attributes.tree_invisible) {
+                    invisible = true;
+                }
                 if (editable) {
                     readonly = (column.attributes.readonly ||
                             state_attrs.readonly);
                 } else {
                     readonly = false;
                 }
-                if (!(state_attrs.invisible || readonly)) {
-                    break;
+                if (!(invisible || readonly)) {
+                    return column_index;
                 }
             }
-            return column_index;
         }
     });
 
@@ -1044,13 +1050,15 @@
                     }
                     event_.preventDefault();
                     next_idx = this.next_column(this.edited_column, true, sign);
-                    window.setTimeout(function() {
-                        var td = this._get_column_td(next_idx);
-                        td.triggerHandler('click', {
-                            column: next_idx,
-                            td: td
-                        });
-                    }.bind(this), 0);
+                    if (next_idx !== null) {
+                        window.setTimeout(function() {
+                            var td = this._get_column_td(next_idx);
+                            td.triggerHandler('click', {
+                                column: next_idx,
+                                td: td
+                            });
+                        }.bind(this), 0);
+                    }
                 } else if (event_.which == Sao.common.UP_KEYCODE ||
                     event_.which == Sao.common.DOWN_KEYCODE) {
                     if (event_.which == Sao.common.UP_KEYCODE) {
@@ -1252,6 +1260,10 @@
             }.bind(this));
             return cell;
         }
+    });
+
+    Sao.View.Tree.TextColum = Sao.class_(Sao.View.Tree.CharColumn, {
+        class_: 'column-text'
     });
 
     Sao.View.Tree.IntegerColumn = Sao.class_(Sao.View.Tree.CharColumn, {
@@ -1500,7 +1512,7 @@
         },
         render: function(record) {
             var button = new Sao.common.Button(this.attributes);
-            button.el.click(record, this.button_clicked.bind(this));
+            button.el.click([record, button], this.button_clicked.bind(this));
             var fields = jQuery.map(this.screen.model.fields,
                 function(field, name) {
                     if ((field.description.loading || 'eager') ==
@@ -1517,7 +1529,8 @@
             return button.el;
         },
         button_clicked: function(event) {
-            var record = event.data;
+            var record = event.data[0];
+            var button = event.data[1];
             if (record != this.screen.current_record) {
                 return;
             }
@@ -1525,7 +1538,12 @@
             if (states.invisible || states.readonly) {
                 return;
             }
-            this.screen.button(this.attributes);
+            button.el.prop('disabled', true);
+            try {
+                this.screen.button(this.attributes);
+            } finally {
+                button.el.prop('disabled', false);
+            }
         }
     });
 

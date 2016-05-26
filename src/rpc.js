@@ -13,13 +13,16 @@
 
         var timeoutID = Sao.common.processing.show();
         var ajax_prm = jQuery.ajax({
+            'headers': {
+                'Authorization': 'Session ' + session.get_auth()
+            },
             'contentType': 'application/json',
             'data': JSON.stringify(Sao.rpc.prepareObject({
                 'method': args.method,
-                'params': [session.user_id, session.session].concat(params)
+                'params': params
             })),
             'dataType': 'json',
-            'url': '/' + (session.database || ''),
+            'url': '/' + (session.database || '') + '/',
             'type': 'post',
             'complete': [function() {
                 Sao.common.processing.hide(timeoutID);
@@ -80,7 +83,7 @@
                                 'glyphicon-alert').always(dfd.reject);
                         return;
                     }
-                } else if (data.error[0] == 'NotLogged') {
+                } else if (data.error[0].startsWith('403')) {
                     //Try to relog
                     Sao.Session.renew(session).then(function() {
                         Sao.rpc(args, session).then(dfd.resolve, dfd.reject);

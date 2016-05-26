@@ -275,7 +275,7 @@
     Sao.common.timedelta.DEFAULT_CONVERTER.w =
         Sao.common.timedelta.DEFAULT_CONVERTER.d * 7;
     Sao.common.timedelta.DEFAULT_CONVERTER.M =
-        Sao.common.timedelta.DEFAULT_CONVERTER.w * 4;
+        Sao.common.timedelta.DEFAULT_CONVERTER.d * 30;
     Sao.common.timedelta.DEFAULT_CONVERTER.Y =
         Sao.common.timedelta.DEFAULT_CONVERTER.d * 365;
     Sao.common.timedelta._get_separator = function() {
@@ -1137,7 +1137,7 @@
                 if ((operator == 'ilike') || (operator == 'not ilike')) {
                     value = this.likify(value);
                 }
-                new_domain = this.append_ending_clause(domain,
+                var new_domain = this.append_ending_clause(domain,
                         [field.name, operator, value], deep);
                 new_domain_string = this.string(new_domain);
                 results.push(pslice(new_domain_string, deep));
@@ -3115,7 +3115,7 @@
                 el, source, match_selected, format);
         completion.set_actions([
                 ['search', Sao.i18n.gettext('Search...')],
-                ['create', Sao.i18n.gettext('Create..')]],
+                ['create', Sao.i18n.gettext('Create...')]],
                 action_activated);
     };
 

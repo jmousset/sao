@@ -361,7 +361,12 @@
         },
         button_clicked: function(event) {
             var button = event.data;
-            this.screen.button(button.attributes);
+            button.el.prop('disabled', true);
+            try {
+                this.screen.button(button.attributes);
+            } finally {
+                button.el.prop('disabled', false);
+            }
         },
         selected_records: function() {
             if (this.screen.current_record) {
@@ -646,32 +651,9 @@
         }
     });
 
-    Sao.View.Form.Separator = Sao.class_(Sao.View.Form.StateWidget, {
-        init: function(text, attributes) {
-            Sao.View.Form.Separator._super.init.call(this, attributes);
-            this.el = jQuery('<div/>', {
-                'class': 'form-separator'
-            });
-            if (text) {
-                this.el.append(jQuery('<label/>', {
-                    text: text
-                }));
-            }
-            this.el.append(jQuery('<hr/>'));
-        }
-    });
-
-    Sao.View.Form.Label = Sao.class_(Sao.View.Form.StateWidget, {
-        class_: 'form-label',
-        init: function(text, attributes) {
-            Sao.View.Form.Label._super.init.call(this, attributes);
-            this.el = jQuery('<label/>', {
-                text: text,
-                'class': this.class_ + ' form-label'
-            });
-        },
+    Sao.View.Form.LabelMixin = Sao.class_(Sao.View.Form.StateWidget, {
         set_state: function(record) {
-            Sao.View.Form.Label._super.set_state.call(this, record);
+            Sao.View.Form.LabelMixin._super.set_state.call(this, record);
             var field;
             if (this.attributes.name && record) {
                 field = record.model.fields[this.attributes.name];
@@ -681,7 +663,7 @@
                 if (record) {
                     text = field.get_client(record) || '';
                 }
-                this.el.val(text);
+                this.label_el.val(text);
             }
             var state_changes;
             if (record) {
@@ -691,17 +673,44 @@
             }
             if ((field && field.description.required) ||
                     state_changes.required) {
-                this.el.addClass('required');
+                this.label_el.addClass('required');
             } else {
-                this.el.removeClass('required');
+                this.label_el.removeClass('required');
             }
             if ((field && field.description.readonly) ||
                     state_changes.readonly) {
-                this.el.removeClass('editable');
-                this.el.removeClass('required');
+                this.label_el.removeClass('editable');
+                this.label_el.removeClass('required');
             } else {
-                this.el.addClass('editable');
+                this.label_el.addClass('editable');
             }
+        }
+    });
+
+    Sao.View.Form.Separator = Sao.class_(Sao.View.Form.LabelMixin, {
+        init: function(text, attributes) {
+            Sao.View.Form.Separator._super.init.call(this, attributes);
+            this.el = jQuery('<div/>', {
+                'class': 'form-separator'
+            });
+            if (text) {
+            	this.label_el = jQuery('<label/>', {
+                    text: text
+                });
+                this.el.append(this.label_el);
+            }
+            this.el.append(jQuery('<hr/>'));
+        }
+    });
+
+    Sao.View.Form.Label = Sao.class_(Sao.View.Form.LabelMixin, {
+        class_: 'form-label',
+        init: function(text, attributes) {
+            Sao.View.Form.Label._super.init.call(this, attributes);
+            this.el = this.label_el = jQuery('<label/>', {
+                text: text,
+                'class': this.class_ + ' form-label'
+            });
         }
     });
 

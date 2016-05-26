@@ -452,6 +452,7 @@
             this.fields = {};
             this._timestamp = null;
             this.attachment_count = -1;
+            this.unread_note = -1;
             this.state_attrs = {};
             this.autocompletion = {};
             this.exception = false;
@@ -807,7 +808,10 @@
             }
             return dfd;
         },
-        set_default: function(values) {
+        set_default: function(values, validate) {
+            if (validate === null) {
+                validate = true;
+            }
             var promises = [];
             var fieldnames = [];
             for (var fname in values) {
@@ -834,12 +838,17 @@
             return jQuery.when.apply(promises).then(function() {
                 return this.on_change(fieldnames).then(function() {
                     return this.on_change_with(fieldnames).then(function() {
-                        return this.validate(null, true).then(function() {
+                        var callback = function() {
                             return this.group.root_group().screens
                                 .forEach(function(screen) {
                                     return screen.display();
                                 });
-                        }.bind(this));
+                        }.bind(this);
+                        if (validate) {
+                            return this.validate(null, true).then(callback);
+                        } else {
+                            return callback();
+                        }
                     }.bind(this));
                 }.bind(this));
             }.bind(this));
@@ -1187,6 +1196,28 @@
                 }.bind(this));
             } else {
                 prm.resolve(this.attachment_count);
+            }
+            return prm;
+        },
+        get_unread_note: function(reload) {
+            var prm = jQuery.Deferred();
+            if (this.id < 0) {
+                prm.resolve(0);
+                return prm;
+            }
+            if ((this.unread_note < 0) || reload) {
+                prm = Sao.rpc({
+                    method: 'model.ir.note.search_count',
+                    params: [
+                        [['resource', '=', this.model.name + ',' + this.id],
+                        ['unread', '=', true]],
+                        this.get_context()]
+                }, this.model.session).then(function(count) {
+                    this.unread_note = count;
+                    return count;
+                }.bind(this));
+            } else {
+                prm.resolve(this.unread_note);
             }
             return prm;
         }
@@ -1766,7 +1797,10 @@
                         if (!val.hasOwnProperty(fieldname)) {
                             continue;
                         }
-                        field_names[fieldname] = true;
+                        if (!(fieldname in group.model.fields) &&
+                                (!~fieldname.indexOf('.'))) {
+                            field_names[fieldname] = true;
+                        }
                     }
                 });
                 if (!jQuery.isEmptyObject(field_names)) {
@@ -1794,10 +1828,10 @@
                     value.forEach(function(vals) {
                         var new_record = group.new_(false);
                         if (default_) {
-                            promises.push(new_record.set_default(vals));
+                            // Don't validate as parent will validate
+                            promises.push(new_record.set_default(vals, false));
                             group.add(new_record);
                         } else {
-                            new_record.id *= 1;
                             new_record.set(vals);
                             group.push(new_record);
                         }

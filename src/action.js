@@ -52,11 +52,11 @@
                 ctx = jQuery.extend(ctx, session.context);
                 var eval_ctx = jQuery.extend({}, ctx);
                 eval_ctx._user = session.user_id;
-                params.context = new Sao.PYSON.Decoder(eval_ctx).decode(
-                        action.pyson_context || '{}');
+                params.context = jQuery.extend(
+                        {}, context, new Sao.PYSON.Decoder(eval_ctx).decode(
+                            action.pyson_context || '{}'));
                 ctx = jQuery.extend(ctx, params.context);
                 ctx = jQuery.extend(ctx, context);
-                params.context = jQuery.extend(params.context, context);
 
                 var domain_context = jQuery.extend({}, ctx);
                 domain_context.context = ctx;
@@ -85,6 +85,7 @@
                 }
                 params.model = action.res_model || data.res_model;
                 params.res_id = action.res_id || data.res_id;
+                params.context_model = action.context_model;
                 params.limit = action.limit;
                 params.icon = action['icon.rec_name'] || '';
                 Sao.Tab.create(params);
