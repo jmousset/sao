@@ -393,7 +393,6 @@
             });
             screen.switch_view().done(function() {
                 screen.search_filter();
-                screen.group.parent = record;
             });
             Sao.Window.Attachment._super.init.call(this, screen, this.callback,
                 {view_type: 'tree'});
@@ -404,7 +403,7 @@
                 var resource = this.screen.group.model.fields.resource;
                 this.screen.group.forEach(function(record) {
                     resource.set_client(record, this.resource);
-                });
+                }.bind(this));
                 prm = this.screen.group.save();
             }
             if (this.attachment_callback) {
@@ -427,7 +426,6 @@
             });
             screen.switch_view().done(function() {
                 screen.search_filter();
-                screen.group.parent = record;
             });
             Sao.Window.Note._super.init.call(this, screen, this.callback,
                     {view_type: 'tree'});
