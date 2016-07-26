@@ -775,6 +775,14 @@
         default_get: function() {
             var dfd = jQuery.Deferred();
             var promises = [];
+            // Ensure promisses is filled before default_get is resolved
+            for (var fname in this.model.fields) {
+                var field = this.model.fields[fname];
+                if (field.description.autocomplete &&
+                        field.description.autocomplete.length > 0) {
+                    promises.push(this.do_autocomplete(fname));
+                }
+            }
             if (!jQuery.isEmptyObject(this.model.fields)) {
                 var prm = this.model.execute('default_get',
                         [Object.keys(this.model.fields)], this.get_context());
@@ -793,18 +801,11 @@
                                 this.group.parent.id;
                         }
                     }
-                    this.set_default(values);
-                    jQuery.when.apply(promises).then(function() {
+                    promises.push(this.set_default(values));
+                    jQuery.when.apply(jQuery, promises).then(function() {
                         dfd.resolve(values);
                     });
                 }.bind(this));
-            }
-            for (var fname in this.model.fields) {
-                var field = this.model.fields[fname];
-                if (field.description.autocomplete &&
-                        field.description.autocomplete.length > 0) {
-                    promises.push(this.do_autocomplete(fname));
-                }
             }
             return dfd;
         },
@@ -835,7 +836,7 @@
                 this._loaded[fname] = true;
                 fieldnames.push(fname);
             }
-            return jQuery.when.apply(promises).then(function() {
+            return jQuery.when.apply(jQuery, promises).then(function() {
                 return this.on_change(fieldnames).then(function() {
                     return this.on_change_with(fieldnames).then(function() {
                         var callback = function() {
@@ -1024,7 +1025,7 @@
                 }
                 promises.push(this.do_autocomplete(fname));
             }
-            return jQuery.when.apply(promises);
+            return jQuery.when.apply(jQuery, promises);
         },
         do_autocomplete: function(fieldname) {
             this.autocompletion[fieldname] = [];
@@ -1069,6 +1070,10 @@
                     }
                 });
                 for (var fname in this.model.fields) {
+                    // Skip not loaded fields if sync and record is not new
+                    if (sync && this.id >= 0 && !(fname in this._loaded)) {
+                        continue;
+                    }
                     if (!this.model.fields.hasOwnProperty(fname)) {
                         continue;
                     }
@@ -1122,7 +1127,7 @@
             if (!jQuery.isEmptyObject(fields)) {
                 var result = true;
                 fields.forEach(function(field) {
-                    if (!(field in this._loaded) | !(field in this._changed)) {
+                    if (!(field in this._loaded) && !(field in this._changed)) {
                         result = false;
                     }
                 }.bind(this));
@@ -1133,7 +1138,7 @@
         },
         root_parent: function root_parent() {
             var parent = this;
-            while (!parent.group.parent) {
+            while (parent.group.parent) {
                 parent = parent.group.parent;
             }
             return parent;
@@ -1325,9 +1330,6 @@
         },
         changed: function(record) {
             var prms = [];
-            if (this.get_state_attrs(record).readonly) {
-                return jQuery.when();
-            }
             prms.push(record.on_change([this.name]));
             prms.push(record.on_change_with([this.name]));
             prms.push(record.autocomplete_with(this.name));
@@ -1726,7 +1728,13 @@
                 Sao.rpc({
                     'method': 'model.' + model_name + '.read',
                     'params': [[value], ['rec_name'], record.get_context()]
-                }, record.model.session).done(store_rec_name.bind(this));
+                }, record.model.session).done(store_rec_name.bind(this)).done(
+                        function() {
+                            record.group.root_group().screens.forEach(
+                                function(screen) {
+                                    screen.display();
+                            });
+                       });
             } else {
                 store_rec_name.call(this, [{'rec_name': rec_name}]);
             }
@@ -1837,7 +1845,7 @@
                         }
                     });
                 }
-                return jQuery.when.apply(promises);
+                return jQuery.when.apply(jQuery, promises);
             };
             return prm.then(set_value);
         },
@@ -2293,8 +2301,8 @@
             return data;
         },
         get_data: function(record) {
-            var prm;
-            var data = record._values[this.name] || 0;
+            var data = record._values[this.name] || [];
+            var prm = jQuery.when(data);
             if (!(data instanceof Uint8Array)) {
                 if (record.id < 0) {
                     return prm;
@@ -2304,8 +2312,6 @@
                     context).then(function(data) {
                         return data[0][this.name];
                     }.bind(this));
-            } else {
-                prm = jQuery.when(data);
             }
             return prm;
         }
