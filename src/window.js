@@ -492,13 +492,16 @@
                 e.preventDefault();
             }.bind(this));
 
+            // !!!> "editable: false" allow us to disable the editable
+            //      behavoir of the TreeViews contained in the search window
             this.screen = new Sao.Screen(model, {
                 mode: ['tree'],
                 context: this.context,
                 domain: this.domain,
                 view_ids: kwargs.view_ids,
                 views_preload: views_preload,
-                row_activate: this.activate.bind(this)
+                row_activate: this.activate.bind(this),
+                editable: false
             });
             this.screen.load_next_view().done(function() {
                 this.screen.switch_view().done(function() {

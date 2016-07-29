@@ -6,8 +6,9 @@
     Sao.ScreenContainer = Sao.class_(Object, {
         init: function(tab_domain) {
             this.alternate_viewport = jQuery('<div/>', {
-                'class': 'screen-container'
+                'class': 'screen-container scrollable'
             });
+            // !!!> width issue in modals
             this.alternate_view = false;
             this.search_modal = null;
             this.search_form = null;
@@ -594,9 +595,10 @@
             this.views_preload = attributes.views_preload || {};
             this.exclude_field = attributes.exclude_field;
             this.context = attributes.context || {};
-            this.new_group();
             this.current_view = null;
             this.current_record = null;
+            // !!!> report from gtk
+            this.new_group();
             this.domain = attributes.domain || [];
             this.size_limit = null;
             this.limit = attributes.limit || Sao.config.limit;
@@ -643,6 +645,9 @@
             this._domain_parser = {};
             this.pre_validate = false;
             this.tab = null;
+            // !!!> used for group_sync
+            // [Coog] multi_mixed_view
+            this.parent = null;
         },
         load_next_view: function() {
             if (!jQuery.isEmptyObject(this.view_to_load)) {
@@ -692,7 +697,9 @@
                 }
             }
             this.model.add_fields(fields);
-            var view_widget = Sao.View.parse(this, xml_view, view.field_childs);
+            // [Coog] multi_mixed_view
+            var view_widget = Sao.View.parse(this, xml_view, view.field_childs,
+                view.children_definitions);
             view_widget.view_id = view_id;
             this.views.push(view_widget);
 
@@ -848,6 +855,8 @@
             this.set_group(group);
         },
         set_current_record: function(record) {
+            // !!!> called when current record changes
+            var changed = this.current_record !== record;
             this.current_record = record;
             // TODO position
             if (this.tab) {
@@ -862,6 +871,12 @@
                 }
                 this.tab.record_message();
             }
+            // !!!> group_sync
+            // [Coog] multi_mixed_view
+            if (this.parent && changed){
+                this.parent.group_sync(this, this.current_record);
+            }
+
         },
         display: function(set_cursor) {
             var deferreds = [];
@@ -992,10 +1007,12 @@
                 var record = group.new_(default_);
                 group.add(record, this.new_model_position());
                 this.set_current_record(record);
-                this.display().done(function() {
+                return this.display().then(function() {
                     this.set_cursor(true, true);
+                    // !!!> add display()'s promise to the returned promise
+                    //    > then return record as expected
+                    return record;
                 }.bind(this));
-                return record;
             }.bind(this));
         },
         new_model_position: function() {
@@ -1121,7 +1138,7 @@
             var path = top_record.get_path(this.group);
             return prm.then(function() {
                 records.forEach(function(record) {
-                    record.group.remove(record, remove, true, force_remove);
+                    record.group.remove(record, remove, true, force_remove, false);
                 });
                 var prms = [];
                 if (delete_) {
@@ -1364,7 +1381,7 @@
             this.current_view.set_value();
             return this.current_record.get_on_change_value();
         },
-        reload: function(ids, written) {
+        reload: function(ids, written, no_display) {
             this.group.reload(ids);
             if (written) {
                 this.group.written(ids);
@@ -1372,7 +1389,8 @@
             if (this.group.parent) {
                 this.group.parent.root_parent().reload();
             }
-            this.display();
+            if (!no_display)
+                this.display();
         },
         get_buttons: function() {
             var selected_records = this.current_view.selected_records();
@@ -1398,7 +1416,14 @@
         button: function(attributes) {
             var ids;
             var process_action = function(action) {
-                this.reload(ids, true);
+                // !!!> call display() only when needed
+                if (action && typeof action == 'string' &&
+                    action.indexOf('delete') > -1)
+                    this.reload(ids, true, true);
+                else if (action && typeof action != 'string')
+                    this.reload(ids, true, true);
+                else
+                    this.reload(ids, true);
                 if (typeof action == 'string') {
                     this.client_action(action);
                 }
@@ -1474,6 +1499,13 @@
         },
         client_action: function(action) {
             var access = Sao.common.MODELACCESS.get(this.model_name);
+            // [Coog] Allow multiple actions
+            var actions = action.split(',');
+            for (var i in actions){
+                this.do_single_action(actions[i], access);
+            }
+        },
+        do_single_action: function(action, access) {
             if (action == 'new') {
                 if (access.create) {
                     this.new_();
@@ -1495,7 +1527,8 @@
             } else if (action == 'previous') {
                 this.display_previous();
             } else if (action == 'close') {
-                Sao.Tab.close_current();
+                // [Bug sao]
+                Sao.Tab.tabs.close_current();
             } else if (action.startsWith('switch')) {
                 var view_type = action.split(' ')[1];
                 this.switch_view(view_type);

@@ -229,7 +229,7 @@ var Sao = {};
                     (preferences.actions || []).forEach(function(action_id) {
                         Sao.Action.execute(action_id, {}, null, {});
                     });
-                    var title = 'Tryton';
+                    var title = 'Coog';
                     if (!jQuery.isEmptyObject(preferences.status_bar)) {
                         title += ' - ' + preferences.status_bar;
                     }
@@ -265,7 +265,7 @@ var Sao = {};
             jQuery('#user-preferences').children().remove();
             jQuery('#user-logout').children().remove();
             jQuery('#menu').children().remove();
-            document.title = 'Tryton';
+            document.title = 'Coog';
             session.do_logout().always(Sao.login);
         });
     };

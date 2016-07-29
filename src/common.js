@@ -2576,7 +2576,8 @@
         },
         run: function() {
             if (this.running) {
-                return;
+                // !!!> [Bug Sao] can't apply always() if no promise returned
+                return this.running;
             }
             var args = Array.prototype.slice.call(arguments);
             var prm = jQuery.Deferred();
@@ -2586,7 +2587,7 @@
                 dialog.footer.find('button.btn-primary').first().click();
                 evt.preventDefault();
             }.bind(this));
-            this.running = true;
+            this.running = prm;
             dialog.modal.modal('show');
             dialog.modal.on('shown.bs.modal', function() {
                 dialog.modal.find('input,select')

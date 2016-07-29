@@ -292,7 +292,11 @@
                         this.screen.current_view.attributes.string);
                 this.el.append(screen.screen_container.el);
                 if (attributes.res_id) {
-                    screen.group.load([attributes.res_id]);
+                    // [Bug sao] attributes.res_id could already be an array
+                    if (Number.isInteger(attributes.res_id)){
+                        attributes.res_id = [attributes.res_id];
+                    }
+                    screen.group.load(attributes.res_id);
                     screen.set_current_record(
                         screen.group.get(attributes.res_id));
                     screen.display();
@@ -577,6 +581,8 @@
                             this.info_bar.message(
                                     Sao.i18n.gettext('Records removed.'),
                                     'info');
+                            // !!!> close tab after deletion
+                            Sao.Tab.tabs.close_current();
                         }.bind(this), function() {
                             this.info_bar.message(
                                     Sao.i18n.gettext('Records not removed.'),

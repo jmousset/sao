@@ -301,7 +301,7 @@
                 if (name in promesses) {
                     prm = promesses[name];
                 }
-                prm.done(function() {
+                promesses[name] = prm.done(function() {
                     field.set_state(record);
                 });
             };
@@ -311,8 +311,8 @@
                     if (name in promesses) {
                         prm = promesses[name];
                     }
-                    prm.done(function() {
-                        widget.display(record, field);
+                    promesses[name] = prm.then(function() {
+                        return widget.display(record, field);
                     });
                 };
             };
@@ -862,6 +862,9 @@
                 return Sao.View.Form.ProgressBar;
             case 'dict':
                 return Sao.View.Form.Dict;
+            case 'source':
+                // [Coog] widget Source (engine)
+                return Sao.View.Form.Source;
         }
     };
 
@@ -948,6 +951,305 @@
             } else {
                 this.el.show();
             }
+        }
+    });
+
+    // [Coog] widget Source (engine)
+    function TreeElement(){
+        this.init = function(parent, element, good_text, lvl){
+            if (!element || !element.description)
+                return false;
+
+            this.help       = good_text || '';
+            this.parent     = parent || null;
+            this.element    = element;
+            this.title      = element.description;
+            this.code       = element.translated + '(' + element.fct_args + ')';
+            this.lvl        = lvl;
+            this.el         = this.init_tree_element();
+            this.childs     = [];
+            this.visible    = true;
+            this.is_parent  = false;
+            this.expanded   = false;
+
+            if (this.parent){
+                this.parent.append_children(this);
+                var spacer = '';
+                while(lvl--)
+                    spacer = spacer + '\t';
+                this.set_visibility(false);
+            }
+            return true;
+        };
+        this.set_visibility = function(visible){
+            if (visible){
+                this.el.show();
+                if (this.is_parent && this.expanded)
+                    for (var j in this.childs)
+                        this.childs[j].set_visibility(visible);
+            } else{
+                this.el.hide();
+                for (var i in this.childs)
+                    this.childs[i].set_visibility(visible);
+            }
+            this.visible = visible;
+        };
+        this.init_tree_element = function(){
+            var td, table, tbody, tr, expander, content, text;
+            var tr_container, td_container;
+
+            tr_container = jQuery('<tr/>').css({
+                'display': 'inline-block',
+                'width': '100%'
+            });
+            td_container = jQuery('<td/>').appendTo(tr_container).css({
+                'display': 'inline-block',
+                'width': '100%'
+            });
+            td = jQuery('<td/>').appendTo(td_container);
+            td.css('overflow', 'hidden');
+            table = jQuery('<table/>').appendTo(td).css('width', '100%');
+            tbody = jQuery('<tbody/>').appendTo(table);
+            tr = jQuery('<tr/>').appendTo(tbody);
+            this.expander = jQuery('<td/>', {
+                'class': 'expander'
+            }).appendTo(tr);
+            this.expander.css({
+                'width': parseInt(this.lvl * 30) + 'px',
+                'display': 'inline-block'
+            });
+            content = jQuery('<td/>').appendTo(tr);
+            text = jQuery('<p/>', {
+                'draggable': 'true',
+                'data-toggle': 'tooltip',
+                'title': this.help
+            }).appendTo(content).text(this.title);
+
+            /*event managment*/
+            //!!!> need testing on other browsers
+            text[0].addEventListener('dragstart', function(event){
+                event.dataTransfer.setData("text", this.code);
+            }.bind(this));
+
+            tr_container[0].addEventListener('click', function(event){
+                if (this.is_parent)
+                    this.set_expander(!this.expanded);
+                for (var i in this.childs){
+                    this.childs[i].set_visibility(this.expanded);
+                }
+            }.bind(this));
+
+            return tr_container;
+        };
+        this.get_element = function(){
+            return this.el;
+        };
+        this.set_expander = function(expanded){
+            var icon = '';
+            if (expanded)
+                icon = 'minus';
+            else
+                icon = 'plus';
+
+            this.expander.empty();
+            var span = jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-' + icon
+            }).appendTo(this.expander);
+            span.html('&nbsp;');
+            span.css({
+                'float': 'right'
+            });
+            this.expanded = expanded;
+        };
+        this.append_children = function(children){
+            this.childs.push(children);
+            if (!this.is_parent){
+                this.set_expander(false);
+                this.is_parent = true;
+            }
+        };
+    }
+
+    // [Coog] widget Source (engine)
+    Sao.View.Form.Source = Sao.class_(Sao.View.Form.Widget, {
+        class_: 'form-source',
+        init: function(field_name, model, attributes) {
+            Sao.View.Form.Source._super.init.call(this, field_name, model,
+                attributes);
+            this.el = jQuery('<div/>', {
+                'class': this.class_
+            });
+            this.tree_data_field = attributes.context_tree || null;
+
+            this.init_tree(4);
+            this.init_editor(8);
+
+            this.tree_data = [];
+            this.tree_elements = [];
+            this.value = '';
+            this.json_data = '';
+        },
+        init_editor: function(width){
+            var button_apply_command = function(evt) {
+                var success = document.execCommand(evt.data);
+                // if (!success)
+                //     my_custom_exec(evt.data);
+            };
+
+            var add_buttons = function(buttons) {
+                var i, properties, button;
+                var group = jQuery('<div/>', {
+                    'class': 'btn-group',
+                    'role': 'group'
+                }).appendTo(this.toolbar);
+                for (i in buttons) {
+                    properties = buttons[i];
+                    button = jQuery('<button/>', {
+                        'class': 'btn btn-default',
+                        'type': 'button'
+                    }).append(jQuery('<span/>', {
+                        'class': 'glyphicon glyphicon-' + properties.icon
+                    })).appendTo(group);
+                    button.click(properties.command, button_apply_command);
+                }
+            }.bind(this);
+            this.sc_editor = jQuery('<div/>', {
+                'class': 'panel panel-default col-md-' + parseInt(width)
+            }).appendTo(this.el).css('padding', '0');
+
+            this.toolbar = jQuery('<div/>', {
+                'class': 'btn-toolbar',
+                'role': 'toolbar'
+            }).appendTo(jQuery('<div/>', {
+                'class': 'panel-heading'
+            }).appendTo(this.sc_editor));
+            this.toolbar.css('width', '100%');
+
+            add_buttons([
+                    {
+                        'icon': 'arrow-left',
+                        'command': 'undo'
+                    }, {
+                        'icon': 'arrow-right',
+                        'command': 'redo'
+                    }, {
+                        'icon': 'ok',
+                        'command': 'check'
+                    }]);
+
+            this.input = jQuery('<div/>', {
+                'class': 'richtext pre',
+                'contenteditable': true
+            }).appendTo(jQuery('<div/>', {
+                'class': 'panel-body'
+            }).appendTo(this.sc_editor).css('padding', '5px'));
+            this.input.css({
+                'height': '33em',
+                'overflow': 'auto'
+            });
+        },
+        init_tree: function(width){
+            var container = jQuery('<div/>', {
+                'class': 'col-md-' + parseInt(width)
+            }).appendTo(this.el);
+            this.sc_tree = jQuery('<div/>', {
+                'class': 'treeview responsive'
+            }).appendTo(container).css('padding', '0');
+
+            this.table = jQuery('<table/>', {
+                'class': 'tree table table-hover'
+            }).appendTo(this.sc_tree);
+
+            this.tbody = jQuery('<tbody/>').appendTo(this.table);
+            this.tbody.css({
+                'display': 'block',
+                'height': '35em'
+            });
+        },
+        display: function(record, field){
+            Sao.View.Form.Source._super.display.call(this, record, field);
+
+            var display_code = function(str){
+                var lines = str.split('\n');
+                var ret = [];
+                for (var i in lines){
+                    jQuery('<div/>').appendTo(this.input).text(lines[i]).css(
+                        'font-family', 'monospace'
+                    );
+                }
+            }.bind(this);
+
+            var display_tree = function(){
+                var tree_data, json_data;
+                json_data = record.field_get_client(this.tree_data_field);
+                if (json_data){
+                    if (json_data != this.json_data){
+                        this.clear_tree();
+                        this.json_data = json_data;
+                        tree_data = JSON.parse(this.json_data);
+                        this.populate_tree(tree_data);
+                    }
+                }else {
+                    this.tree_data = [];
+                    this.clear_tree();
+                }
+            }.bind(this);
+
+            var value = field.get_client(record);
+            if (value != this.value){
+                this.value = value;
+                this.input.empty();
+                display_code(this.value);
+            }
+
+            if (this.tree_data_field){
+                if (!record)
+                    return;
+                record.load(this.tree_data_field).then(display_tree);
+            }
+        },
+        append_tree_element: function(parent, element, good_text, iter_lvl){
+            var treeElem = new TreeElement();
+            if (treeElem.init(parent, element, good_text, iter_lvl)){
+                treeElem.get_element().appendTo(this.tbody);
+                return treeElem;
+            }
+            return null;
+        },
+        clear_tree: function(){
+            this.tbody.empty();
+        },
+        populate_tree: function(tree_data, iter_lvl, parent){
+            var element, cnt;
+            var desc, param_txt, good_text, new_iter;
+
+            if (!iter_lvl)
+                iter_lvl = 1;
+            for (cnt in tree_data){
+                element = tree_data[cnt];
+                desc = element.long_description || '';
+                // !!!> change by sao traduction
+                if (element.fct_args)
+                    param_txt = 'Parameters: ' + element.fct_args;
+                else
+                    param_txt = 'No Parameters';
+                if (desc)
+                    good_text = desc + '\n\n' + param_txt;
+                else
+                    good_text = param_txt;
+                new_iter = this.append_tree_element(parent, element, good_text, iter_lvl);
+                if (element.children && element.children.length > 0)
+                    this.populate_tree(element.children, iter_lvl + 1, new_iter);
+            }
+        },
+        set_value: function(record, field){
+            var content = [];
+            this.input.children('div').each(function(){
+                if (content.length > 0)
+                    content[content.length -1] = content[content.length -1] + '\n';
+                content.push(jQuery(this).text());
+            });
+            field.set_client(record, content.join(''));
         }
     });
 
@@ -1230,9 +1532,11 @@
             });
         },
         display_update_selection: function(record, field) {
+            var dfrd = jQuery.Deferred();
             this.update_selection(record, field, function() {
                 if (!field) {
                     this.select.val('');
+                    dfrd.resolve();
                     return;
                 }
                 var value = field.get(record);
@@ -1246,7 +1550,7 @@
                 if (!found) {
                     prm = Sao.common.selection_mixin.get_inactive_selection
                         .call(this, value);
-                    prm.done(function(inactive) {
+                    prm = prm.done(function(inactive) {
                         this.select.append(jQuery('<option/>', {
                             value: JSON.stringify(inactive[0]),
                             text: inactive[1],
@@ -1258,12 +1562,14 @@
                 }
                 prm.done(function() {
                     this.select.val(JSON.stringify(value));
+                    dfrd.resolve();
                 }.bind(this));
             }.bind(this));
+            return (dfrd.promise());
         },
         display: function(record, field) {
             Sao.View.Form.Selection._super.display.call(this, record, field);
-            this.display_update_selection(record, field);
+            return this.display_update_selection(record, field);
         },
         focus: function() {
             this.select.focus();
@@ -1357,6 +1663,8 @@
         class_: 'form-richtext',
         init: function(field_name, model, attributes) {
             var i, properties, button;
+            // !!!> [issue subscriber_desc]
+            this.is_readonly = false;
             Sao.View.Form.RichText._super.init.call(
                     this, field_name, model, attributes);
             this.el = jQuery('<div/>', {
@@ -1475,7 +1783,7 @@
             }.bind(this));
 
             this.input = this.labelled = jQuery('<div/>', {
-                'class': 'richtext',
+                'class': 'richtext pre',
                 'contenteditable': true
             }).appendTo(jQuery('<div/>', {
                 'class': 'panel-body'
@@ -1504,24 +1812,30 @@
         },
         set_value: function(record, field) {
             // TODO order attributes
-            this.input.find('div').each(function(i, el) {
-                el = jQuery(el);
-                // Not all browsers respect the styleWithCSS
-                if (el.css('text-align')) {
-                    // Remove browser specific prefix
-                    var align = el.css('text-align').split('-').pop();
-                    el.attr('align', align);
-                    el.css('text-align', '');
-                }
-                // Some browsers set start as default align
-                if (el.attr('align') == 'start') {
-                    el.attr('align', 'left');
-                }
-            });
+            // [Bug sao]
+            // !!!> [issue subscriber_desc]
+            //    > don't edit the content when widget is readonly
+            if (!this.is_readonly){
+                this.input.find('div').each(function(i, el) {
+                    el = jQuery(el);
+                    // Not all browsers respect the styleWithCSS
+                    if (el.css('text-align')) {
+                        // Remove browser specific prefix
+                        var align = el.css('text-align').split('-').pop();
+                        el.attr('align', align);
+                        el.css('text-align', '');
+                    }
+                    // Some browsers set start as default align
+                    if (el.attr('align') == 'start') {
+                        el.attr('align', 'left');
+                    }
+                });
+            }
             var value = this.input.html() || '';
             field.set_client(record, value);
         },
         set_readonly: function(readonly) {
+            this.is_readonly = readonly;
             this.input.prop('contenteditable', !readonly);
             this.toolbar.find('button,select').prop('disabled', readonly);
         }
@@ -1581,10 +1895,15 @@
             });
         },
         set_text: function(value) {
+            // !!!> [issue agent_broker]
+            //    > if get_client return a prm, wait for the result before setting text
             if (jQuery.isEmptyObject(value)) {
                 value = '';
             }
-            this.entry.val(value);
+            jQuery.when(value).then(function(text){
+                if (text && typeof text == 'string')
+                    this.entry.val(text);
+            }.bind(this));
         },
         get_text: function() {
             var record = this.record();
@@ -1624,6 +1943,8 @@
                 this.entry.val('');
                 return;
             }
+            // !!!> [issue agent_broker]
+            //    > get_client can now return a prm
             this.set_text(field.get_client(record));
             value = field.get(record);
             if (this.has_target(value)) {
@@ -2163,6 +2484,10 @@
             })).appendTo(buttons);
             this.but_switch.click(this.switch_.bind(this));
 
+            // !!!> hide toolbar
+            if (attributes.expand_toolbar)
+                this.menu.hide();
+
             this.content = jQuery('<div/>', {
                 'class': this.class_ + '-content panel-body'
             });
@@ -2178,6 +2503,9 @@
                 exclude_field: attributes.relation_field || null,
                 pre_validate: attributes.pre_validate
             });
+            // !!!> group_sync
+            if (attributes.group)
+                this.screen.parent = this;
             this.screen.pre_validate = attributes.pre_validate == 1;
             this.prm = this.screen.switch_view(modes[0]).done(function() {
                 this.content.append(this.screen.screen_container.el);
@@ -2186,6 +2514,87 @@
             // TODO key_press
 
             this.but_switch.prop('disabled', this.screen.number_of_views() <= 0);
+        },
+        group_sync: function(screen, current_record){
+            if (this.attributes.mode == 'form')
+                return;
+            if (!this.view || !this.view.widgets)
+                return;
+
+            function is_compatible(screen, record){
+                if (screen.current_view === undefined)
+                    return false;
+
+                return (!(screen.current_view.view_type == 'form' &&
+                    record !== undefined &&
+                    screen.model_name != record.model.name));
+            }
+
+            var key;
+            var record;
+            var widget;
+            var widgets = this.view.widgets[this.field_name];
+            var to_sync = [];
+
+            // !!!> get a list of widgets affected by the new record
+            for (var j = 0; j < widgets.length; j++){
+                widget = widgets[j];
+                if (!widget.hasOwnProperty('attributes')){
+                    return;
+                }
+
+                if (widget == this ||
+                    widget.attributes.group != this.attributes.group ||
+                    !widget.hasOwnProperty('screen')){
+                    continue;
+                }
+
+                if (widget.screen.current_record == current_record){
+                    continue;
+                }
+
+                record = current_record;
+                if (!is_compatible(widget.screen, record))
+                    record = null;
+                if (!widget.validate())
+                    return;
+
+                to_sync.push({'widget': widget, 'record': record});
+            }
+            widget = null;
+
+            // !!!> add fields; change widget's record; display widgets
+            for (var i = 0; i < to_sync.length; i++){
+                widget = to_sync[i].widget;
+                record = to_sync[i].record;
+
+                if (widget.screen.current_view === undefined)
+                    continue;
+
+                // !!!> add widget's fields to the record
+                if (widget.screen.current_view.view_type == 'form' &&
+                    record !== undefined && record !== null &&
+                    widget.screen.group.model.name == record.group.model.name){
+                    var fields = widget.screen.group.model.fields;
+                    // !!!> format fields for method "add_fields"
+                    var ret = [];
+                    for(var name in fields){
+                        ret[name] = fields[name].description;
+                    }
+                    // !!!> initiate and add new fields
+                    record.group.model.add_fields(ret);
+                }
+
+                widget.screen.current_record = record;
+                widget.display(widget.record(), widget.field());
+            }
+            // !!!> resize forms to fix display width
+            if (widget){
+                for (j in widget.view.containers) {
+                    var container = widget.view.containers[j];
+                    container.resize();
+                }
+            }
         },
         set_readonly: function(readonly) {
             this._readonly = readonly;
@@ -2249,7 +2658,12 @@
                 }
 
                 var new_group = record.field_get_client(this.field_name);
-                if (new_group != this.screen.group) {
+
+                // [Coog] multi_mixed_view
+                if (this.attributes.group && this.attributes.mode == 'form'){
+                    if (!this.screen.current_record)
+                        this.set_invisible(true);
+                }else if (new_group && new_group != this.screen.group) {
                     this.screen.set_group(new_group);
                     if ((this.screen.current_view.view_type == 'tree') &&
                             this.screen.current_view.editable) {
@@ -2285,7 +2699,8 @@
             if (!access.write || !access.read) {
                 return;
             }
-            this.view.set_value();
+            // !!!> report from gtk
+            // this.view.set_value();
             var domain = this.field().get_domain(this.record());
             var context = this.field().get_context(this.record());
             domain = [domain,
@@ -2345,6 +2760,7 @@
             }.bind(this));
         },
         new_single: function() {
+            // !!!> never called ??
             var context = jQuery.extend({},
                     this.field().get_context(this.record()));
             // TODO sequence
@@ -2473,7 +2889,8 @@
         },
         validate: function() {
             var prm = jQuery.Deferred();
-            this.view.set_value();
+            // !!!> report from gtk
+            // this.view.set_value();
             var record = this.screen.current_record;
             if (record) {
                 var fields = this.screen.current_view.get_fields();
@@ -2500,6 +2917,12 @@
             return prm;
         },
         set_value: function(record, field) {
+            // !!!> report from gtk
+            if (this.screen.current_view.view_type == 'form' &&
+                this.attributes.group &&
+                this.screen.model.name != record.model.name)
+                return;
+            // <add> self.screen.current_view.set_value()
             this.screen.save_tree_state();
         }
     });
@@ -2568,6 +2991,11 @@
                 'class': 'glyphicon glyphicon-minus'
             })).appendTo(buttons);
             this.but_remove.click(this.remove.bind(this));
+
+            // !!!> hide toolbar
+            // [Coog] expand_toolbar (attribute)
+            if (attributes.expand_toolbar)
+                this.menu.hide();
 
             this.content = jQuery('<div/>', {
                 'class': this.class_ + '-content panel-body'
@@ -3183,15 +3611,16 @@
         init: function(field_name, model, attributes) {
             Sao.View.Form.Dict._super.init.call(
                     this, field_name, model, attributes);
-
             this.schema_model = new Sao.Model(attributes.schema_model);
             this.keys = {};
             this.fields = {};
             this.rows = {};
+            this.no_command = attributes.no_command || false;
 
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
             });
+
             var heading = jQuery('<div/>', {
                 'class': this.class_ + '-heading panel-heading'
             }).appendTo(this.el);
@@ -3212,33 +3641,36 @@
                 'class': this.class_ + '-container'
             }).appendTo(body);
 
-            var group = jQuery('<div/>', {
-                'class': 'input-group input-group-sm'
-            }).appendTo(jQuery('<div>', {
-                'class': 'col-md-12'
-            }).appendTo(jQuery('<div/>', {
-                'class': 'row'
-            }).appendTo(jQuery('<div/>', {
-                'class': 'container-fluid'
-            }).appendTo(body))));
-            this.wid_text = jQuery('<input/>', {
-                'type': 'text',
-                'class': 'form-control input-sm'
-            }).appendTo(group);
+            // [issue - no_command] - hide input line
+            // [Coog] no_command (attribute)
+            if (!this.no_command){
+                var group = jQuery('<div/>', {
+                    'class': 'input-group input-group-sm'
+                }).appendTo(jQuery('<div>', {
+                    'class': 'col-md-12'
+                }).appendTo(jQuery('<div/>', {
+                    'class': 'row'
+                }).appendTo(jQuery('<div/>', {
+                    'class': 'container-fluid'
+                }).appendTo(body))));
+                this.wid_text = jQuery('<input/>', {
+                    'type': 'text',
+                    'class': 'form-control input-sm'
+                }).appendTo(group);
 
-            // TODO completion
+                // TODO completion
 
-            this.but_add = jQuery('<button/>', {
-                'class': 'btn btn-default btn-sm',
-                'type': 'button',
-                'aria-label': Sao.i18n.gettext('Add')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-plus'
-            })).appendTo(jQuery('<div/>', {
-                'class': 'input-group-btn'
-            }).appendTo(group));
-            this.but_add.click(this.add.bind(this));
-
+                this.but_add = jQuery('<button/>', {
+                    'class': 'btn btn-default btn-sm',
+                    'type': 'button',
+                    'aria-label': Sao.i18n.gettext('Add')
+                }).append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-plus'
+                })).appendTo(jQuery('<div/>', {
+                    'class': 'input-group-btn'
+                }).appendTo(group));
+                this.but_add.click(this.add.bind(this));
+            }
             this._readonly = false;
             this._record_id = null;
         },
@@ -3314,7 +3746,9 @@
                 var widget = this.fields[key];
                 widget.set_readonly(readonly);
             }
-            this.wid_text.prop('disabled', readonly);
+            // !!!> this.wid_text not defined on on_command attribute
+            if (!this.no_command)
+                this.wid_text.prop('disabled', readonly);
         },
         _set_button_sensitive: function() {
             var create = this.attributes.create;
@@ -3325,10 +3759,13 @@
             if (delete_ === undefined) {
                 delete_ = true;
             }
-            this.but_add.prop('disabled', this._readonly || !create);
-            for (var key in this.fields) {
-                var button = this.fields[key].button;
-                button.prop('disabled', this._readonly || !delete_);
+            // !!!> but_add and button are not defined on no_command attr
+            if (!this.no_command){
+                this.but_add.prop('disabled', this._readonly || !create);
+                for (var key in this.fields) {
+                    var button = this.fields[key].button;
+                    button.prop('disabled', this._readonly || !delete_);
+                }
             }
         },
         add_line: function(key) {
@@ -3353,10 +3790,23 @@
             field.labelled.attr('aria-labelledby', label.attr('id'));
             label.attr('for', field.labelled.attr('id'));
 
-            field.button.click(function() {
-                this.remove(key, true);
-            }.bind(this));
+            // !!!> hide [-] button on no_command attr
+            // [Coog] no_command (attribute)
+            if (!this.no_command){
+                field.button = jQuery('<button/>', {
+                    'class': 'btn btn-default',
+                    'type': 'button',
+                    'arial-label': Sao.i18n.gettext('Remove')
+                }).append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-minus'
+                })).appendTo(jQuery('<div/>', {
+                    'class': 'input-group-btn'
+                }).appendTo(field.group));
 
+                field.button.click(function() {
+                    this.remove(key, true);
+                }.bind(this));
+            }
             row.appendTo(this.container);
         },
         add_keys: function(keys) {
@@ -3388,7 +3838,6 @@
         },
         display: function(record, field) {
             Sao.View.Form.Dict._super.display.call(this, record, field);
-
             if (!field) {
                 return;
             }
@@ -3432,7 +3881,10 @@
                 }
                 var removed_key_names = Object.keys(this.fields).filter(
                         function(e) {
-                            return !value[e];
+                            // !!!> accept null as a value (for boolean)
+                            // [Bug Sao] server can return null
+                            //           as false for boolean.
+                            return (value[e] === undefined);
                         });
                 for (i = 0, len = removed_key_names.length; i < len; i++) {
                     key = removed_key_names[i];
@@ -3477,23 +3929,15 @@
             });
             var group = jQuery('<div/>', {
                 'class': 'input-group input-group-sm'
-            }).appendTo(this.el);
+            }).appendTo(this.el).css('width', '100%');
+            // !!!> ^ used to expand entries when on_command is setted ^
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
                 'class': 'form-control input-sm'
             }).appendTo(group);
-            this.button = jQuery('<button/>', {
-                'class': 'btn btn-default',
-                'type': 'button',
-                'arial-label': Sao.i18n.gettext('Remove')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-minus'
-            })).appendTo(jQuery('<div/>', {
-                'class': 'input-group-btn'
-            }).appendTo(group));
-
             this.el.change(
                     this.parent_widget.focus_out.bind(this.parent_widget));
+            this.group = group;
         },
         get_value: function() {
             return this.input.val();

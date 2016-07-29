@@ -149,8 +149,10 @@
             // TODO toolbar
             this.widget.append(this.screen.screen_container.el);
 
-            this.screen.new_(false);
-            this.screen.current_record.set_default(defaults);
+            // !!!> [issue package drop down]
+            this.screen.new_(false).then(function(){
+                return this.screen.current_record.set_default(defaults);
+            }.bind(this));
             this.screen.set_cursor();
         }
     });
@@ -280,7 +282,15 @@
                     }
                 }
             }.bind(this));
-            this.dialog.modal('hide');
+            if (this.dialog.is(':visible')){
+                // !!!> boostrap method to hide modal and the grey background as well
+                this.dialog.modal('hide');
+            }
+            else{
+                // !!!> some wizard can be execute on background (therefore not visible)
+                this.dialog.trigger('hidden.bs.modal');
+            }
+
         },
         end: function() {
             return Sao.Wizard.Dialog._super.end.call(this).then(

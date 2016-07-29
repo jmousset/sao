@@ -57,6 +57,7 @@
                             action.pyson_context || '{}'));
                 ctx = jQuery.extend(ctx, params.context);
                 ctx = jQuery.extend(ctx, context);
+                ctx = jQuery.extend(ctx, data.extra_context || {});
 
                 var domain_context = jQuery.extend({}, ctx);
                 domain_context.context = ctx;
@@ -95,6 +96,8 @@
                 params.data = data;
                 params.name = action.name;
                 params.context = context;
+                params.context = jQuery.extend(
+                    params.context, data.extra_context || {});
                 params.window = action.window;
                 Sao.Wizard.create(params);
                 return;

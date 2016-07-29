@@ -50,7 +50,7 @@
     };
 
     Sao.View.Tree = Sao.class_(Sao.View, {
-        init: function(screen, xml, children_field) {
+        init: function(screen, xml, children_field, children_definitions) {
             Sao.View.Tree._super.init.call(this, screen, xml);
             this.view_type = 'tree';
             this.selection_mode = (screen.attributes.selection_mode ||
@@ -60,7 +60,15 @@
             });
             this.expanded = {};
             this.children_field = children_field;
-            this.editable = Boolean(this.attributes.editable);
+            this.children_definitions = children_definitions;
+            // [Coog] always_expand (attribute)
+            this.always_expand = this.attributes.always_expand || null;
+            // [Bug Sao] set search windows readonly
+            if (screen.attributes.editable !== undefined){
+                this.editable = screen.attributes.editable;
+            } else{
+                this.editable = Boolean(this.attributes.editable);
+            }
 
             // Columns
             this.columns = [];
@@ -450,8 +458,8 @@
             return row;
         },
         n_children: function(row) {
-            if (!row || !this.children_field) {
-                return this.rows.length;
+            if (!row || !this.children_field || row.is_leaf()) {
+                    return this.rows.length;
             }
             return row.record._values[this.children_field].length;
         },
@@ -512,6 +520,7 @@
             this.record = record;
             this.parent_ = parent;
             this.children_field = tree.children_field;
+            this.children_definitions = tree.children_definitions;
             this.expander = null;
             var path = [];
             if (parent) {
@@ -634,7 +643,8 @@
             }
             var row_id_path = this.get_id_path();
             if (this.is_expanded() ||
-                    Sao.common.contains(expanded, row_id_path)) {
+                    Sao.common.contains(expanded, row_id_path) ||
+                    (this.tree.always_expand && !this.is_leaf())) {
                 this.tree.expanded[this.path] = this;
                 this.expand_children(selected, expanded);
             }
@@ -647,26 +657,36 @@
             }
             return jQuery(row.children()[column_index + child_offset]);
         },
+        is_leaf: function(){
+            return !this.record.model.fields.hasOwnProperty(this.children_field);
+        },
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
             var update_expander = function() {
-                if (jQuery.isEmptyObject(
-                            this.record.field_get(
-                                this.children_field))) {
+                // !!!> if children_field is not in model.fields -> last tree element
+                // !!!> hide expander
+                if (this.is_leaf() || jQuery.isEmptyObject(
+                        this.record.field_get(this.children_field))){
                     this.expander.css('visibility', 'hidden');
                 }
             };
 
             for (var i = 0; i < this.tree.columns.length; i++) {
                 if ((i === 0) && this.children_field) {
-                    this.record.load(this.children_field).done(
-                        update_expander.bind(this));
+                    // !!!> load '*' if record is the last children
+                    if (!this.is_leaf())
+                        this.record.load(this.children_field).done(
+                            update_expander.bind(this));
+                    else
+                        this.record.load('*').done(
+                            update_expander.bind(this));
                 }
                 var column = this.tree.columns[i];
                 var td = this._get_column_td(i);
                 var tr = td.find('tr');
                 if (column.prefixes) {
+
                     for (var j = 0; j < column.prefixes.length; j++) {
                         var prefix = column.prefixes[j];
                         jQuery(tr.children('.prefix')[j])
@@ -752,6 +772,7 @@
                 if (!jQuery.isEmptyObject(this.rows)) {
                     return;
                 }
+
                 var add_row = function(record, pos, group) {
                     var tree_row = new this.Class(
                             this.tree, record, pos, this);
@@ -761,6 +782,12 @@
                 };
                 var children = this.record.field_get_client(
                         this.children_field);
+
+                // [Coog] multi_mixed_view
+                // !!!> call add_fields only when necessary
+                if (children.model.name != this.record.model.name)
+                    // !!!> add extra fields to the children's model
+                    children.model.add_fields(this.children_definitions[children.model.name]);
                 children.forEach(add_row.bind(this));
             };
             return this.record.load(this.children_field).done(
@@ -785,6 +812,12 @@
             }
             this.tree.switch_(this.path);
         },
+        set_multi_level_selection: function(value){
+            this.set_selection(value);
+            this.rows.forEach(function(row){
+                row.set_multi_level_selection(value);
+            });
+        },
         select_row: function(event_) {
             if (this.tree.selection_mode == Sao.common.SELECTION_NONE) {
                 this.tree.select_changed(this.record);
@@ -794,7 +827,8 @@
                         this.tree.selection_mode ==
                         Sao.common.SELECTION_SINGLE) {
                     this.tree.rows.forEach(function(row) {
-                        row.set_selection(false);
+                        // !!!> set_selection to child rows as well
+                        row.set_multi_level_selection(false);
                     }.bind(this));
                 }
                 this.set_selection(!this.is_selected());
@@ -1237,8 +1271,9 @@
             this.header = null;
         },
         get_cell: function() {
+            // !!!> restor indentation
             var cell = jQuery('<div/>', {
-                'class': this.class_,
+                'class': this.class_ + ' pre',
                 'tabindex': 0
             });
             return cell;
