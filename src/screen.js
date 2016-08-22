@@ -8,7 +8,6 @@
             this.alternate_viewport = jQuery('<div/>', {
                 'class': 'screen-container scrollable'
             });
-            // !!!> width issue in modals
             this.alternate_view = false;
             this.search_modal = null;
             this.search_form = null;
@@ -597,7 +596,6 @@
             this.context = attributes.context || {};
             this.current_view = null;
             this.current_record = null;
-            // !!!> report from gtk
             this.new_group();
             this.domain = attributes.domain || [];
             this.size_limit = null;
@@ -645,8 +643,7 @@
             this._domain_parser = {};
             this.pre_validate = false;
             this.tab = null;
-            // !!!> used for group_sync
-            // [Coog] multi_mixed_view
+            // [Coog specific] used for group_sync
             this.parent = null;
         },
         load_next_view: function() {
@@ -697,7 +694,6 @@
                 }
             }
             this.model.add_fields(fields);
-            // [Coog] multi_mixed_view
             var view_widget = Sao.View.parse(this, xml_view, view.field_childs,
                 view.children_definitions);
             view_widget.view_id = view_id;
@@ -855,7 +851,6 @@
             this.set_group(group);
         },
         set_current_record: function(record) {
-            // !!!> called when current record changes
             var changed = this.current_record !== record;
             this.current_record = record;
             // TODO position
@@ -871,12 +866,10 @@
                 }
                 this.tab.record_message();
             }
-            // !!!> group_sync
-            // [Coog] multi_mixed_view
+            // [Coog specific] multi_mixed_view
             if (this.parent && changed){
                 this.parent.group_sync(this, this.current_record);
             }
-
         },
         display: function(set_cursor) {
             var deferreds = [];
@@ -1009,8 +1002,6 @@
                 this.set_current_record(record);
                 return this.display().then(function() {
                     this.set_cursor(true, true);
-                    // !!!> add display()'s promise to the returned promise
-                    //    > then return record as expected
                     return record;
                 }.bind(this));
             }.bind(this));
@@ -1416,7 +1407,6 @@
         button: function(attributes) {
             var ids;
             var process_action = function(action) {
-                // !!!> call display() only when needed
                 if (action && typeof action == 'string' &&
                     action.indexOf('delete') > -1)
                     this.reload(ids, true, true);
@@ -1499,7 +1489,7 @@
         },
         client_action: function(action) {
             var access = Sao.common.MODELACCESS.get(this.model_name);
-            // [Coog] Allow multiple actions
+            // [Coog specific] Allow multiple actions
             var actions = action.split(',');
             for (var i in actions){
                 this.do_single_action(actions[i], access);
@@ -1527,7 +1517,8 @@
             } else if (action == 'previous') {
                 this.display_previous();
             } else if (action == 'close') {
-                // [Bug sao]
+                // [Bug Sao]
+                // TODO: report to tryton
                 Sao.Tab.tabs.close_current();
             } else if (action.startsWith('switch')) {
                 var view_type = action.split(' ')[1];

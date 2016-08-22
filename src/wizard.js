@@ -149,7 +149,6 @@
             // TODO toolbar
             this.widget.append(this.screen.screen_container.el);
 
-            // !!!> [issue package drop down]
             this.screen.new_(false).then(function(){
                 return this.screen.current_record.set_default(defaults);
             }.bind(this));
@@ -282,15 +281,11 @@
                     }
                 }
             }.bind(this));
-            if (this.dialog.is(':visible')){
-                // !!!> boostrap method to hide modal and the grey background as well
+            if (this.dialog.is(':visible')) {
                 this.dialog.modal('hide');
-            }
-            else{
-                // !!!> some wizard can be execute on background (therefore not visible)
+            } else {
                 this.dialog.trigger('hidden.bs.modal');
             }
-
         },
         end: function() {
             return Sao.Wizard.Dialog._super.end.call(this).then(

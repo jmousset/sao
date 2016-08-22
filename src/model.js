@@ -210,6 +210,9 @@
             }
             return record;
         };
+        // [Bug Sao]
+        // TODO: report to tryton
+        //      limit calls to changed()
         array.remove = function(record, remove, modified, force_remove, apply_changes) {
             if (modified === undefined) {
                 modified = true;
@@ -244,7 +247,6 @@
             if (!(record.group.parent) || (record.id < 0) || force_remove) {
                 this._remove(record);
             }
-            // !!!> report gtk; Don't call changed() every time we delete
             if (apply_changes){
                 record.group.changed();
                 record.group.root_group().screens.forEach(function(screen) {
@@ -823,8 +825,6 @@
             }
             var promises = [];
             var fieldnames = [];
-            // !!!> report gtk
-            //      fix duplicate in multi_mixed_view lists
             var exclude_fields = [];
             this.group.screens.forEach(function(screen){
                 if (screen.exclude_field){
@@ -1652,9 +1652,6 @@
             if (factor === undefined) {
                 factor = 1;
             }
-            // !!!> [issue default_share]
-            //    > convert return null if a value is not setted
-            //    > apply_factor do not test if value is not null
             value = this.apply_factor(this.convert(value), factor);
             Sao.field.Float._super.set_client.call(this, record, value,
                 force_change);
@@ -1689,9 +1686,8 @@
             return value;
         },
         apply_factor: function(value, factor) {
-            // !!!> [issue default_share]
-            //    > dont apply_factor if the value is null
-            //    > careful, if(!0) == true
+            // [Bug Sao]
+            // TODO: report to tryton
             if (value === null)
                 return null;
             value = Sao.field.Numeric._super.apply_factor(value, factor);
@@ -1737,15 +1733,13 @@
             return true;
         },
         get_client: function(record) {
-            // !!!> [issue agent_broker]
-            //    > return the rec_name or a prm, depending of this.set() return
             var rec_name = record._values[this.name + '.rec_name'];
             if (rec_name === undefined) {
                 var prm = this.set(record, this.get(record));
                 if (prm !== null){
                     return prm.then(function(){
                         return record._values[this.name + '.rec_name'] || '';
-                    }.bind(this));                    
+                    }.bind(this));
                 } else {
                     return record._values[this.name + '.rec_name'] || '';
                 }
@@ -1753,8 +1747,6 @@
             return rec_name;
         },
         set: function(record, value) {
-            // !!!> [issue agent_broker]
-            //    > return the rpc's prm in case the rec_name need to be requested to the server
             var prm = null;
             var rec_name = record._values[this.name + '.rec_name'] || '';
             var store_rec_name = function(rec_name) {
@@ -1877,7 +1869,6 @@
                         if (default_) {
                             // Don't validate as parent will validate
                             promises.push(new_record.set_default(vals, false));
-                            // !!!> limit changed() calls
                             group.add(new_record, -1, false);
                         } else {
                             new_record.set(vals);
@@ -2062,7 +2053,6 @@
                 }.bind(this));
             }
             to_remove.forEach(function(record2) {
-                // !!!> limit changed() calls
                 group.remove(record2, false, true, false, false);
             }.bind(this));
 
@@ -2189,8 +2179,9 @@
             for (var i = 0, len = (record._values[this.name] || []).length;
                     i < len; i++) {
                 var record2 = record._values[this.name][i];
-                // !!!> [issue mutlti_mixed_view validation]
-                //      [] equal false on python but true on js
+                // [Bug Sao]
+                // TODO: report to tryton
+                //      empty list equal false in python but true in js
                 if (!record2.get_loaded() && (record2.id >= 0) &&
                     (!pre_validate || (pre_validate instanceof Array &&
                         pre_validate.length === 0))){

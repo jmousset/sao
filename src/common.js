@@ -2576,7 +2576,7 @@
         },
         run: function() {
             if (this.running) {
-                // !!!> [Bug Sao] can't apply always() if no promise returned
+                // [Bug Sao]
                 return this.running;
             }
             var args = Array.prototype.slice.call(arguments);

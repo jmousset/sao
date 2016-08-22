@@ -863,7 +863,6 @@
             case 'dict':
                 return Sao.View.Form.Dict;
             case 'source':
-                // [Coog] widget Source (engine)
                 return Sao.View.Form.Source;
         }
     };
@@ -954,7 +953,6 @@
         }
     });
 
-    // [Coog] widget Source (engine)
     function TreeElement(){
         this.init = function(parent, element, good_text, lvl){
             if (!element || !element.description)
@@ -1025,8 +1023,7 @@
                 'title': this.help
             }).appendTo(content).text(this.title);
 
-            /*event managment*/
-            //!!!> need testing on other browsers
+            /* events managment */
             text[0].addEventListener('dragstart', function(event){
                 event.dataTransfer.setData("text", this.code);
             }.bind(this));
@@ -1070,7 +1067,7 @@
         };
     }
 
-    // [Coog] widget Source (engine)
+    // [Coog specific] widget Source (engine)
     Sao.View.Form.Source = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-source',
         init: function(field_name, model, attributes) {
@@ -1663,7 +1660,6 @@
         class_: 'form-richtext',
         init: function(field_name, model, attributes) {
             var i, properties, button;
-            // !!!> [issue subscriber_desc]
             this.is_readonly = false;
             Sao.View.Form.RichText._super.init.call(
                     this, field_name, model, attributes);
@@ -1812,8 +1808,7 @@
         },
         set_value: function(record, field) {
             // TODO order attributes
-            // [Bug sao]
-            // !!!> [issue subscriber_desc]
+            // [Bug Sao]
             //    > don't edit the content when widget is readonly
             if (!this.is_readonly){
                 this.input.find('div').each(function(i, el) {
@@ -1895,8 +1890,6 @@
             });
         },
         set_text: function(value) {
-            // !!!> [issue agent_broker]
-            //    > if get_client return a prm, wait for the result before setting text
             if (jQuery.isEmptyObject(value)) {
                 value = '';
             }
@@ -1943,8 +1936,6 @@
                 this.entry.val('');
                 return;
             }
-            // !!!> [issue agent_broker]
-            //    > get_client can now return a prm
             this.set_text(field.get_client(record));
             value = field.get(record);
             if (this.has_target(value)) {
@@ -2484,7 +2475,8 @@
             })).appendTo(buttons);
             this.but_switch.click(this.switch_.bind(this));
 
-            // !!!> hide toolbar
+            // [Coog specific]
+            //      > attribute expand_toolbar (hide toolbar)
             if (attributes.expand_toolbar)
                 this.menu.hide();
 
@@ -2503,7 +2495,6 @@
                 exclude_field: attributes.relation_field || null,
                 pre_validate: attributes.pre_validate
             });
-            // !!!> group_sync
             if (attributes.group)
                 this.screen.parent = this;
             this.screen.pre_validate = attributes.pre_validate == 1;
@@ -2515,6 +2506,7 @@
 
             this.but_switch.prop('disabled', this.screen.number_of_views() <= 0);
         },
+        // [Coog specific] multi_mixed_view
         group_sync: function(screen, current_record){
             if (this.attributes.mode == 'form')
                 return;
@@ -2536,7 +2528,6 @@
             var widgets = this.view.widgets[this.field_name];
             var to_sync = [];
 
-            // !!!> get a list of widgets affected by the new record
             for (var j = 0; j < widgets.length; j++){
                 widget = widgets[j];
                 if (!widget.hasOwnProperty('attributes')){
@@ -2563,7 +2554,6 @@
             }
             widget = null;
 
-            // !!!> add fields; change widget's record; display widgets
             for (var i = 0; i < to_sync.length; i++){
                 widget = to_sync[i].widget;
                 record = to_sync[i].record;
@@ -2571,24 +2561,20 @@
                 if (widget.screen.current_view === undefined)
                     continue;
 
-                // !!!> add widget's fields to the record
                 if (widget.screen.current_view.view_type == 'form' &&
                     record !== undefined && record !== null &&
                     widget.screen.group.model.name == record.group.model.name){
                     var fields = widget.screen.group.model.fields;
-                    // !!!> format fields for method "add_fields"
                     var ret = [];
                     for(var name in fields){
                         ret[name] = fields[name].description;
                     }
-                    // !!!> initiate and add new fields
                     record.group.model.add_fields(ret);
                 }
 
                 widget.screen.current_record = record;
                 widget.display(widget.record(), widget.field());
             }
-            // !!!> resize forms to fix display width
             if (widget){
                 for (j in widget.view.containers) {
                     var container = widget.view.containers[j];
@@ -2659,7 +2645,7 @@
 
                 var new_group = record.field_get_client(this.field_name);
 
-                // [Coog] multi_mixed_view
+                // [Coog specific] multi_mixed_view
                 if (this.attributes.group && this.attributes.mode == 'form'){
                     if (!this.screen.current_record)
                         this.set_invisible(true);
@@ -2699,7 +2685,6 @@
             if (!access.write || !access.read) {
                 return;
             }
-            // !!!> report from gtk
             // this.view.set_value();
             var domain = this.field().get_domain(this.record());
             var context = this.field().get_context(this.record());
@@ -2760,7 +2745,6 @@
             }.bind(this));
         },
         new_single: function() {
-            // !!!> never called ??
             var context = jQuery.extend({},
                     this.field().get_context(this.record()));
             // TODO sequence
@@ -2889,7 +2873,6 @@
         },
         validate: function() {
             var prm = jQuery.Deferred();
-            // !!!> report from gtk
             // this.view.set_value();
             var record = this.screen.current_record;
             if (record) {
@@ -2917,12 +2900,10 @@
             return prm;
         },
         set_value: function(record, field) {
-            // !!!> report from gtk
             if (this.screen.current_view.view_type == 'form' &&
                 this.attributes.group &&
                 this.screen.model.name != record.model.name)
                 return;
-            // <add> self.screen.current_view.set_value()
             this.screen.save_tree_state();
         }
     });
@@ -2992,8 +2973,6 @@
             })).appendTo(buttons);
             this.but_remove.click(this.remove.bind(this));
 
-            // !!!> hide toolbar
-            // [Coog] expand_toolbar (attribute)
             if (attributes.expand_toolbar)
                 this.menu.hide();
 
@@ -3641,8 +3620,8 @@
                 'class': this.class_ + '-container'
             }).appendTo(body);
 
-            // [issue - no_command] - hide input line
-            // [Coog] no_command (attribute)
+            // [Coog specific]
+            //      > attribute no_command (hide input line)
             if (!this.no_command){
                 var group = jQuery('<div/>', {
                     'class': 'input-group input-group-sm'
@@ -3746,7 +3725,6 @@
                 var widget = this.fields[key];
                 widget.set_readonly(readonly);
             }
-            // !!!> this.wid_text not defined on on_command attribute
             if (!this.no_command)
                 this.wid_text.prop('disabled', readonly);
         },
@@ -3759,7 +3737,6 @@
             if (delete_ === undefined) {
                 delete_ = true;
             }
-            // !!!> but_add and button are not defined on no_command attr
             if (!this.no_command){
                 this.but_add.prop('disabled', this._readonly || !create);
                 for (var key in this.fields) {
@@ -3790,8 +3767,6 @@
             field.labelled.attr('aria-labelledby', label.attr('id'));
             label.attr('for', field.labelled.attr('id'));
 
-            // !!!> hide [-] button on no_command attr
-            // [Coog] no_command (attribute)
             if (!this.no_command){
                 field.button = jQuery('<button/>', {
                     'class': 'btn btn-default',
@@ -3881,7 +3856,6 @@
                 }
                 var removed_key_names = Object.keys(this.fields).filter(
                         function(e) {
-                            // !!!> accept null as a value (for boolean)
                             // [Bug Sao] server can return null
                             //           as false for boolean.
                             return (value[e] === undefined);
@@ -3930,7 +3904,6 @@
             var group = jQuery('<div/>', {
                 'class': 'input-group input-group-sm'
             }).appendTo(this.el).css('width', '100%');
-            // !!!> ^ used to expand entries when on_command is setted ^
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
                 'class': 'form-control input-sm'

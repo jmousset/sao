@@ -61,7 +61,8 @@
             this.expanded = {};
             this.children_field = children_field;
             this.children_definitions = children_definitions;
-            // [Coog] always_expand (attribute)
+            // [Coog specific]
+            //      > attribute always_expand (expand tree view)
             this.always_expand = this.attributes.always_expand || null;
             // [Bug Sao] set search windows readonly
             if (screen.attributes.editable !== undefined){
@@ -663,9 +664,8 @@
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
+            // [Bug Sao] hide expander when elem is leaf
             var update_expander = function() {
-                // !!!> if children_field is not in model.fields -> last tree element
-                // !!!> hide expander
                 if (this.is_leaf() || jQuery.isEmptyObject(
                         this.record.field_get(this.children_field))){
                     this.expander.css('visibility', 'hidden');
@@ -674,7 +674,6 @@
 
             for (var i = 0; i < this.tree.columns.length; i++) {
                 if ((i === 0) && this.children_field) {
-                    // !!!> load '*' if record is the last children
                     if (!this.is_leaf())
                         this.record.load(this.children_field).done(
                             update_expander.bind(this));
@@ -686,7 +685,6 @@
                 var td = this._get_column_td(i);
                 var tr = td.find('tr');
                 if (column.prefixes) {
-
                     for (var j = 0; j < column.prefixes.length; j++) {
                         var prefix = column.prefixes[j];
                         jQuery(tr.children('.prefix')[j])
@@ -772,7 +770,6 @@
                 if (!jQuery.isEmptyObject(this.rows)) {
                     return;
                 }
-
                 var add_row = function(record, pos, group) {
                     var tree_row = new this.Class(
                             this.tree, record, pos, this);
@@ -782,11 +779,7 @@
                 };
                 var children = this.record.field_get_client(
                         this.children_field);
-
-                // [Coog] multi_mixed_view
-                // !!!> call add_fields only when necessary
                 if (children.model.name != this.record.model.name)
-                    // !!!> add extra fields to the children's model
                     children.model.add_fields(this.children_definitions[children.model.name]);
                 children.forEach(add_row.bind(this));
             };
@@ -827,7 +820,7 @@
                         this.tree.selection_mode ==
                         Sao.common.SELECTION_SINGLE) {
                     this.tree.rows.forEach(function(row) {
-                        // !!!> set_selection to child rows as well
+                        // [Bug Sao] call set_selection on child rows as well
                         row.set_multi_level_selection(false);
                     }.bind(this));
                 }
@@ -1271,7 +1264,7 @@
             this.header = null;
         },
         get_cell: function() {
-            // !!!> restor indentation
+            // [Bug Sao] indentations in rich text
             var cell = jQuery('<div/>', {
                 'class': this.class_ + ' pre',
                 'tabindex': 0
