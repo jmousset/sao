@@ -67,7 +67,7 @@
             });
             return root_group.on_write_ids(record_ids).then(function(reload_ids) {
                 reload_ids = reload_ids.filter(function(e) {
-                    return !~reload_ids.indexOf(e);
+                    return !~record_ids.indexOf(e);
                 });
                 return this.execute('delete', [record_ids], context)
                 .then(function() {
@@ -1821,14 +1821,17 @@
         _set_value: function(record, value, default_) {
             this._set_default_value(record);
             var group = record._values[this.name];
+            var prm = jQuery.when();
+            if (jQuery.isEmptyObject(value)) {
+                return prm;
+            }
             var mode;
-            if ((value instanceof Array) && !isNaN(parseInt(value[0], 10))) {
+            if (!isNaN(parseInt(value[0], 10))) {
                 mode = 'list ids';
             } else {
                 mode = 'list values';
             }
-            var prm = jQuery.when();
-            if ((mode == 'list values') && !jQuery.isEmptyObject(value)) {
+            if (mode == 'list values') {
                 var context = this.get_context(record);
                 var field_names = {};
                 value.forEach(function(val) {

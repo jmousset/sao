@@ -292,7 +292,7 @@
                         this.screen.current_view.attributes.string);
                 this.el.append(screen.screen_container.el);
                 if (attributes.res_id) {
-                    if (Number.isInteger(attributes.res_id)){
+                    if (!jQuery.isArray(attributes.res_id)) {
                         attributes.res_id = [attributes.res_id];
                     }
                     screen.group.load(attributes.res_id);

@@ -695,7 +695,7 @@
             });
             this.label_el = jQuery('<label/>');
             if (text) {
-                this.label_el.text = text;
+                this.label_el.text(text);
             }
             this.el.append(this.label_el);
             this.el.append(jQuery('<hr/>'));
@@ -3461,7 +3461,7 @@
                 if (!data) {
                     url = null;
                 } else {
-                    blob = new Blob([data[0][this.field_name]]);
+                    blob = new Blob([data]);
                     url = window.URL.createObjectURL(blob);
                 }
                 this.image.attr('src', url);
