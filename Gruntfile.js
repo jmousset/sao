@@ -118,16 +118,17 @@ module.exports = function(grunt) {
     copy: {
       main: {
         files: [
-          { src: 'bower_components/jquery/dist/jquery.min.js', dest: 'dist/jquery.min.js' },
-          { src: 'bower_components/bootstrap/dist/js/bootstrap.min.js', dest: 'dist/bootstrap.min.js' },
-          { src: 'bower_components/moment/min/moment.min.js', dest: 'dist/moment.min.js'  },
-          { src: 'bower_components/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js', dest: 'dist/bootstrap-datetimepicker.min.js' },
-          { src: 'bower_components/gettext.js/dist/gettext.min.js', dest: 'dist/gettext.min.js' },
-          { src: 'bower_components/d3/d3.min.js', dest: 'dist/d3.min.js' },
-          { src: 'bower_components/c3/c3.min.js', dest: 'dist/c3.min.js' },
-          { src: 'bower_components/bootstrap/dist/css/bootstrap.min.css', dest: 'dist/bootstrap.min.css' },
-          { src: 'bower_components/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css', dest: 'dist/bootstrap-datetimepicker.min.css' },
-          { src: 'bower_components/c3/c3.min.css', dest: 'dist/c3.min.css' }
+          { src: 'bower_components/jquery/dist/jquery.min.js', dest: 'dist/js/jquery.min.js' },
+          { src: 'bower_components/bootstrap/dist/js/bootstrap.min.js', dest: 'dist/js/bootstrap.min.js' },
+          { src: 'bower_components/moment/min/moment.min.js', dest: 'dist/js/moment.min.js' },
+          { src: 'bower_components/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js', dest: 'dist/js/bootstrap-datetimepicker.min.js' },
+          { src: 'bower_components/gettext.js/dist/gettext.min.js', dest: 'dist/js/gettext.min.js' },
+          { src: 'bower_components/d3/d3.min.js', dest: 'dist/js/d3.min.js' },
+          { src: 'bower_components/c3/c3.min.js', dest: 'dist/js/c3.min.js' },
+          { src: 'bower_components/bootstrap/dist/css/bootstrap.min.css', dest: 'dist/css/bootstrap.min.css' },
+          { src: 'bower_components/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css', dest: 'dist/css/bootstrap-datetimepicker.min.css' },
+          { src: 'bower_components/c3/c3.min.css', dest: 'dist/css/c3.min.css' },
+          { expand: true, flatten: true, src: 'bower_components/bootstrap/dist/fonts/*', dest: 'dist/fonts/' },
         ]
       }
     },
