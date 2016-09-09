@@ -51,7 +51,23 @@
             var toolbar = jQuery(
                     '<nav class="navbar navbar-default toolbar" role="navigation">' +
                     '<div class="container-fluid">' +
-                    '<div class="navbar-header">' +
+                    '<div class="main-navbar-header navbar-header">' +
+                    '<div>' +
+                    '<div class="dropdown" title="' +
+                    Sao.i18n.gettext('Menu') +
+                    '" data-toggle="tooltip">' +
+                    '<a href="#" class="dropdown-toggle" ' +
+                    'data-toggle="dropdown" role="button" ' +
+                    'aria-expanded="false">' +
+                    '<span class="glyphicon glyphicon-wrench" ' +
+                    'aria-hidden="true"></span>' +
+                    '</span>' +
+                    '<span class="caret"></span>' +
+                    '</a>' +
+                    '<ul class="dropdown-menu" role="menu">' +
+                    '</ul>' +
+                    '</div>' +
+                    '</div>' +
                     '<a class="navbar-brand" href="#"></a>' +
                     '<button type="button" class="navbar-toggle collapsed" ' +
                     'data-toggle="collapse" ' +
@@ -63,23 +79,9 @@
                     '<span class="icon-bar"></span>' +
                     '<span class="icon-bar"></span>' +
                     '</div>' +
-                    '<div class="collapse navbar-collapse" ' +
+                    '<div class="main-navbar-body collapse navbar-collapse" ' +
                     'id="navbar-' + this.id + '">' +
                     '<ul class="nav navbar-nav">' +
-                    '<li class="dropdown">' +
-                    '<a href="#" class="dropdown-toggle" ' +
-                    'data-toggle="dropdown" role="button" ' +
-                    'aria-expanded="false">' +
-                    '<span class="glyphicon glyphicon-wrench" ' +
-                    'aria-hidden="true"></span>' +
-                    '<span class="visible-xs">' +
-                    Sao.i18n.gettext('Menu') +
-                    '</span>' +
-                    '<span class="caret"></span>' +
-                    '</a>' +
-                    '<ul class="dropdown-menu" role="menu">' +
-                    '</ul>' +
-                    '</li>' +
                     '</ul>' +
                     '</div>' +
                     '</div>' +
@@ -92,8 +94,11 @@
 
             var add_button = function(tool) {
                 var item = jQuery('<li/>', {
-                    'role': 'presentation'
-                }).appendTo(toolbar.find('.navbar-collapse > ul'));
+                    'role': 'presentation',
+                    'data-toggle': 'tooltip',
+                    'title': tool[2]
+                })
+                .appendTo(toolbar.find('.navbar-collapse > ul'));
                 this.buttons[tool[0]] = jQuery('<a/>', {
                     'role': 'menuitem',
                     'href': '#',
@@ -104,8 +109,11 @@
                     'aria-hidden': 'true'
                 }))
                 .append(jQuery('<span/>', {
-                    'class': 'hidden-sm'
+                    'class': 'visible-xs'
                 }).append(' ' + tool[2]))
+                .append(jQuery('<span/>', {
+                    'class': 'counter',
+                }))
                 .appendTo(item);
                 if (tool[4]) {
                     this.buttons[tool[0]].click(this[tool[4]].bind(this));
@@ -384,6 +392,8 @@
                      Sao.i18n.gettext('Print report')]
                 ].forEach(function(menu_action) {
                     var button = jQuery('<li/>', {
+                        'data-toggle': 'tooltip',
+                        'title': menu_action[2],
                         'class': 'dropdown'
                     })
                     .append(jQuery('<a/>', {
@@ -399,7 +409,7 @@
                             'aria-hidden': 'true'
                         }))
                         .append(jQuery('<span/>', {
-                            'class': 'hidden-sm'
+                            'class': 'visible-xs'
                         }).append(' ' + menu_action[2] + ' '))
                         .append(jQuery('<span/>', {
                             'class': 'caret'
@@ -750,8 +760,10 @@
             }
         },
         attachment_count: function(count) {
-            var label = Sao.i18n.gettext('Attachment(%1)', count);
-            this.buttons.attach.text(label);
+            var label = Sao.i18n.gettext(' (%1)', count);
+            var counter = this.buttons.attach.find('.counter');
+            counter.text(label);
+            counter.show();
             var record_id = this.screen.get_id();
             this.buttons.attach.prop('disabled',
                 record_id < 0 || record_id === null);
@@ -775,8 +787,10 @@
             }
         },
         _unread_note: function(unread) {
-            var label = Sao.i18n.gettext('Note(%1)', unread);
-            this.buttons.note.text(label);
+            var label = Sao.i18n.gettext(' (%1)', unread);
+            var counter = this.buttons.note.find('.counter');
+            counter.text(label);
+            counter.show();
             var record_id = this.screen.get_id();
             this.buttons.note.prop('disabled',
                     record_id < 0 || record_id === null);

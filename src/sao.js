@@ -448,6 +448,12 @@ var Sao = {};
             var $modal = jQuery(this);
             modalZIndex++;
             $modal.css('zIndex', modalZIndex);
+            var visible_height = jQuery(window).height() * 0.8;
+            var modal_body = $modal.find('.modal-body');
+            if (modal_body.height() > visible_height) {
+                modal_body.addClass('scrollable-modal');
+                modal_body.css('max-height', visible_height);
+            }
             $modal.next('.modal-backdrop.in').addClass('hidden')
             .css('zIndex', modalZIndex - 1);
         });

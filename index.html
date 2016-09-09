@@ -25,10 +25,12 @@ this repository contains the full copyright notices and license terms. -->
         <script type="text/javascript" src="dist/tryton-sao.min.js"></script>
         <link rel="stylesheet" type="text/css" href="dist/tryton-sao.min.css"
         media="screen"/>
+        <link rel="stylesheet" type="text/css" href="dist/sao-coog.min.css" media="screen"/>
         <script type="text/javascript">
             if (typeof Sao == 'undefined') {
                 document.write(unescape('%3cscript type="text/javascript" src="dist/tryton-sao.js"%3e%3c/script%3e'));
                 document.write(unescape('%3clink rel="stylesheet" type="text/css" href="dist/tryton-sao.css" media="screen"/%3e'));
+                document.write(unescape('%3clink rel="stylesheet" type="text/css" href="dist/sao-coog.css" media="screen"/%3e'));
             }
         </script>
         </head>
@@ -43,10 +45,11 @@ this repository contains the full copyright notices and license terms. -->
                         <span class="icon-bar"></span>
                     </button>
                     <a class="navbar-brand" href="#">Coog</a>
-                    <p class="pull-left visible-xs visible-sm navbar-text">
+                    <p class="pull-left visible navbar-text">
                         <button type="button" class="btn btn-primary btn-xs"
                             data-toggle="offcanvas">
-                            Toggle menu
+                            <span class="glyphicon glyphicon-menu-hamburger hide"></span>
+                            <span id="toggle-text"> Toggle menu </span>
                         </button>
                     </p>
                 </div>
@@ -63,9 +66,10 @@ this repository contains the full copyright notices and license terms. -->
         <div id="main" class="container-fluid">
             <div class="row row-offcanvas row-offcanvas-left active"
                 style="height: calc(100vh - 50px - 1px - 20px);">
+                <!-- !!!> Carefull here ! If bootstrap columns changes, offcanvas.css must be edited as well -->
                 <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="menu" role="navigation"
                     style="overflow-y: auto; height: 100%;"></div>
-                <div class="col-xs-12 col-md-9" style="overflow-y: auto; height: 100%;">
+                <div class="col-xs-12 col-md-9 main-screen-offcanvas" style="overflow-y: auto; height: 100%;">
                     <div id="tabs" role="tabpanel">
                         <ul class="nav nav-tabs" role="tablist">
                         </ul>
@@ -79,8 +83,12 @@ this repository contains the full copyright notices and license terms. -->
             jQuery(function() {
                     jQuery('[data-toggle="offcanvas"]').click(function() {
                         jQuery('.row-offcanvas').toggleClass('active');
+                        jQuery('.main-screen-offcanvas').toggleClass('full_mode');
+                        jQuery(window).trigger('resize');
                         });
                     jQuery('#tabs').on('ready', function() {
+                        if (window.matchMedia("(min-width: 991px)").matches)
+                            return;
                         if (jQuery(this).find('> .nav-tabs').children().length) {
                             jQuery('.row-offcanvas').removeClass('active');
                         } else {

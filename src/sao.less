@@ -8,7 +8,7 @@
     & nav.toolbar {
         margin-bottom: 1px;
         & ul.nav > li > a {
-            padding-right: 0px;
+            padding-right: 10px;
         }
     }
     & nav.toolbar.affix {
@@ -206,7 +206,6 @@ button {
 .form-boolean, .editabletree-boolean, .dict-boolean {
     & input[type=checkbox] {
         width: initial;
-        height: initial;
     }
 }
 
@@ -306,4 +305,31 @@ img.global-search-icon {
 
 .scrollable {
     overflow-x: auto;
+}
+
+.modal-body {
+    overflow: visible;
+}
+
+.modal-body.scrollable-modal {
+    .screen-container .content-box .treeview {
+        overflow: visible;
+    }
+    overflow: auto;
+}
+
+.main-navbar-header > div {
+    float: left;
+    padding: 15px 15px 15px 0;
+}
+
+.main-navbar-body {
+    span.glyphicon {
+        font-size: 16px;
+    }
+    span.counter {
+        position: relative;
+        top: -2px;
+        display: none;
+    }
 }

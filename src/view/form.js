@@ -518,6 +518,12 @@
                 widget.el.attr('title', attributes.help);
                 widget.el.tooltip();
             }
+            // dirty fix for span rendering
+            //      > bugs.tryton.org/issue5419
+            if (this.col == 6 && !(colspan == 1 || colspan == 6)) {
+                cell.removeClass('xexpand');
+                cell.removeClass('xfill');
+            }
         },
         resize: function() {
             var rows = this.rows().toArray();
@@ -947,8 +953,10 @@
             this.visible = !invisible;
             if (invisible) {
                 this.el.hide();
+                this.el.css('width', '0px');
             } else {
                 this.el.show();
+                this.el.css('width', '100%');
             }
         }
     });
@@ -1591,10 +1599,13 @@
             this.el = jQuery('<div/>', {
                 'class': this.class_
             });
+            this.group = jQuery('<div/>', {
+                'class': 'input-group input-group-sm'
+            }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'checkbox',
                 'class': 'form-control input-sm'
-            }).appendTo(this.el);
+            }).appendTo(this.group);
             this.input.change(this.focus_out.bind(this));
             this.input.click(function() {
                 // Dont trigger click if field is readonly as readonly has no
@@ -1666,12 +1677,13 @@
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
             });
+            this.header = jQuery('<div/>', {
+                'class': 'panel-heading'
+            }).appendTo(this.el);
             this.toolbar = jQuery('<div/>', {
                 'class': 'btn-toolbar',
                 'role': 'toolbar'
-            }).appendTo(jQuery('<div/>', {
-                'class': 'panel-heading'
-            }).appendTo(this.el));
+            }).appendTo(this.header);
 
             var button_apply_command = function(evt) {
                 document.execCommand(evt.data);
@@ -1833,6 +1845,11 @@
             this.is_readonly = readonly;
             this.input.prop('contenteditable', !readonly);
             this.toolbar.find('button,select').prop('disabled', readonly);
+            if (!readonly){
+                this.header.show();
+            } else {
+                this.header.hide();
+            }
         }
     });
 
@@ -2553,6 +2570,7 @@
                 to_sync.push({'widget': widget, 'record': record});
             }
             widget = null;
+            var to_display = null;
 
             for (var i = 0; i < to_sync.length; i++){
                 widget = to_sync[i].widget;
@@ -2574,12 +2592,18 @@
 
                 widget.screen.current_record = record;
                 widget.display(widget.record(), widget.field());
+                if (record){
+                    to_display = widget;
+                }
             }
             if (widget){
                 for (j in widget.view.containers) {
                     var container = widget.view.containers[j];
                     container.resize();
                 }
+            }
+            if (to_display) {
+                to_display.display(to_display.record(), to_display.field());
             }
         },
         set_readonly: function(readonly) {
