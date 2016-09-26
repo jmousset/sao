@@ -122,8 +122,11 @@ var Sao = {};
 
     Sao.DateTime = function(year, month, day, hour, minute, second,
             millisecond, utc) {
+        // [Bug Sao] - handle all values to null
+        // TODO: report to tryton
         var datetime;
-        if (month === undefined) {
+        if ((month === undefined || month === null) &&
+            (year !== undefined && year !== null)) {
             datetime = moment(year);
             year = undefined;
         }
@@ -136,7 +139,7 @@ var Sao = {};
         datetime.year(year);
         datetime.month(month);
         datetime.date(day);
-        if (month !== undefined) {
+        if (month !== undefined && month !== null) {
             datetime.hour(hour || 0);
             datetime.minute(minute || 0);
             datetime.second(second || 0);

@@ -1373,6 +1373,9 @@
         get_value: function(record, field) {
             var value = this.date.data('DateTimePicker').date();
             if (value) {
+                // [Bug Sao] - DateTimePicker.date() return dateTime
+                // TODO: report to tryton
+                value.startOf('day');
                 value.isDate = true;
             }
             return value;
@@ -4045,6 +4048,9 @@
         get_value: function() {
             var value = this.input.data('DateTimePicker').date();
             if (value) {
+                // [Bug Sao] - DateTimePicker.date() return dateTime
+                // TODO: report to tryton
+                value.startOf('day');
                 value.isDate = true;
             }
             return value;

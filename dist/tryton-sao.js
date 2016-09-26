@@ -122,8 +122,11 @@ var Sao = {};
 
     Sao.DateTime = function(year, month, day, hour, minute, second,
             millisecond, utc) {
+        // [Bug Sao] - handle all values to null
+        // TODO: report to tryton
         var datetime;
-        if (month === undefined) {
+        if ((month === undefined || month === null) &&
+            (year !== undefined && year !== null)) {
             datetime = moment(year);
             year = undefined;
         }
@@ -136,7 +139,7 @@ var Sao = {};
         datetime.year(year);
         datetime.month(month);
         datetime.date(day);
-        if (month !== undefined) {
+        if (month !== undefined && month !== null) {
             datetime.hour(hour || 0);
             datetime.minute(minute || 0);
             datetime.second(second || 0);
@@ -8121,6 +8124,9 @@ var Sao = {};
         get_value: function(record, field) {
             var value = this.date.data('DateTimePicker').date();
             if (value) {
+                // [Bug Sao] - DateTimePicker.date() return dateTime
+                // TODO: report to tryton
+                value.startOf('day');
                 value.isDate = true;
             }
             return value;
@@ -10793,6 +10799,9 @@ var Sao = {};
         get_value: function() {
             var value = this.input.data('DateTimePicker').date();
             if (value) {
+                // [Bug Sao] - DateTimePicker.date() return dateTime
+                // TODO: report to tryton
+                value.startOf('day');
                 value.isDate = true;
             }
             return value;
