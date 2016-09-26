@@ -546,24 +546,19 @@ body > .navbar-default .navbar-header > p > .btn-primary #toggle-text {
 .modal-body .treefooter > .btn {
   font-size: 12px !important;
 }
-/* inner tree view */
-.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .inner-tree-view thead > tr > th.selection {
+/* tree view selections */
+.treeview thead > tr > th.selection,
+.modal-body .treeview thead > tr > th.selection {
   display: none;
 }
-.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .inner-tree-view tbody > tr > td.selection {
+.treeview tbody > tr > td.selection,
+.modal-body .treeview tbody > tr > td.selection {
   display: none;
 }
-.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .form-one2many-content.panel-body > .screen-container .treeview thead > tr > th.selection {
-  display: none;
-}
-.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .form-one2many-content.panel-body > .screen-container .treeview tbody > tr > td.selection {
-  display: none;
-}
-.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .form-many2many-content.panel-body > .screen-container .treeview thead > tr > th.selection {
-  display: none;
-}
-.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .form-many2many-content.panel-body > .screen-container .treeview tbody > tr > td.selection {
-  display: none;
+.treeview .row-active,
+.modal-body .treeview .row-active {
+  background-color: #3399ff !important;
+  color: white;
 }
 /* PANEL COLOR */
 /* lighter blue */

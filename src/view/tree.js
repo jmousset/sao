@@ -847,6 +847,7 @@
                 return;
             }
             this.selection.prop('checked', value);
+            this.el.toggleClass('row-active', value);
             if (!value) {
                 this.tree.selection.prop('checked', false);
             }

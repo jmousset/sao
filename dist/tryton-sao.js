@@ -314,7 +314,7 @@ var Sao = {};
             'view_ids': view_ids,
             'domain': domain,
             'context': action_ctx,
-            'selection_mode': Sao.common.SELECTION_NONE
+            'selection_mode': Sao.common.SELECTION_SINGLE
         });
         Sao.Tab.tabs.splice(Sao.Tab.tabs.indexOf(form), 1);
         form.view_prm.done(function() {
@@ -3368,7 +3368,10 @@ var Sao = {};
             if (value === null)
                 return null;
             value = Sao.field.Numeric._super.apply_factor(value, factor);
-            return new Sao.Decimal(value);
+            if (value !== null) {
+                value = new Sao.Decimal(value);
+            }
+            return value;
         }
     });
 
@@ -11666,6 +11669,7 @@ var Sao = {};
                 return;
             }
             this.selection.prop('checked', value);
+            this.el.toggleClass('row-active', value);
             if (!value) {
                 this.tree.selection.prop('checked', false);
             }
@@ -12701,11 +12705,13 @@ var Sao = {};
 
             this.ids = {};
             data.columns = [['labels']];
+            data.names = {};
             var key2columns = {};
             var fields2load = [this.xfield.name];
             for (i = 0, len = this.yfields.length; i < len; i++) {
                 yfield = this.yfields[i];
-                data.columns.push([yfield.string]);
+                data.columns.push([yfield.name]);
+                data.names[yfield.name] = yfield.string;
                 key2columns[yfield.key || yfield.name] = i + 1;
                 fields2load.push(yfield.name);
             }
@@ -12714,7 +12720,7 @@ var Sao = {};
             var set_data = function(index) {
                 return function () {
                     record = group[index];
-                    var x = record.field_get(this.xfield.name);
+                    var x = record.field_get_client(this.xfield.name);
                     data.columns[0][index + 1] = x;
                     this._add_id(x, record.id);
 
@@ -12868,7 +12874,7 @@ var Sao = {};
         _chart_type: 'pie',
         _c3_config: function(data) {
             var config = Sao.View.Graph.Pie._super._c3_config.call(this, data);
-            var pie_columns = [];
+            var pie_columns = [], pie_names = {};
             var i, len;
             var labels, values;
 
@@ -12904,10 +12910,12 @@ var Sao = {};
                 if (format_func) {
                     label = format_func(label);
                 }
-                pie_columns.push([label, values[i]]);
+                pie_columns.push([i, values[i]]);
+                pie_names[i] = label;
             }
 
             config.data.columns = pie_columns;
+            config.data.names = pie_names;
             return config;
         },
         _add_id: function(key, id) {
