@@ -3363,10 +3363,6 @@ var Sao = {};
             return value;
         },
         apply_factor: function(value, factor) {
-            // [Bug Sao]
-            // TODO: report to tryton
-            if (value === null)
-                return null;
             value = Sao.field.Numeric._super.apply_factor(value, factor);
             if (value !== null) {
                 value = new Sao.Decimal(value);
