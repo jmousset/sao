@@ -197,6 +197,7 @@ body > .navbar-default .navbar-header > p > .btn-primary #toggle-text {
   /* full border elem color */
   /* fix */
   /* fix */
+  /* fix */
   /* buttons */
   /* disabled input */
 }
@@ -313,6 +314,10 @@ body > .navbar-default .navbar-header > p > .btn-primary #toggle-text {
 .main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-boolean input[type=checkbox],
 .modal-body .form-boolean input[type=checkbox] {
   margin: 0 0 0 0;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-text textarea,
+.modal-body .form-text textarea {
+  min-height: 15em;
 }
 .main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .btn-default,
 .modal-body .btn-default {
