@@ -4392,16 +4392,16 @@ var Sao = {};
         },
         toolbar_def: function() {
             return [
-                ['new', 'glyphicon-edit',
+                ['new', 'glyphicon-plus',
                 Sao.i18n.gettext('New'),
                 Sao.i18n.gettext('Create a new record'), 'new_'],
-                ['save', 'glyphicon-save',
+                ['save', 'glyphicon-floppy-disk',
                 Sao.i18n.gettext('Save'),
                 Sao.i18n.gettext('Save this record'), 'save'],
-                ['switch', 'glyphicon-list-alt',
+                ['switch', 'glyphicon-resize-full',
                 Sao.i18n.gettext('Switch'),
                 Sao.i18n.gettext('Switch view'), 'switch_'],
-                ['reload', 'glyphicon-refresh',
+                ['reload', 'glyphicon-repeat',
                 Sao.i18n.gettext('Reload'),
                 Sao.i18n.gettext('Reload'), 'reload'],
                 ['previous', 'glyphicon-chevron-left',
@@ -4420,10 +4420,10 @@ var Sao = {};
         },
         menu_def: function() {
             return [
-                ['glyphicon-edit', Sao.i18n.gettext('New'), 'new_'],
-                ['glyphicon-save', Sao.i18n.gettext('Save'), 'save'],
-                ['glyphicon-list-alt', Sao.i18n.gettext('Switch'), 'switch_'],
-                ['glyphicon-refresh', Sao.i18n.gettext('Reload/Undo'),
+                ['glyphicon-plus', Sao.i18n.gettext('New'), 'new_'],
+                ['glyphicon-floppy-disk', Sao.i18n.gettext('Save'), 'save'],
+                ['glyphicon-resize-full', Sao.i18n.gettext('Switch'), 'switch_'],
+                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'),
                     'reload'],
                 ['glyphicon-duplicate', Sao.i18n.gettext('Duplicate'), 'copy'],
                 ['glyphicon-trash', Sao.i18n.gettext('Delete'), 'delete_'],
@@ -4923,14 +4923,14 @@ var Sao = {};
         },
         toolbar_def: function() {
             return [
-                ['reload', 'glyphicon-refresh',
+                ['reload', 'glyphicon-repeat',
                 Sao.i18n.gettext('Reload'),
                 Sao.i18n.gettext('Reload'), 'reload']
             ];
         },
         menu_def: function() {
             return [
-                ['glyphicon-refresh', Sao.i18n.gettext('Reload/Undo'), 'reload']
+                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'), 'reload']
             ];
         },
         reload: function() {
@@ -9199,7 +9199,7 @@ var Sao = {};
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext('New')
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-edit'
+                'class': 'glyphicon glyphicon-pencil'
             })).appendTo(buttons);
             this.but_new.click(this.new_.bind(this));
 
@@ -9258,7 +9258,7 @@ var Sao = {};
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext('Switch')
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-list-alt'
+                'class': 'glyphicon glyphicon-resize-full'
             })).appendTo(buttons);
             this.but_switch.click(this.switch_.bind(this));
 
@@ -9977,7 +9977,7 @@ var Sao = {};
                 'class': 'btn btn-default',
                 'type': 'button'
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-save'
+                'class': 'glyphicon glyphicon-floppy-disk'
             })).appendTo(group);
             this.but_save_as.click(this.save_as.bind(this));
 
@@ -16605,7 +16605,7 @@ var Sao = {};
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('New')
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-edit'
+                    'class': 'glyphicon glyphicon-plus'
                 })).appendTo(buttons);
                 this.but_new.click(this.new_.bind(this));
                 this.but_new.prop('disabled', !access.create || readonly);
@@ -16658,7 +16658,7 @@ var Sao = {};
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('Switch')
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-list-alt'
+                    'class': 'glyphicon glyphicon-resize-full'
                 })).appendTo(buttons);
                 this.but_switch.click(this.switch_.bind(this));
             }

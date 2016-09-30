@@ -155,7 +155,7 @@
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('New')
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-edit'
+                    'class': 'glyphicon glyphicon-plus'
                 })).appendTo(buttons);
                 this.but_new.click(this.new_.bind(this));
                 this.but_new.prop('disabled', !access.create || readonly);
@@ -208,7 +208,7 @@
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('Switch')
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-list-alt'
+                    'class': 'glyphicon glyphicon-resize-full'
                 })).appendTo(buttons);
                 this.but_switch.click(this.switch_.bind(this));
             }

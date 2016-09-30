@@ -2445,7 +2445,7 @@
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext('New')
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-edit'
+                'class': 'glyphicon glyphicon-pencil'
             })).appendTo(buttons);
             this.but_new.click(this.new_.bind(this));
 
@@ -2504,7 +2504,7 @@
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext('Switch')
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-list-alt'
+                'class': 'glyphicon glyphicon-resize-full'
             })).appendTo(buttons);
             this.but_switch.click(this.switch_.bind(this));
 
@@ -3223,7 +3223,7 @@
                 'class': 'btn btn-default',
                 'type': 'button'
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-save'
+                'class': 'glyphicon glyphicon-floppy-disk'
             })).appendTo(group);
             this.but_save_as.click(this.save_as.bind(this));
 

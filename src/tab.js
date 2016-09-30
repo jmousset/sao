@@ -321,16 +321,16 @@
         },
         toolbar_def: function() {
             return [
-                ['new', 'glyphicon-edit',
+                ['new', 'glyphicon-plus',
                 Sao.i18n.gettext('New'),
                 Sao.i18n.gettext('Create a new record'), 'new_'],
-                ['save', 'glyphicon-save',
+                ['save', 'glyphicon-floppy-disk',
                 Sao.i18n.gettext('Save'),
                 Sao.i18n.gettext('Save this record'), 'save'],
-                ['switch', 'glyphicon-list-alt',
+                ['switch', 'glyphicon-resize-full',
                 Sao.i18n.gettext('Switch'),
                 Sao.i18n.gettext('Switch view'), 'switch_'],
-                ['reload', 'glyphicon-refresh',
+                ['reload', 'glyphicon-repeat',
                 Sao.i18n.gettext('Reload'),
                 Sao.i18n.gettext('Reload'), 'reload'],
                 ['previous', 'glyphicon-chevron-left',
@@ -349,10 +349,10 @@
         },
         menu_def: function() {
             return [
-                ['glyphicon-edit', Sao.i18n.gettext('New'), 'new_'],
-                ['glyphicon-save', Sao.i18n.gettext('Save'), 'save'],
-                ['glyphicon-list-alt', Sao.i18n.gettext('Switch'), 'switch_'],
-                ['glyphicon-refresh', Sao.i18n.gettext('Reload/Undo'),
+                ['glyphicon-plus', Sao.i18n.gettext('New'), 'new_'],
+                ['glyphicon-floppy-disk', Sao.i18n.gettext('Save'), 'save'],
+                ['glyphicon-resize-full', Sao.i18n.gettext('Switch'), 'switch_'],
+                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'),
                     'reload'],
                 ['glyphicon-duplicate', Sao.i18n.gettext('Duplicate'), 'copy'],
                 ['glyphicon-trash', Sao.i18n.gettext('Delete'), 'delete_'],
@@ -852,14 +852,14 @@
         },
         toolbar_def: function() {
             return [
-                ['reload', 'glyphicon-refresh',
+                ['reload', 'glyphicon-repeat',
                 Sao.i18n.gettext('Reload'),
                 Sao.i18n.gettext('Reload'), 'reload']
             ];
         },
         menu_def: function() {
             return [
-                ['glyphicon-refresh', Sao.i18n.gettext('Reload/Undo'), 'reload']
+                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'), 'reload']
             ];
         },
         reload: function() {
