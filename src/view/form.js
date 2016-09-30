@@ -1370,8 +1370,21 @@
         get_format: function(record, field) {
             return field.date_format(record);
         },
+      get_picker: function() {
+        // [Bug Sao] - remove once record.destroy() is implemented.
+        // When Screen.remove() is called, record.destroy() should be
+        // called as well but is not implemented yet.
+        // Therefore display() of all elements child of the
+        // removed screen are called.
+        if (!this.date.data('DateTimePicker')) {
+            this.date.datetimepicker();
+            this.date.css('width', this._width);
+            this.date.on('dp.change', this.focus_out.bind(this));
+        }
+        return this.date.data('DateTimePicker');
+      },
         get_value: function(record, field) {
-            var value = this.date.data('DateTimePicker').date();
+            var value = this.get_picker().date();
             if (value) {
                 // [Bug Sao] - DateTimePicker.date() return dateTime
                 // TODO: report to tryton
@@ -1382,7 +1395,7 @@
         },
         display: function(record, field) {
             if (record && field) {
-                this.date.data('DateTimePicker').format(
+                this.get_picker().format(
                     Sao.common.moment_format(this.get_format(record, field)));
             }
             Sao.View.Form.Date._super.display.call(this, record, field);
@@ -1392,7 +1405,7 @@
             } else {
                 value = null;
             }
-            this.date.data('DateTimePicker').date(value);
+            this.get_picker().date(value);
         },
         focus: function() {
             this.input.focus();
@@ -1413,7 +1426,7 @@
             return field.date_format(record) + ' ' + field.time_format(record);
         },
         get_value: function(record, field) {
-            var value = this.date.data('DateTimePicker').date();
+            var value = this.get_picker().date();
             if (value) {
                 value.isDateTime = true;
             }
@@ -1428,7 +1441,7 @@
             return field.time_format(record);
         },
         get_value: function(record, field) {
-            var value = this.date.data('DateTimePicker').date();
+            var value = this.get_picker().date();
             if (value) {
                 value.isTime = true;
             }
