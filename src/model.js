@@ -820,7 +820,7 @@
             return dfd;
         },
         set_default: function(values, validate) {
-            if (validate === null) {
+            if (validate === null || validate === undefined) {
                 validate = true;
             }
             var promises = [];
@@ -1862,7 +1862,10 @@
                 if (mode == 'list ids') {
                     for (var i = 0, len = group.length; i < len; i++) {
                         var old_record = group[i];
-                        group.remove(old_record, true);
+                        // [Bug Sao] - report from python
+                        if (value.indexOf(old_record.id) < 0) {
+                            group.remove(old_record, true);
+                        }
                     }
                     group.load(value);
                 } else {

@@ -1726,7 +1726,8 @@
                 },
                 'float': function() {
                     var result = Number(value);
-                    if (isNaN(result) || value === '' || value === null) {
+                    if (isNaN(result) || value === '' ||
+                        value === null || value === undefined) {
                         return null;
                     } else {
                         return result;
@@ -1742,8 +1743,8 @@
                 },
                 'numeric': function() {
                     var result = new Sao.Decimal(value);
-                    if (isNaN(result.valueOf()) ||
-                            value === '' || value === null) {
+                    if (isNaN(result.valueOf()) || value === '' ||
+                        value === null || value === undefined) {
                         return null;
                     } else {
                         return result;
@@ -1896,7 +1897,7 @@
                     return Sao.common.timedelta.format(value, converter);
                 }.bind(this),
                 'many2one': function() {
-                    if (value === null) {
+                    if (value === null || value === undefined) {
                         return '';
                     } else {
                         return value;
@@ -1911,7 +1912,7 @@
                 var func = converts[field.type];
                 if (func) {
                     return this.quote(func(value));
-                } else if (value === null) {
+                } else if (value === null || value === undefined) {
                     return '';
                 } else {
                     return this.quote(value);

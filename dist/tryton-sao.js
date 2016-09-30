@@ -2500,7 +2500,7 @@ var Sao = {};
             return dfd;
         },
         set_default: function(values, validate) {
-            if (validate === null) {
+            if (validate === null || validate === undefined) {
                 validate = true;
             }
             var promises = [];
@@ -3542,7 +3542,9 @@ var Sao = {};
                 if (mode == 'list ids') {
                     for (var i = 0, len = group.length; i < len; i++) {
                         var old_record = group[i];
-                        group.remove(old_record, true);
+                        if (value.indexOf(old_record.id) < 0) {
+                            group.remove(old_record, true);
+                        }
                     }
                     group.load(value);
                 } else {
@@ -4833,8 +4835,8 @@ var Sao = {};
             counter.text(label);
             counter.show();
             var record_id = this.screen.get_id();
-            this.buttons.attach.prop('disabled',
-                record_id < 0 || record_id === null);
+            this.buttons.attach.prop('disabled', record_id < 0 ||
+                record_id === null || record_id === undefined);
         },
         note: function() {
             var record = this.screen.current_record;
@@ -4860,8 +4862,8 @@ var Sao = {};
             counter.text(label);
             counter.show();
             var record_id = this.screen.get_id();
-            this.buttons.note.prop('disabled',
-                    record_id < 0 || record_id === null);
+            this.buttons.note.prop('disabled', record_id < 0 ||
+                record_id === null || record_id === undefined);
         },
         record_message: function() {
             this.info_bar.message();
@@ -9026,7 +9028,7 @@ var Sao = {};
             return this.select.val();
         },
         has_target: function(value) {
-            if (value === null) {
+            if (value === null || value === undefined) {
                 return false;
             }
             var model = value.split(',')[0];
@@ -11720,9 +11722,9 @@ var Sao = {};
             var column, column_index, state_attrs;
 
             sign = sign || 1;
-            if ((path === null) && (sign > 0)) {
+            if ((path === null || path === undefined) && (sign > 0)) {
                 path = -1;
-            } else if (path === null) {
+            } else if (path === null || path === undefined) {
                 path = 0;
             }
             column_index = 0;
@@ -14923,7 +14925,8 @@ var Sao = {};
                 },
                 'float': function() {
                     var result = Number(value);
-                    if (isNaN(result) || value === '' || value === null) {
+                    if (isNaN(result) || value === '' ||
+                        value === null || value === undefined) {
                         return null;
                     } else {
                         return result;
@@ -14939,8 +14942,8 @@ var Sao = {};
                 },
                 'numeric': function() {
                     var result = new Sao.Decimal(value);
-                    if (isNaN(result.valueOf()) ||
-                            value === '' || value === null) {
+                    if (isNaN(result.valueOf()) || value === '' ||
+                        value === null || value === undefined) {
                         return null;
                     } else {
                         return result;
@@ -15093,7 +15096,7 @@ var Sao = {};
                     return Sao.common.timedelta.format(value, converter);
                 }.bind(this),
                 'many2one': function() {
-                    if (value === null) {
+                    if (value === null || value === undefined) {
                         return '';
                     } else {
                         return value;
@@ -15108,7 +15111,7 @@ var Sao = {};
                 var func = converts[field.type];
                 if (func) {
                     return this.quote(func(value));
-                } else if (value === null) {
+                } else if (value === null || value === undefined) {
                     return '';
                 } else {
                     return this.quote(value);

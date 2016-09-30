@@ -2275,7 +2275,7 @@
             return this.select.val();
         },
         has_target: function(value) {
-            if (value === null) {
+            if (value === null || value === undefined) {
                 return false;
             }
             var model = value.split(',')[0];

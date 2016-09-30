@@ -765,8 +765,8 @@
             counter.text(label);
             counter.show();
             var record_id = this.screen.get_id();
-            this.buttons.attach.prop('disabled',
-                record_id < 0 || record_id === null);
+            this.buttons.attach.prop('disabled', record_id < 0 ||
+                record_id === null || record_id === undefined);
         },
         note: function() {
             var record = this.screen.current_record;
@@ -792,8 +792,8 @@
             counter.text(label);
             counter.show();
             var record_id = this.screen.get_id();
-            this.buttons.note.prop('disabled',
-                    record_id < 0 || record_id === null);
+            this.buttons.note.prop('disabled', record_id < 0 ||
+                record_id === null || record_id === undefined);
         },
         record_message: function() {
             this.info_bar.message();

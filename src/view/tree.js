@@ -893,9 +893,9 @@
             var column, column_index, state_attrs;
 
             sign = sign || 1;
-            if ((path === null) && (sign > 0)) {
+            if ((path === null || path === undefined) && (sign > 0)) {
                 path = -1;
-            } else if (path === null) {
+            } else if (path === null || path === undefined) {
                 path = 0;
             }
             column_index = 0;
