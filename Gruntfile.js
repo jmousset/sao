@@ -1,9 +1,8 @@
 module.exports = function(grunt) {
 
   var _ = grunt.util._;
-  var locales = ["bg_BG", "ca_ES", "cs_CZ", "de_DE", "es_AR", "es_CO", "es_EC",
-  "es_ES", "es_MX", "fr_FR", "hu_HU", "it_IT", "lo_LA", "lt_LT", "nl_NL",
-  "pt_BR", "ru_RU", "sl_SI", "zh_CN"];
+  var locales = ["bg", "ca", "cs", "de", "es", "es_AR", "es_CO", "es_EC",
+  "es_MX", "fr", "hu", "it", "lo", "lt", "nl", "pt_BR", "ru", "sl", "zh_CN"];
   var jsfiles = [
       'src/sao.js',
       'src/rpc.js',
@@ -141,6 +140,9 @@ module.exports = function(grunt) {
             files: ['src/*.less'],
             tasks: 'less:dev'
         }
+    },
+    qunit: {
+        all: ['tests/*.html']
     }
   });
 
@@ -154,6 +156,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.loadNpmTasks('grunt-po2json');
   grunt.loadNpmTasks('grunt-contrib-copy');
+  grunt.loadNpmTasks('grunt-contrib-qunit');
 
   // Default task(s).
   grunt.registerTask('default', [
@@ -161,5 +164,6 @@ module.exports = function(grunt) {
   ]);
   grunt.registerTask('dev', ['concat', 'jshint', 'less:dev']);
   grunt.registerTask('msgmerge', ['shell:msgmerge']);
+  grunt.registerTask('test', ['concat', 'jshint', 'less:dev', 'qunit']);
 
 };

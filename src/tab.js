@@ -18,6 +18,8 @@
             var toolbar = this.create_toolbar().appendTo(this.el);
             this.title = toolbar.find('a.navbar-brand');
 
+            this.content = jQuery('<div/>').appendTo(this.el);
+
             if (this.info_bar) {
                 this.el.append(this.info_bar.el);
             }
@@ -49,7 +51,7 @@
         },
         create_toolbar: function() {
             var toolbar = jQuery(
-                    '<nav class="navbar navbar-default toolbar" role="navigation">' +
+                    '<nav class="navbar-default toolbar" role="navigation">' +
                     '<div class="container-fluid">' +
                     '<div class="main-navbar-header navbar-header">' +
                     '<div>' +
@@ -296,9 +298,8 @@
             this.set_buttons_sensitive();
 
             this.view_prm = this.screen.switch_view().done(function() {
-                this.set_name(attributes.name ||
-                        this.screen.current_view.attributes.string);
-                this.el.append(screen.screen_container.el);
+                this.set_name(attributes.name || '');
+                this.content.append(screen.screen_container.el);
                 if (attributes.res_id) {
                     if (!jQuery.isArray(attributes.res_id)) {
                         attributes.res_id = [attributes.res_id];
@@ -370,7 +371,9 @@
                 ['glyphicon-comment', Sao.i18n.gettext('Note'), 'note'],
                 ['glyphicon-cog', Sao.i18n.gettext('Action'), 'action'],
                 ['glyphicon-share-alt', Sao.i18n.gettext('Relate'), 'relate'],
-                ['glyphicon-print', Sao.i18n.gettext('Print'), 'print']
+                ['glyphicon-print', Sao.i18n.gettext('Print'), 'print'],
+                ['glyphicon-export', Sao.i18n.gettext('Export'), 'export'],
+                ['glyphicon-import', Sao.i18n.gettext('Import'), 'import']
             ];
         },
         create_toolbar: function() {
@@ -526,6 +529,7 @@
                     function() {
                         this.info_bar.message(
                                 Sao.i18n.gettext('Record saved.'), 'info');
+                        this.screen.count_tab_domain();
                     }.bind(this),
                     function() {
                         this.info_bar.message(
@@ -549,6 +553,7 @@
                             this.screen.screen_container.search_entry.val());
                         // TODO set current_record
                     }
+                    this.screen.count_tab_domain();
                     return this.screen.display().then(function() {
                         this.info_bar.message();
                     }.bind(this));
@@ -571,6 +576,7 @@
                             Sao.i18n.gettext(
                                 'Working now on the duplicated record(s).'),
                             'info');
+                    this.screen.count_tab_domain();
                 }.bind(this));
             }.bind(this));
         },
@@ -591,6 +597,7 @@
                                     Sao.i18n.gettext('Records removed.'),
                                     'info');
                             Sao.Tab.tabs.close_current();
+                            this.screen.count_tab_domain();
                         }.bind(this), function() {
                             this.info_bar.message(
                                     Sao.i18n.gettext('Records not removed.'),
@@ -815,6 +822,16 @@
                 this.buttons.print.find('ul.dropdown-menu')
                     .dropdown('toggle');
             }.bind(this));
+        },
+        export: function(){
+            new Sao.Window.Export(this.screen,
+                this.screen.current_view.selected_records().map(function(r) {
+                    return r.id;
+                }),
+                this.screen.current_view.get_fields());
+        },
+        import: function(){
+            new Sao.Window.Import(this.screen);
         }
     });
 
@@ -827,7 +844,7 @@
             this.view_id = (attributes.view_ids.length > 0 ?
                     attributes.view_ids[0] : null);
             this.context = attributes.context;
-            this.name = attributes.name;
+            this.name = attributes.name || '';
             this.dialogs = [];
             this.board = null;
             UIView = new Sao.Model('ir.ui.view');

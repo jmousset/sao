@@ -189,10 +189,18 @@ var Sao = {};
     Sao.config.display_size = 20;
     Sao.config.roundup = {};
     Sao.config.roundup.url = 'http://bugs.tryton.org/roundup/';
+    Sao.config.title = 'Coog';
 
     Sao.i18n = i18n();
     Sao.i18n.setlang = function(lang) {
+        if (!lang) {
+            lang = (navigator.language ||
+                 navigator.browserLanguage ||
+                 navigator.userLanguage ||
+                 'en_US').replace('-', '_');
+        }
         Sao.i18n.setLocale(lang);
+        moment.locale(lang.slice(0, 2));
         return jQuery.getJSON('locale/' + lang + '.json', function(data) {
             if (!data[''].language) {
                 data[''].language = lang;
@@ -210,11 +218,10 @@ var Sao = {};
             Sao.i18n.loadJSON(data);
         });
     };
-    Sao.i18n.setlang(
-            (navigator.language ||
-             navigator.browserLanguge ||
-             navigator.userLanguage ||
-             'en_US').replace('-', '_'));
+    Sao.i18n.getlang = function() {
+        return Sao.i18n.getLocale();
+    };
+    Sao.i18n.setlang();
 
     Sao.get_preferences = function() {
         var session = Sao.Session.current_session;
@@ -232,7 +239,7 @@ var Sao = {};
                     (preferences.actions || []).forEach(function(action_id) {
                         Sao.Action.execute(action_id, {}, null, {});
                     });
-                    var title = 'Coog';
+                    var title = Sao.config.title;
                     if (!jQuery.isEmptyObject(preferences.status_bar)) {
                         title += ' - ' + preferences.status_bar;
                     }
@@ -267,8 +274,9 @@ var Sao = {};
         Sao.Tab.tabs.close(true).done(function() {
             jQuery('#user-preferences').children().remove();
             jQuery('#user-logout').children().remove();
+            jQuery('#user-favorites').children().remove();
             jQuery('#menu').children().remove();
-            document.title = 'Coog';
+            document.title = Sao.config.title;
             session.do_logout().always(Sao.login);
         });
     };
@@ -276,6 +284,7 @@ var Sao = {};
     Sao.preferences = function() {
         Sao.Tab.tabs.close(true).done(function() {
             jQuery('#user-preferences').children().remove();
+            jQuery('#user-favorites').children().remove();
             jQuery('#user-logout').children().remove();
             jQuery('#menu').children().remove();
             new Sao.Window.Preferences(function() {
@@ -286,9 +295,80 @@ var Sao = {};
             });
         });
     };
+    Sao.favorites_menu = function() {
+        var clear_menu = function() {
+            if (menu) {
+                menu.remove();
+            }
+        };
+        jQuery(window).click(function() {
+            clear_menu();
+        });
+        if (jQuery('#user-favorites').children('.dropdown-menu')
+                .length !== 0 ) {
+            clear_menu();
+        } else {
+            var name = Sao.main_menu_screen.model_name + '.favorite';
+            var session = Sao.Session.current_session;
+            var args = {
+                'method': 'model.' + name + '.get',
+            };
+            var menu = jQuery('<ul/>', {
+                'class': 'dropdown-menu',
+                'aria-expanded': 'false'
+            });
+            jQuery('#user-favorites').append(menu);
+            Sao.rpc(args, session).then(function(fav) {
+                fav.forEach(function(menu_item) {
+                    var a = jQuery('<a/>', {
+                        'href': '#'
+                    });
+                    var id = menu_item[0];
+                    var li = jQuery('<li/>', {
+                        'role': 'presentation'
+                    });
+                    var icon = jQuery('<img/>', {
+                        'class': 'favorite-icon'
+                    });
+                    a.append(icon);
+                    li.append(a);
+                    icon.attr('src',
+                         Sao.common.ICONFACTORY.get_icon_url(menu_item[2]));
+                    a.append(menu_item[1]);
+                    a.click(function() {
+                        clear_menu();
+                        Sao.Action.exec_keyword('tree_open', {
+                            'model': Sao.main_menu_screen.model_name,
+                            'id': id,
+                            'ids': [id],
+                        });
+                    });
+                    menu.append(li);
+                });
+                menu.append(jQuery('<li/>', {
+                        'class': 'divider'
+                }));
+                jQuery('<li/>', {
+                    'role': 'presentation'
+                }).append(jQuery('<a/>', {
+                        'href': '#'
+                    }).click(function() {
+                        clear_menu();
+                        Sao.Tab.create({
+                            'model': Sao.main_menu_screen.model_name +
+                            '.favorite',
+                            'mode': ['tree', 'form'],
+                            'name': Sao.i18n.gettext('Manage favorites')
+                        });
+                    }).text(Sao.i18n.gettext('Manage favorites'))).appendTo(
+                       menu);
+            });
+        }
+    };
 
     Sao.user_menu = function(preferences) {
         jQuery('#user-preferences').children().remove();
+        jQuery('#user-favorites').children().remove();
         jQuery('#user-logout').children().remove();
         jQuery('#user-preferences').append(jQuery('<a/>', {
             'href': '#'
@@ -296,6 +376,10 @@ var Sao = {};
         jQuery('#user-logout').append(jQuery('<a/>', {
             'href': '#'
         }).click(Sao.logout).append(Sao.i18n.gettext('Logout')));
+        jQuery('#user-favorites').append(jQuery('<a/>', {
+            'href': '#',
+            'data-toggle': 'dropdown'
+        }).click(Sao.favorites_menu).append(Sao.i18n.gettext('Favorites')));
     };
 
     Sao.menu = function(preferences) {
@@ -330,16 +414,74 @@ var Sao = {};
             jQuery('#menu').append(gs.el);
             jQuery('#menu').append(
                 form.screen.screen_container.content_box.detach());
+            form.screen.views[0].columns.push(
+                new FavoriteColumn(form.screen.model.fields.favorite));
         });
     };
     Sao.main_menu_screen = null;
+
+    var FavoriteColumn = Sao.class_(Object, {
+        init: function(favorite) {
+            this.field = favorite;
+            this.header = jQuery('<th/>');
+            this.attributes = jQuery.extend({}, this.field.description);
+            this.attributes.name = this.field.name;
+
+        },
+        get_cell: function() {
+            var cell = jQuery('<span/>', {
+                'tabindex': 0
+            });
+            return cell;
+        },
+        render: function(record, cell) {
+            if (!cell) {
+                cell = this.get_cell();
+            }
+            record.load(this.field.name).done(function() {
+                if (record._values.favorite !== null) {
+                    var star = 'glyphicon glyphicon-star';
+                    if (!record._values.favorite) {
+                        star += '-empty';
+                    }
+                    cell.addClass(star);
+                    cell.click({'record': record, 'button': cell},
+                        this.favorite_click);
+                    }
+                }.bind(this));
+            return cell;
+        },
+        favorite_click: function(e) {
+            // Prevent activate the action of the row
+            e.stopImmediatePropagation();
+            var button = e.data.button;
+            var method;
+            if (button.hasClass('glyphicon-star-empty')) {
+                button.removeClass('glyphicon-star-empty');
+                button.addClass('glyphicon-star');
+                method = 'set';
+            } else {
+                button.removeClass('glyphicon-star');
+                button.addClass('glyphicon-star-empty');
+                method = 'unset';
+            }
+            var name = Sao.main_menu_screen.model_name + '.favorite';
+            var session = Sao.Session.current_session;
+            var args = {
+                'method': 'model.' + name + '.' + method,
+                'params': [e.data.record.id, session.context]
+            };
+            Sao.rpc(args, session);
+        }
+    });
 
     Sao.Dialog = Sao.class_(Object, {
         init: function(title, class_, size) {
             size = size || 'sm';
             this.modal = jQuery('<div/>', {
                 'class': class_ + ' modal fade',
-                'role': 'dialog'
+                'role': 'dialog',
+                'data-backdrop': 'static',
             });
             this.content = jQuery('<form/>', {
                 'class': 'modal-content'
@@ -425,7 +567,8 @@ var Sao = {};
                 var params = {
                     'model': item.model,
                     'res_id': item.record_id,
-                    'mode': ['form', 'tree']
+                    'mode': ['form', 'tree'],
+                    'name': item.model_name
                 };
                 Sao.Tab.create(params);
             }

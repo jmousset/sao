@@ -4,6 +4,7 @@
     'use strict';
 
     Sao.PYSON = {};
+    Sao.PYSON.eval = {};
 
     Sao.PYSON.PYSON = Sao.class_(Object, {
         init: function() {
@@ -13,36 +14,69 @@
         },
         types: function() {
             throw 'NotImplementedError';
+        },
+        toString: function() {
+            var klass = this.pyson().__class__;
+            var args = this.__string_params__().map(function(p){
+                if (p instanceof Sao.PYSON.PYSON) {
+                    return p.toString();
+                } else {
+                    return JSON.stringify(p);
+                }
+            });
+            return klass + '(' + args.join(', ') + ')';
+        },
+        __string_params__: function() {
+            throw 'NotImplementedError';
         }
     });
 
     Sao.PYSON.PYSON.eval_ = function(value, context) {
         throw 'NotImplementedError';
     };
+    Sao.PYSON.PYSON.init_from_object = function(object) {
+        throw 'NotImplementedError';
+    };
 
     Sao.PYSON.Encoder = Sao.class_(Object, {
+        prepare: function(value, index, parent) {
+            if (value !== null && value !== undefined) {
+                if (value instanceof Array) {
+                    value = jQuery.extend([], value);
+                    for (var i = 0, length = value.length; i < length; i++) {
+                        this.prepare(value[i], i, value);
+                    }
+                } else if (value._isAMomentObject) {
+                    if (value.isDate) {
+                        value = new Sao.PYSON.Date(
+                            value.year(),
+                            value.month() + 1,
+                            value.date()).pyson();
+                    } else {
+                        value = new Sao.PYSON.DateTime(
+                            value.year(),
+                            value.month() + 1,
+                            value.date(),
+                            value.hours(),
+                            value.minutes(),
+                            value.seconds(),
+                            value.milliseconds() * 1000).pyson();
+                    }
+                }
+            }
+            if (parent) {
+                parent[index] = value;
+            }
+            return parent || value;
+        },
+
         encode: function(pyson) {
+            pyson = this.prepare(pyson);
             return JSON.stringify(pyson, function(k, v) {
                 if (v instanceof Sao.PYSON.PYSON) {
                     return v.pyson();
                 } else if (v === null || v === undefined) {
                     return null;
-                } else if (v._isAMomentObject) {
-                    if (v.isDate) {
-                        return Sao.PYSON.Date(
-                            v.getFullYear(),
-                            v.getMonth(),
-                            v.getDate()).pyson();
-                    } else {
-                        return Sao.PYSON.DateTime(
-                            v.getFullYear(),
-                            v.getMonth(),
-                            v.getDate(),
-                            v.getHours(),
-                            v.getMinutes(),
-                            v.getSeconds(),
-                            v.getMilliseconds()).pyson();
-                    }
                 }
                 return v;
             });
@@ -50,15 +84,23 @@
     });
 
     Sao.PYSON.Decoder = Sao.class_(Object, {
-        init: function(context) {
+        init: function(context, noeval) {
             this.__context = context || {};
+            this.noeval = noeval || false;
         },
         decode: function(str) {
             var reviver = function(k, v) {
                 if (typeof v == 'object' && v !== null) {
                     var cls = Sao.PYSON[v.__class__];
                     if (cls) {
-                        return cls.eval_(v, this.__context);
+                        if (!this.noeval) {
+                            return cls.eval_(v, this.__context);
+                        } else {
+                            var args = jQuery.extend({}, v);
+                            delete args.__class__;
+                            return Sao.PYSON[v.__class__].init_from_object(
+                                args);
+                        }
                     }
                 }
                 return v;
@@ -67,6 +109,9 @@
         }
     });
 
+    Sao.PYSON.eval.Eval = function(value, default_) {
+        return new Sao.PYSON.Eval(value, default_);
+    };
     Sao.PYSON.Eval = Sao.class_(Sao.PYSON.PYSON, {
         init: function(value, default_) {
             if (default_ === undefined) {
@@ -89,6 +134,9 @@
             } else {
                 return [typeof this._default];
             }
+        },
+        __string_params__: function() {
+            return [this._value, this._default];
         }
     });
 
@@ -99,12 +147,18 @@
             return value.d;
         }
     };
+    Sao.PYSON.Eval.init_from_object = function(obj) {
+        return new Sao.PYSON.Eval(obj.v, obj.d);
+    };
 
+    Sao.PYSON.eval.Not = function(value) {
+        return new Sao.PYSON.Not(value);
+    };
     Sao.PYSON.Not = Sao.class_(Sao.PYSON.PYSON, {
         init: function(value) {
             Sao.PYSON.Not._super.init.call(this);
             if (value instanceof Sao.PYSON.PYSON) {
-                if (jQuery(value.types()).not(['boolean']).length ||
+                if (jQuery(value.types()).not(['boolean', 'object']).length ||
                     jQuery(['boolean']).not(value.types()).length) {
                     throw 'value must be boolean';
                     }
@@ -123,13 +177,22 @@
         },
         types: function() {
             return ['boolean'];
+        },
+        __string_params__: function() {
+            return [this._value];
         }
     });
 
     Sao.PYSON.Not.eval_ = function(value, context) {
         return !value.v;
     };
+    Sao.PYSON.Not.init_from_object = function(obj) {
+        return new Sao.PYSON.Not(obj.v);
+    };
 
+    Sao.PYSON.eval.Bool = function(value) {
+        return new Sao.PYSON.Bool(value);
+    };
     Sao.PYSON.Bool = Sao.class_(Sao.PYSON.PYSON, {
         init: function(value) {
             Sao.PYSON.Bool._super.init.call(this);
@@ -143,6 +206,9 @@
         },
         types: function() {
             return ['boolean'];
+        },
+        __string_params__: function() {
+            return [this._value];
         }
     });
 
@@ -158,8 +224,14 @@
             return Boolean(value.v);
         }
     };
+    Sao.PYSON.Bool.init_from_object = function(obj) {
+        return new Sao.PYSON.Bool(obj.v);
+    };
 
 
+    Sao.PYSON.eval.And = function(statements) {
+        return new Sao.PYSON.And(statements);
+    };
     Sao.PYSON.And = Sao.class_(Sao.PYSON.PYSON, {
         init: function(statements) {
             if (statements === undefined) {
@@ -192,6 +264,9 @@
         },
         types: function() {
             return ['boolean'];
+        },
+        __string_params__: function() {
+            return this._statements;
         }
     });
 
@@ -203,8 +278,14 @@
         }
         return result;
     };
+    Sao.PYSON.And.init_from_object = function(obj) {
+        return new Sao.PYSON.And(obj.s);
+    };
 
 
+    Sao.PYSON.eval.Or = function(statements) {
+        return new Sao.PYSON.Or(statements);
+    };
     Sao.PYSON.Or = Sao.class_(Sao.PYSON.And, {
         pyson: function() {
             var result = Sao.PYSON.Or._super.pyson.call(this);
@@ -221,7 +302,13 @@
         }
         return result;
     };
+    Sao.PYSON.Or.init_from_object= function(obj) {
+        return new Sao.PYSON.Or(obj.s);
+    };
 
+    Sao.PYSON.eval.Equal = function(statement1, statement2) {
+        return new Sao.PYSON.Equal(statement1, statement2);
+    };
     Sao.PYSON.Equal = Sao.class_(Sao.PYSON.PYSON, {
         init: function(statement1, statement2) {
             Sao.PYSON.Equal._super.init.call(this);
@@ -252,6 +339,9 @@
         },
         types: function() {
             return ['boolean'];
+        },
+        __string_params__: function() {
+            return [this._statement1, this._statement2];
         }
     });
 
@@ -262,7 +352,13 @@
             return value.s1 == value.s2;
         }
     };
+    Sao.PYSON.Equal.init_from_object = function(obj) {
+        return new Sao.PYSON.Equal(obj.s1, obj.s2);
+    };
 
+    Sao.PYSON.eval.Greater = function(statement1, statement2, equal) {
+        return new Sao.PYSON.Greater(statement1, statement2, equal);
+    };
     Sao.PYSON.Greater = Sao.class_(Sao.PYSON.PYSON, {
         init: function(statement1, statement2, equal) {
             Sao.PYSON.Greater._super.init.call(this);
@@ -274,7 +370,7 @@
                         throw 'statement must be an integer or a float';
                     }
                 } else {
-                    if (typeof statement != 'number') {
+                    if (!~['number', 'object'].indexOf(typeof statement)) {
                         throw 'statement must be an integer or a float';
                     }
                 }
@@ -306,6 +402,9 @@
         },
         types: function() {
             return ['boolean'];
+        },
+        __string_params__: function() {
+            return [this._statement1, this._statement2, this._equal];
         }
     });
 
@@ -324,7 +423,13 @@
             return value.s1 > value.s2;
         }
     };
+    Sao.PYSON.Greater.init_from_object = function(obj) {
+        return new Sao.PYSON.Greater(obj.s1, obj.s2, obj.e);
+    };
 
+    Sao.PYSON.eval.Less = function(statement1, statement2, equal) {
+        return new Sao.PYSON.Less(statement1, statement2, equal);
+    };
     Sao.PYSON.Less = Sao.class_(Sao.PYSON.Greater, {
         pyson: function() {
             var result = Sao.PYSON.Less._super.pyson.call(this);
@@ -343,7 +448,13 @@
             return value.s1 < value.s2;
         }
     };
+    Sao.PYSON.Less.init_from_object = function(obj) {
+        return new Sao.PYSON.Less(obj.s1, obj.s2, obj.e);
+    };
 
+    Sao.PYSON.eval.If = function(condition, then_statement, else_statement) {
+        return new Sao.PYSON.If(condition, then_statement, else_statement);
+    };
     Sao.PYSON.If = Sao.class_(Sao.PYSON.PYSON, {
         init: function(condition, then_statement, else_statement) {
             Sao.PYSON.If._super.init.call(this);
@@ -393,6 +504,10 @@
             } else {
                 return [typeof this._then_statement];
             }
+        },
+        __string_params__: function() {
+            return [this._condition, this._then_statement,
+                this._else_statement];
         }
     });
 
@@ -403,7 +518,13 @@
             return value.e;
         }
     };
+    Sao.PYSON.If.init_from_object = function(obj) {
+        return new Sao.PYSON.If(obj.c, obj.t, obj.e);
+    };
 
+    Sao.PYSON.eval.Get = function(obj, key, default_) {
+        return new Sao.PYSON.Get(obj, key, default_);
+    };
     Sao.PYSON.Get = Sao.class_(Sao.PYSON.PYSON, {
         init: function(obj, key, default_) {
             Sao.PYSON.Get._super.init.call(this);
@@ -448,6 +569,9 @@
             } else {
                 return [typeof this._default];
             }
+        },
+        __string_params__: function() {
+            return [this._obj, this._key, this._default];
         }
     });
 
@@ -458,7 +582,13 @@
             return value.d;
         }
     };
+    Sao.PYSON.Get.init_from_object = function(obj) {
+        return new Sao.PYSON.Get(obj.v, obj.k, obj.d);
+    };
 
+    Sao.PYSON.eval.In = function(key, obj) {
+        return new Sao.PYSON.In(key, obj);
+    };
     Sao.PYSON.In = Sao.class_(Sao.PYSON.PYSON, {
         init: function(key, obj) {
             Sao.PYSON.In._super.init.call(this);
@@ -492,6 +622,9 @@
         },
         types: function() {
             return ['boolean'];
+        },
+        __string_params__: function() {
+            return [this._key, this._obj];
         }
     });
 
@@ -502,7 +635,15 @@
             return !!value.v[value.k];
         }
     };
+    Sao.PYSON.In.init_from_object = function(obj) {
+        return new Sao.PYSON.In(obj.k, obj.v);
+    };
 
+    Sao.PYSON.eval.Date = function(year, month, day, delta_years, delta_months,
+            delta_days) {
+        return new Sao.PYSON.Date(year, month, day, delta_years, delta_months,
+                delta_days);
+    };
     Sao.PYSON.Date = Sao.class_(Sao.PYSON.PYSON, {
         init: function(year, month, day, delta_years, delta_months, delta_days)
         {
@@ -553,6 +694,10 @@
                     throw name + ' must be an integer or None';
                 }
             }
+        },
+        __string_params__: function() {
+            return [this._year, this._month, this._day, this._delta_years,
+                this._delta_months, this._delta_days];
         }
     });
 
@@ -563,7 +708,17 @@
         if (value.dd) date.add(value.dd, 'd');
         return date;
     };
+    Sao.PYSON.Date.init_from_object = function(obj) {
+        return new Sao.PYSON.Date(obj.y, obj.M, obj.d, obj.dy, obj.dM, obj.dd);
+    };
 
+    Sao.PYSON.eval.DateTime = function(year, month, day, hour, minute, second,
+            microsecond, delta_years, delta_months, delta_days, delta_hours,
+            delta_minutes, delta_seconds, delta_microseconds) {
+        return new Sao.PYSON.DateTime(year, month, day, hour, minute, second,
+            microsecond, delta_years, delta_months, delta_days, delta_hours,
+            delta_minutes, delta_seconds, delta_microseconds);
+    };
     Sao.PYSON.DateTime = Sao.class_(Sao.PYSON.Date, {
         init: function(year, month, day, hour, minute, second, microsecond,
                   delta_years, delta_months, delta_days, delta_hours,
@@ -609,6 +764,15 @@
             result.ds = this._delta_seconds;
             result.dms = this._delta_microseconds;
             return result;
+        },
+        __string_params__: function() {
+            var date_params = Sao.PYSON.DateTime._super.__string_params__.call(
+                this);
+            return [date_params[0], date_params[1], date_params[2],
+                this._hour, this._minute, this._second, this._microsecond,
+                date_params[3], date_params[4], date_params[5],
+                this._delta_hours, this._delta_minutes, this._delta_seconds,
+                this._delta_microseconds];
         }
     });
 
@@ -624,7 +788,14 @@
         if (value.dms) date.add(value.dms / 1000, 'ms');
         return date;
     };
+    Sao.PYSON.DateTime.init_from_object = function(obj) {
+        return new Sao.PYSON.DateTime(obj.y, obj.M, obj.d, obj.h, obj.m, obj.s,
+            obj.ms, obj.dy, obj.dM, obj.dd, obj.dh, obj.dm, obj.ds, obj.dms);
+    };
 
+    Sao.PYSON.eval.Len = function(value) {
+        return new Sao.PYSON.Len(value);
+    };
     Sao.PYSON.Len = Sao.class_(Sao.PYSON.PYSON, {
         init: function(value) {
             Sao.PYSON.Len._super.init.call(this);
@@ -648,6 +819,9 @@
         },
         types: function() {
             return ['integer'];
+        },
+        __string_params__: function() {
+            return [this._value];
         }
     });
 
@@ -657,5 +831,8 @@
         } else {
             return value.v.length;
         }
+    };
+    Sao.PYSON.Len.init_from_object = function(obj) {
+        return new Sao.PYSON.Len(obj.v);
     };
 }());

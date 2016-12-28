@@ -11,14 +11,17 @@
             this.fields = {};
         },
         add_fields: function(descriptions) {
+            var added = [];
             for (var name in descriptions) {
                 if (descriptions.hasOwnProperty(name) &&
                     (!(name in this.fields))) {
                         var desc = descriptions[name];
                         var Field = Sao.field.get(desc.type);
                         this.fields[name] = new Field(desc);
+                        added.push(name);
                     }
             }
+            return added;
         },
         execute: function(method, params, context) {
             if (context === undefined) {
@@ -161,11 +164,11 @@
                 }
             }
         };
-        array.new_ = function(default_, id) {
+        array.new_ = function(default_, id, rec_name) {
             var record = new Sao.Record(this.model, id);
             record.group = this;
             if (default_) {
-                record.default_get();
+                record.default_get(rec_name);
             }
             return record;
         };
@@ -349,6 +352,26 @@
                 this.parent.group.children.push(this);
             }
         };
+        array.add_fields = function(fields) {
+            var added = this.model.add_fields(fields);
+            if (jQuery.isEmptyObject(this)) {
+                return;
+            }
+            var new_ = [];
+            this.forEach(function(record) {
+                if (record.id < 0) {
+                    new_.push(record);
+                }
+            });
+            if (new_.length && added.length) {
+                this.model.execute('default_get', [added, this.context()])
+                    .then(function(values) {
+                        new_.forEach(function(record) {
+                            record.set_default(values);
+                        });
+                    });
+            }
+        };
         array.destroy = function() {
             if (this.parent) {
                 var i = this.parent.group.children.indexOf(this);
@@ -447,6 +470,15 @@
             };
             return jQuery.when().then(browse_child);
         };
+        array.sort = function(ids) {
+                var id2record = {};
+                this.forEach(function(record) {
+                    id2record[record.id] = record;
+                });
+                ids.forEach(function(ordered_record, i){
+                    this[i] = id2record[ordered_record.id];
+                }.bind(this));
+        };
         return array;
     };
 
@@ -463,6 +495,7 @@
             this._timestamp = null;
             this.attachment_count = -1;
             this.unread_note = -1;
+            this.button_clicks = {};
             this.state_attrs = {};
             this.autocompletion = {};
             this.exception = false;
@@ -655,6 +688,7 @@
             var succeed = function(values, exception) {
                 if (exception === undefined) exception = false;
                 var id2value = {};
+                var promises = [];
                 values.forEach(function(e, i, a) {
                     id2value[e.id] = e;
                 });
@@ -674,9 +708,10 @@
                             }
                             delete value[key];
                         }
-                        record.set(value);
+                        promises.push(record.set(value));
                     }
                 }
+                return jQuery.when.apply(jQuery, promises);
             }.bind(this);
             var failed = function() {
                 var failed_values = [];
@@ -690,15 +725,20 @@
                     }
                     failed_values.push(default_values);
                 }
-                succeed(failed_values, true);
+                return succeed(failed_values, true);
             };
             this.group.prm = prm.then(succeed, failed);
             return this.group.prm;
         },
-        set: function(values) {
+        set: function(values, validate) {
+            if (validate === undefined) {
+                validate = true;
+            }
             var name, value;
             var rec_named_fields = ['many2one', 'one2one', 'reference'];
             var later = {};
+            var promises = [];
+            var fieldnames = [];
             for (name in values) {
                 if (!values.hasOwnProperty(name)) {
                     continue;
@@ -732,12 +772,24 @@
                 }
                 this.model.fields[name].set(this, value);
                 this._loaded[name] = true;
+                fieldnames.push(name);
             }
             for (name in later) {
                 value = later[name];
                 this.model.fields[name].set(this, value);
                 this._loaded[name] = true;
             }
+            for (var fname in this.model.fields) {
+                var field = this.model.fields[fname];
+                if (field.description.autocomplete &&
+                        field.description.autocomplete.length > 0) {
+                    promises.push(this.do_autocomplete(fname));
+                }
+            }
+            if (validate) {
+                promises.push(this.validate(fieldnames, true));
+            }
+            return jQuery.when.apply(jQuery, promises);
         },
         get: function() {
             var value = {};
@@ -782,7 +834,7 @@
         field_set_client: function(name, value, force_change) {
             this.model.fields[name].set_client(this, value, force_change);
         },
-        default_get: function() {
+        default_get: function(rec_name) {
             var dfd = jQuery.Deferred();
             var promises = [];
             // Ensure promisses is filled before default_get is resolved
@@ -794,8 +846,12 @@
                 }
             }
             if (!jQuery.isEmptyObject(this.model.fields)) {
+                var context = this.get_context();
+                if (context.default_rec_name === undefined) {
+                    context.default_rec_name = rec_name;
+                }
                 var prm = this.model.execute('default_get',
-                        [Object.keys(this.model.fields)], this.get_context());
+                        [Object.keys(this.model.fields)], context);
                 prm.then(function(values) {
                     if (this.group.parent &&
                             this.group.parent_name in this.group.model.fields) {
@@ -816,6 +872,8 @@
                         dfd.resolve(values);
                     });
                 }.bind(this));
+            } else {
+                dfd.resolve();
             }
             return dfd;
         },
@@ -865,7 +923,8 @@
                                 });
                         }.bind(this);
                         if (validate) {
-                            return this.validate(null, true).then(callback);
+                            return this.validate(null, true)
+                                .then(callback);
                         } else {
                             return callback();
                         }
@@ -1135,6 +1194,7 @@
             this._loaded = {};
             this._changed = {};
             this._timestamp = null;
+            this.button_clicks = {};
         },
         _check_load: function(fields) {
             if (!this.get_loaded(fields)) {
@@ -1244,6 +1304,22 @@
                 prm.resolve(this.unread_note);
             }
             return prm;
+        },
+        get_button_clicks: function(name) {
+            if (this.id < 0) {
+                return jQuery.when();
+            }
+            var clicks = this.button_clicks[name];
+            if (clicks !== undefined) {
+                return jQuery.when(clicks);
+            }
+            return Sao.rpc({
+                'method': 'model.ir.model.button.click.get_click',
+                'params': [this.model.name, name, this.id, {}],
+            }, this.model.session).then(function(clicks) {
+                this.button_clicks[name] = clicks;
+                return clicks;
+            }.bind(this));
         }
     });
 
@@ -1786,6 +1862,15 @@
             Sao.field.Many2One._super.set_client.call(this, record, value,
                     force_change);
         },
+        get_context: function(record) {
+            var context = Sao.field.Many2One._super.get_context.call(
+                this, record);
+            if (this.description.datetime_field) {
+                context._datetime = record.get_eval()[
+                    this.description.datetime_field];
+            }
+            return context;
+        },
         validation_domains: function(record, pre_validate) {
             return this.get_domains(record, pre_validate)[0];
         },
@@ -1857,14 +1942,13 @@
             var set_value = function(fields) {
                 var promises = [];
                 if (!jQuery.isEmptyObject(fields)) {
-                    group.model.add_fields(fields);
+                    group.add_fields(fields);
                 }
                 record._values[this.name] = group;
                 if (mode == 'list ids') {
                     for (var i = 0, len = group.length; i < len; i++) {
                         var old_record = group[i];
-                        // [Bug Sao] - report from python
-                        if (value.indexOf(old_record.id) < 0) {
+                        if (!~value.indexOf(old_record.id)) {
                             group.remove(old_record, true);
                         }
                     }
@@ -1877,7 +1961,7 @@
                             promises.push(new_record.set_default(vals, false));
                             group.add(new_record, -1, false);
                         } else {
-                            new_record.set(vals);
+                            promises.push(new_record.set(vals));
                             group.push(new_record);
                         }
                     });
@@ -2064,7 +2148,7 @@
 
             if (value.add || value.update) {
                 prm.then(function(fields) {
-                    group.model.add_fields(fields);
+                    group.add_fields(fields);
                     if (value.add) {
                         value.add.forEach(function(vals) {
                             var index = vals[0];
@@ -2165,9 +2249,6 @@
             return this.get_domains(record, pre_validate)[0];
         },
         validate: function(record, softvalidation, pre_validate) {
-            if (this.description.readonly) {
-                return true;
-            }
             var invalid = false;
             var inversion = new Sao.common.DomainInversion();
             var ldomain = inversion.localize_domain(inversion.domain_inversion(
@@ -2206,8 +2287,6 @@
         set_state: function(record, states) {
             this._set_default_value(record);
             Sao.field.One2Many._super.set_state.call(this, record, states);
-            record._values[this.name].readonly = this.get_state_attrs(record)
-                .readonly;
         }
     });
 
@@ -2312,6 +2391,15 @@
             return Sao.field.Reference._super.get_on_change_value.call(
                     this, record);
         },
+        get_context: function(record) {
+            var context = Sao.field.Reference._super.get_context.call(
+                this, record);
+            if (this.description.datetime_field) {
+                context._datetime = record.get_eval()[
+                    this.description.datetime_field];
+            }
+            return context;
+        },
         validation_domains: function(record, pre_validate) {
             return this.get_domains(record, pre_validate)[0];
         },
@@ -2358,6 +2446,23 @@
 
     Sao.field.Dict = Sao.class_(Sao.field.Field, {
         _default: {},
+        set: function(record, value) {
+            if (value) {
+                // Order keys to allow comparison with stringify
+                var keys = [];
+                for (var key in value) {
+                    keys.push(key);
+                }
+                keys.sort();
+                var new_value = {};
+                for (var index in keys) {
+                    key = keys[index];
+                    new_value[key] = value[key];
+                }
+                value = new_value;
+            }
+            Sao.field.Dict._super.set.call(this, record, value);
+        },
         get: function(record) {
             return (Sao.field.Dict._super.get.call(this, record) ||
                     this._default);

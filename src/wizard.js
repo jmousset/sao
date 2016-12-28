@@ -8,7 +8,7 @@
             this.widget = jQuery('<div/>', {
                 'class': 'wizard'
             });
-            this.name = name;
+            this.name = name || '';
             this.action_id = null;
             this.id = null;
             this.ids = null;
@@ -174,7 +174,7 @@
         init: function(name) {
             Sao.Wizard.Form._super.init.call(this);
             this.tab = null;  // Filled by Sao.Tab.Wizard
-            this.name = name;
+            this.name = name || '';
 
             this.form = jQuery('<div/>', {
                 'class': 'wizard-form',
@@ -213,7 +213,7 @@
             this.dialog = dialog.modal;
             this.content = dialog.content;
             this.footer = dialog.footer;
-            dialog.body.append(this.info_bar.el).append(this.widget);
+            dialog.body.append(this.widget).append(this.info_bar.el);
         },
         clean: function() {
             Sao.Wizard.Dialog._super.clean.call(this);
@@ -283,11 +283,7 @@
                     }
                 }
             }.bind(this));
-            if (this.dialog.is(':visible')) {
-                this.dialog.modal('hide');
-            } else {
-                this.dialog.trigger('hidden.bs.modal');
-            }
+            this.dialog.modal('hide');
         },
         end: function() {
             return Sao.Wizard.Dialog._super.end.call(this).then(

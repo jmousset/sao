@@ -714,18 +714,28 @@
     };
 
     Sao.common.Button = Sao.class_(Object, {
-        init: function(attributes) {
+        init: function(attributes, el) {
             this.attributes = attributes;
-            this.el = jQuery('<button/>', {
-                'class': 'btn btn-default',
-                'type': 'button'
-            });
-            this.icon = jQuery('<img/>', {
-                'class': 'icon',
-                'aria-hidden': true
-            }).appendTo(this.el);
-            this.icon.hide();
-            this.el.append(attributes.string || '');
+            if (el) {
+                this.el = el;
+            } else {
+                this.el = jQuery('<button/>');
+                this.el.append(attributes.string || '');
+                if (this.attributes.rule) {
+                    this.el.append(' ').append(jQuery('<span/>', {
+                        'class': 'badge'
+                    }));
+                }
+            }
+            this.icon = this.el.children('img');
+            if (!this.icon.length) {
+                this.icon = jQuery('<img/>').prependTo(this.el);
+                this.icon.hide();
+            }
+            this.el.addClass('btn btn-default');
+            this.el.attr('type', 'button');
+            this.icon.addClass('icon');
+            this.icon.attr('aria-hidden', true);
             this.set_icon(attributes.icon);
         },
         set_icon: function(icon_name) {
@@ -744,9 +754,6 @@
             var states;
             if (record) {
                 states = record.expr_eval(this.attributes.states || {});
-                if (record.group.get_readonly() || record.readonly()) {
-                    states.readonly = true;
-                }
             } else {
                 states = {};
             }
@@ -757,6 +764,32 @@
             }
             this.el.prop('disabled', states.readonly);
             this.set_icon(states.icon || this.attributes.icon);
+
+            if (this.attributes.rule) {
+                var prm;
+                if (record) {
+                    prm = record.get_button_clicks(this.attributes.name);
+                } else {
+                    prm = jQuery.when();
+                }
+                prm.then(function(clicks) {
+                    var counter = this.el.children('.badge');
+                    var users = [];
+                    var tip = '';
+                    if (!jQuery.isEmptyObject(clicks)) {
+                        for (var u in clicks) {
+                            users.push(clicks[u]);
+                        }
+                        tip = Sao.i18n.gettext('By: ') +
+                            users.join(Sao.i18n.gettext(', '));
+                    }
+                    counter.data('toggle', 'tooltip');
+                    counter.text(users.length || '');
+                    counter.attr('title', tip);
+                    counter.tooltip();
+                }.bind(this));
+            }
+
             if (((this.attributes.type === undefined) ||
                         (this.attributes.type === 'class')) && (record)) {
                 var parent = record.group.parent;
@@ -930,6 +963,10 @@
         init: function(fields, context) {
             this.fields = {};
             this.strings = {};
+            this.update_fields(fields);
+            this.context = context;
+        },
+        update_fields: function(fields) {
             for (var name in fields) {
                 var field = fields[name];
                 if (field.searchable || (field.searchable === undefined)) {
@@ -937,7 +974,6 @@
                     this.strings[field.string.toLowerCase()] = field;
                 }
             }
-            this.context = context;
         },
         parse: function(input) {
             try {
@@ -1712,8 +1748,8 @@
                 'boolean': function() {
                     if (typeof value == 'string') {
                         return [Sao.i18n.gettext('y'),
-                            Sao.i18n.gettext('yes'),
-                            Sao.i18n.gettext('true'),
+                            Sao.i18n.gettext('Yes'),
+                            Sao.i18n.gettext('True'),
                             Sao.i18n.gettext('t'),
                             '1'].some(
                                 function(test) {
@@ -3231,6 +3267,19 @@
                 return Sao.common.find_first_focus_widget(jQuery(children[i]),
                         commons);
             }
+        }
+    };
+
+    Sao.common.apply_label_attributes = function(label, readonly, required) {
+        if (!readonly) {
+            label.addClass('editable');
+            if (required) {
+                label.addClass('required');
+            } else {
+                label.removeClass('required');
+            }
+        } else {
+            label.removeClass('editable required');
         }
     };
 }());
