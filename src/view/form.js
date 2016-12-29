@@ -1957,7 +1957,6 @@ function eval_pyson(value){
                 https://bugs.tryton.org/issue3551
             */
 
-            this.is_readonly = false;
             Sao.View.Form.RichText._super.init.call(
                     this, field_name, model, attributes);
             this.el = jQuery('<div/>', {
@@ -1982,7 +1981,6 @@ function eval_pyson(value){
             }).appendTo(jQuery('<div/>', {
                 'class': 'panel-heading'
             }));
-            // !!!> TODO save this.header
 
             var button_apply_command = function(evt) {
                 document.execCommand(evt.data);
@@ -2088,6 +2086,7 @@ function eval_pyson(value){
                             document.execCommand(command, false, jQuery(this).val());
                         }).val(color);
             });
+            this.toolbar = toolbar;
             return toolbar;
         },
         focus_out: function() {
@@ -2114,7 +2113,7 @@ function eval_pyson(value){
             // TODO order attributes
             // [Bug Sao]
             //    > don't edit the content when widget is readonly
-            if (!this.is_readonly){
+            if (!this.input.prop('contenteditable')){
                 this.input.find('div').each(function(i, el) {
                     el = jQuery(el);
                     // Not all browsers respect the styleWithCSS
@@ -2134,16 +2133,10 @@ function eval_pyson(value){
             field.set_client(record, value);
         },
         set_readonly: function(readonly) {
-            this.is_readonly = readonly;
             this.input.prop('contenteditable', !readonly);
             if (this.toolbar) {
                 this.toolbar.find('button,select').prop('disabled', readonly);
-                // !!!> TODO use this:
-                    // if (!readonly){
-                    //     this.header.show();
-                    // } else {
-                    //     this.header.hide();
-                    // }
+                this.toolbar.toggle(!readonly);
             }
         }
     });
