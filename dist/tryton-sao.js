@@ -3502,10 +3502,11 @@ var Sao = {};
             var group = record._values[this.name];
             var prm = jQuery.when();
             if (jQuery.isEmptyObject(value)) {
-                return prm;
+                value = [];
             }
             var mode;
-            if (!isNaN(parseInt(value[0], 10))) {
+            if (jQuery.isEmptyObject(value) ||
+                    !isNaN(parseInt(value[0], 10))) {
                 mode = 'list ids';
             } else {
                 mode = 'list values';
@@ -6410,7 +6411,7 @@ var Sao = {};
                 else if (action) {
                     Sao.Action.execute(action, {
                         model: this.model_name,
-                        id: record.id,
+                        id: this.current_record.id,
                         ids: ids
                     }, null, this.context);
                 }
@@ -10010,8 +10011,15 @@ var Sao = {};
             var save_file = function() {
                 var reader = new FileReader();
                 reader.onload = function(evt) {
+                    var field = this.field();
                     var uint_array = new Uint8Array(reader.result);
-                    this.field().set_client(record, uint_array);
+                    var value;
+                    if (field.get_size) {
+                        value = uint_array;
+                    } else {
+                        value = String.fromCharCode.apply(null, uint_array);
+                    }
+                    field.set_client(record, value);
                 }.bind(this);
                 reader.onloadend = function(evt) {
                     close();
@@ -10112,7 +10120,12 @@ var Sao = {};
                 this.but_save_as.button('disable');
                 return;
             }
-            var size = field.get_size(record);
+            var size;
+            if (field.get_size) {
+                size = field.get_size(record);
+            } else {
+                size = field.get(record).length;
+            }
             var button_sensitive;
             if (size) {
                 button_sensitive = 'enable';
@@ -10183,17 +10196,17 @@ var Sao = {};
                             value.push(element.id);
                     }
                 }
-                this.el.val(value);
+                this.select.val(value);
             }.bind(this));
         },
         set_value: function(record, field) {
-            var value = this.el.val();
+            var value = this.select.val();
             if (value) {
                 value = value.map(function(e) { return parseInt(e, 10); });
             } else {
                 value = [];
-            field.set_client(record, value);
             }
+            field.set_client(record, value);
         }
     });
 
@@ -12293,7 +12306,13 @@ var Sao = {};
     Sao.View.Tree.BinaryColumn = Sao.class_(Sao.View.Tree.CharColumn, {
         class_: 'column-binary',
         update_text: function(cell, record) {
-            cell.text(Sao.common.humanize(this.field.get_size(record)));
+            var size;
+            if (this.field.get_size) {
+                size = this.field.get_size(record);
+            } else {
+                size = this.field.get(record).length;
+            }
+            cell.text(Sao.common.humanize(size));
         }
     });
 
@@ -14769,7 +14788,7 @@ var Sao = {};
             var result = [];
             tokens.forEach(function(clause) {
                 if (this.is_generator(clause)) {
-                    result.concat(this.parse_clause(clause));
+                    jQuery.merge(result, this.parse_clause(clause));
                 } else if ((clause == 'OR') || (clause == 'AND')) {
                     result.push(clause);
                 } else if ((clause.length == 1) &&
