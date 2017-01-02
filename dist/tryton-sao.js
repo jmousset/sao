@@ -863,7 +863,12 @@ var Sao = {};
     });
 
     Sao.PYSON.Bool.eval_ = function(value, context) {
-        if (value.v instanceof Object) {
+        if (moment.isMoment(value.v) && value.v.isTime) {
+            return Boolean(value.v.hour() || value.v.minute() ||
+                    value.v.second() || value.v.millisecond());
+        } else if (moment.isDuration(value.v)) {
+            return Boolean(value.v.valueOf());
+        } else if (value.v instanceof Object) {
             return !jQuery.isEmptyObject(value.v);
         } else {
             return Boolean(value.v);
@@ -3502,10 +3507,11 @@ var Sao = {};
             var group = record._values[this.name];
             var prm = jQuery.when();
             if (jQuery.isEmptyObject(value)) {
-                return prm;
+                value = [];
             }
             var mode;
-            if (!isNaN(parseInt(value[0], 10))) {
+            if (jQuery.isEmptyObject(value) ||
+                    !isNaN(parseInt(value[0], 10))) {
                 mode = 'list ids';
             } else {
                 mode = 'list values';
@@ -3835,12 +3841,10 @@ var Sao = {};
         },
         get_domain: function(record) {
             var domains = this.get_domains(record);
-            var screen_domain = domains[0];
             var attr_domain = domains[1];
-            var inversion = new Sao.common.DomainInversion();
-            return inversion.concat([inversion.localize_domain(
-                        inversion.inverse_leaf(screen_domain), this.name),
-                    attr_domain]);
+            // Forget screen_domain because it only means at least one record
+            // and not all records
+            return attr_domain;
         },
         validation_domains: function(record, pre_validate) {
             return this.get_domains(record, pre_validate)[0];
@@ -6410,7 +6414,7 @@ var Sao = {};
                 else if (action) {
                     Sao.Action.execute(action, {
                         model: this.model_name,
-                        id: record.id,
+                        id: this.current_record.id,
                         ids: ids
                     }, null, this.context);
                 }
@@ -10010,8 +10014,15 @@ var Sao = {};
             var save_file = function() {
                 var reader = new FileReader();
                 reader.onload = function(evt) {
+                    var field = this.field();
                     var uint_array = new Uint8Array(reader.result);
-                    this.field().set_client(record, uint_array);
+                    var value;
+                    if (field.get_size) {
+                        value = uint_array;
+                    } else {
+                        value = String.fromCharCode.apply(null, uint_array);
+                    }
+                    field.set_client(record, value);
                 }.bind(this);
                 reader.onloadend = function(evt) {
                     close();
@@ -10052,7 +10063,13 @@ var Sao = {};
         save_as: function() {
             var field = this.field();
             var record = this.record();
-            field.get_data(record).done(function(data) {
+            var prm;
+            if (field.get_data) {
+                prm = field.get_data(record);
+            } else {
+                prm = jQuery.when(field.get(record));
+            }
+            prm.done(function(data) {
                 var blob = new Blob([data],
                         {type: 'application/octet-binary'});
                 var blob_url = window.URL.createObjectURL(blob);
@@ -10112,7 +10129,12 @@ var Sao = {};
                 this.but_save_as.button('disable');
                 return;
             }
-            var size = field.get_size(record);
+            var size;
+            if (field.get_size) {
+                size = field.get_size(record);
+            } else {
+                size = field.get(record).length;
+            }
             var button_sensitive;
             if (size) {
                 button_sensitive = 'enable';
@@ -10183,17 +10205,17 @@ var Sao = {};
                             value.push(element.id);
                     }
                 }
-                this.el.val(value);
+                this.select.val(value);
             }.bind(this));
         },
         set_value: function(record, field) {
-            var value = this.el.val();
+            var value = this.select.val();
             if (value) {
                 value = value.map(function(e) { return parseInt(e, 10); });
             } else {
                 value = [];
-            field.set_client(record, value);
             }
+            field.set_client(record, value);
         }
     });
 
@@ -12293,7 +12315,13 @@ var Sao = {};
     Sao.View.Tree.BinaryColumn = Sao.class_(Sao.View.Tree.CharColumn, {
         class_: 'column-binary',
         update_text: function(cell, record) {
-            cell.text(Sao.common.humanize(this.field.get_size(record)));
+            var size;
+            if (this.field.get_size) {
+                size = this.field.get_size(record);
+            } else {
+                size = this.field.get(record).length;
+            }
+            cell.text(Sao.common.humanize(size));
         }
     });
 
@@ -12856,6 +12884,13 @@ var Sao = {};
                     }
                 };
             }
+            else {
+                c3_config.axis = {
+                    x: {
+                        type: 'category',
+                    }
+                };
+            }
             return c3_config;
         },
         action: function(data, element) {
@@ -13399,16 +13434,16 @@ var Sao = {};
     };
 
     Sao.common.date_format = function(format) {
-        if (jQuery.isEmptyObject(format) && Sao.Session.current_session) {
-            var context = Sao.Session.current_session.context;
-            if (context.locale && context.locale.date) {
-                format = context.locale.date;
+        if (jQuery.isEmptyObject(format)) {
+            format = '%Y-%m-%d';
+            if (Sao.Session.current_session) {
+                var context = Sao.Session.current_session.context;
+                if (context.locale && context.locale.date) {
+                    format = context.locale.date;
+                }
             }
         }
-        if (format) {
-            return Sao.common.moment_format(format);
-        }
-        return '%Y-%m-%d';
+        return Sao.common.moment_format(format);
     };
 
     Sao.common.format_time = function(format, date) {
@@ -14769,7 +14804,7 @@ var Sao = {};
             var result = [];
             tokens.forEach(function(clause) {
                 if (this.is_generator(clause)) {
-                    result.concat(this.parse_clause(clause));
+                    jQuery.merge(result, this.parse_clause(clause));
                 } else if ((clause == 'OR') || (clause == 'AND')) {
                     result.push(clause);
                 } else if ((clause.length == 1) &&
@@ -17214,6 +17249,8 @@ var Sao = {};
                 this.start_state = this.state = result[1];
                 this.end_state = result[2];
                 this.process();
+            }.bind(this), function() {
+                this.destroy();
             }.bind(this));
         },
         process: function() {
