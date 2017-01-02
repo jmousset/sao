@@ -9243,15 +9243,6 @@ function eval_pyson(value){
     Sao.View.Form.RichText = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-richtext',
         init: function(field_name, model, attributes) {
-
-            /*
-                https://github.com/coopengo/sao/blame/master/src/view/form.js#L1686
-                https://github.com/coopengo/sao/blame/4.2/src/view/form.js#L1618
-
-                https://github.com/coopengo/sao/commit/b546f85d7554ac944657a8c28f345769db3cd9fa
-                https://bugs.tryton.org/issue3551
-            */
-
             Sao.View.Form.RichText._super.init.call(
                     this, field_name, model, attributes);
             this.el = jQuery('<div/>', {
