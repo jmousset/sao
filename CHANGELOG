@@ -1,23 +1,27 @@
-Version 4.0.7 - 2016-12-17
+Version 4.2.0 - 2016-11-28
 * Bug fixes (see mercurial logs for details)
-
-Version 4.0.6 - 2016-11-06
-* Bug fixes (see mercurial logs for details)
-
-Version 4.0.5 - 2016-10-02
-* Bug fixes (see mercurial logs for details)
-
-Version 4.0.4 - 2016-09-03
-* Bug fixes (see mercurial logs for details)
-
-Version 4.0.3 - 2016-08-02
-* Bug fixes (see mercurial logs for details)
-
-Version 4.0.2 - 2016-07-04
-* Bug fixes (see mercurial logs for details)
-
-Version 4.0.1 - 2016-05-11
-* Bug fixes (see mercurial logs for details)
+* Add PYSON Widget
+* Add CSV Import/Export
+* Manage translated field
+* Add favorites menu
+* Show records names in wizard title
+* Add support for datetime_field to Many2One, Reference
+* Add calendar view
+* Move info-bar to the top
+* Add noeval to PYSONDecoder
+* Add support for pyson_order on action window
+* Make datetimepicker locale aware
+* Restore tab default order when no manual change
+* Add support for column sorting
+* Manage confirm attribute on buttons
+* Call autocompletion when setting record value
+* Limit readonly state for xxx2Many
+* Simplify login with single database 
+* Show records names in relate window title
+* Add support for count on Action Window Domains
+* Manage custom login process
+* Add erase on Many2One
+* Re-position icons on Many2One widget
 
 Version 4.0.0 - 2016-05-02
 * Bug fixes (see mercurial logs for details)

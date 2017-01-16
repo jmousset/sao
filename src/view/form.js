@@ -1,5 +1,15 @@
 /* This file is part of Tryton.  The COPYRIGHT file at the top level of
    this repository contains the full copyright notices and license terms. */
+
+/* jshint ignore:start */
+// Must be defined in non strict context otherwise is invalid
+function eval_pyson(value){
+    with (Sao.PYSON.eval) {
+        return eval(value);
+    }
+}
+/* jshint ignore:end */
+
 (function() {
     'use strict';
 
@@ -677,19 +687,15 @@
             } else {
                 state_changes = {};
             }
-            if ((field && field.description.required) ||
-                    state_changes.required) {
-                this.label_el.addClass('required');
-            } else {
-                this.label_el.removeClass('required');
-            }
             if ((field && field.description.readonly) ||
                     state_changes.readonly) {
-                this.label_el.removeClass('editable');
-                this.label_el.removeClass('required');
-            } else {
-                this.label_el.addClass('editable');
             }
+            Sao.common.apply_label_attributes(
+                    this.label_el,
+                    ((field && field.description.readonly) ||
+                     state_changes.readonly),
+                    ((field && field.description.required) ||
+                     state_changes.required));
         }
     });
 
@@ -714,7 +720,7 @@
             Sao.View.Form.Label._super.init.call(this, attributes);
             this.el = this.label_el = jQuery('<label/>', {
                 text: text,
-                'class': this.class_ + ' form-label'
+                'class': this.class_
             });
         }
     });
@@ -870,6 +876,8 @@
                 return Sao.View.Form.Dict;
             case 'source':
                 return Sao.View.Form.Source;
+            case 'pyson':
+                return Sao.View.Form.PYSON;
         }
     };
 
@@ -888,6 +896,7 @@
         display: function(record, field) {
             var readonly = this.attributes.readonly;
             var invisible = this.attributes.invisible;
+            var required = this.attributes.required;
             if (!field) {
                 if (readonly === undefined) {
                     readonly = true;
@@ -895,8 +904,12 @@
                 if (invisible === undefined) {
                     invisible = false;
                 }
+                if (required === undefined) {
+                    required = false;
+                }
                 this.set_readonly(readonly);
                 this.set_invisible(invisible);
+                this.set_required(required);
                 return;
             }
             var state_attrs = field.get_state_attrs(record);
@@ -906,10 +919,17 @@
                     readonly = false;
                 }
             }
+            if (required === undefined) {
+                required = state_attrs.required;
+                if (required === undefined) {
+                    required = false;
+                }
+            }
             if (this.view.screen.attributes.readonly) {
                 readonly = true;
             }
             this.set_readonly(readonly);
+            this.set_required(required);
             var invalid = state_attrs.invalid;
             if (!readonly && invalid) {
                 this.el.addClass('has-error');
@@ -947,7 +967,10 @@
         set_value: function(record, field) {
         },
         set_readonly: function(readonly) {
+            this._readonly = readonly;
             this.el.prop('disabled', readonly);
+        },
+        set_required: function(required) {
         },
         set_invisible: function(invisible) {
             this.visible = !invisible;
@@ -1258,11 +1281,213 @@
         }
     });
 
+    Sao.View.Form.TranslateDialog = Sao.class_(Object,  {
+        init: function(languages, widget) {
+            var dialog = new Sao.Dialog(Sao.i18n.gettext('Translate'),
+                    this.class_, this, languages);
+            dialog.modal.find('.modal-dialog')
+                .removeClass('modal-sm').addClass('modal-lg');
+            this.languages = languages;
+            this.read(widget, dialog);
+            jQuery('<button/>', {
+                'class': 'btn btn-link',
+                'type': 'button'
+            }).append(Sao.i18n.gettext('Cancel')).click(function() {
+                this.close(dialog);
+            }.bind(this)).appendTo(dialog.footer);
+            jQuery('<button/>', {
+                'class': 'btn btn-primary',
+                'type': 'button'
+            }).append(Sao.i18n.gettext('OK')).click(this.write
+                    .bind(this, widget, dialog))
+                    .appendTo(dialog.footer);
+            dialog.content.submit(function(evt) {
+                evt.preventDefault();
+                dialog.footer.find('button.btn-primary').first().click();
+            });
+            dialog.modal.modal('show');
+            dialog.modal.on('shown.bs.modal', function() {
+                dialog.modal.find('input,select')
+                    .filter(':visible').first().focus();
+            });
+        },
+        close: function(dialog) {
+            dialog.modal.on('hidden.bs.modal', function(event) {
+                jQuery(this).remove();
+            });
+            dialog.modal.modal('hide');
+        },
+        read: function(widget, dialog) {
+            this.languages.forEach(function(lang){
+                var context = {};
+                context.language = lang.code;
+                var params = [
+                    [widget.record().id],
+                    [widget.field_name],
+                    context
+                ];
+                var args = {
+                    'method': 'model.' + widget.model.name  + '.read',
+                    'params': params
+                };
+                var value;
+                var row = jQuery('<div/>', {
+                    'class':'row form-group'
+                });
+                var input = widget.translate_widget();
+                input.attr('data-lang-id', lang.id);
+                var checkbox = jQuery('<input/>', {
+                    'type':'checkbox',
+                    'title': Sao.i18n.gettext('Edit')
+                });
+                if (widget._readonly) {
+                    checkbox.attr('disabled', true);
+                }
+                var fuzzy_box = jQuery('<input/>', {
+                    'type':'checkbox',
+                    'disabled': true,
+                    'title': Sao.i18n.gettext('Fuzzy')
+                });
+                var prm = Sao.rpc(args, widget.model.session)
+                        .then(function(result) {
+                    value = result[0][widget.field_name];
+                }.bind(this));
+                params = [
+                    [widget.record().id],
+                    [widget.field_name],
+                    context
+                ];
+                context.fuzzy_translation = true;
+                args = {
+                    'method': 'model.' + widget.model.name  + '.read',
+                    'params': params
+                };
+                prm.then(function() {
+                    Sao.rpc(args, widget.model.session)
+                            .then(function(fuzzy_value) {
+                        value = fuzzy_value[0][widget.field_name];
+                        widget.translate_widget_set(
+                            input, value);
+                        fuzzy_box.attr('checked',
+                               fuzzy_value[0].name != value);
+                    }.bind(this));
+                }.bind(this));
+                checkbox.click(function() {
+                    widget.translate_widget_set_readonly(input);
+                });
+                dialog.body.append(row);
+                row.append(jQuery('<div/>', {
+                    'class':'col-sm-3'
+                }).append(lang.name));
+                row.append(jQuery('<div/>', {
+                    'class':'col-sm-6'
+                }).append(input));
+                row.append(jQuery('<div/>', {
+                    'class':'col-sm-1'
+                }).append(checkbox));
+                row.append(jQuery('<div/>', {
+                    'class':'col-sm-1'
+                }).append(fuzzy_box));
+            }.bind(this));
+        },
+        write: function(widget, dialog) {
+            var promises = [];
+            this.languages.forEach(function(lang) {
+                var input = jQuery('[data-lang-id=' + lang.id + ']');
+                if (!input.attr('readonly')) {
+                    var current_language = widget.model.session.context.
+                            language;
+                    var context = {};
+                    context.language = lang.code;
+                    context.fuzzy_translation = false;
+                    var values =  {};
+                    values[widget.field_name] = input.val();
+                    var params = [
+                        [widget.record().id],
+                        values,
+                        context
+                    ];
+                    var args = {
+                        'method': 'model.' + widget.model.name  + '.write',
+                        'params': params
+                    };
+                    var prm = Sao.rpc(args, widget.model.session)
+                            .then(function() {
+                                if (lang.code == current_language) {
+                                    widget.view.display();
+                                }
+                    });
+                    promises.push(prm);
+                }
+            }.bind(this));
+            this.close(dialog);
+            jQuery.when.apply(jQuery, promises).then(function() {
+                widget.record().cancel();
+            });
+        }
+    });
+
+    Sao.View.Form.TranslateMixin = {};
+    Sao.View.Form.TranslateMixin.init = function() {
+        this.translate = Sao.View.Form.TranslateMixin.translate.bind(this);
+        this.translate_widget_set_readonly =
+            Sao.View.Form.TranslateMixin.translate_widget_set_readonly
+                .bind(this);
+        this.translate_widget_set =
+            Sao.View.Form.TranslateMixin.translate_widget_set.bind(this);
+    };
+    Sao.View.Form.TranslateMixin.translate = function() {
+        if (this.record().id < 0 || this.record().has_changed()) {
+            var mg = Sao.i18n.gettext(
+                'You need to save the record before adding translations.');
+            Sao.common.message.run(mg);
+            return;
+        }
+        var session = this.model.session;
+        var params = [
+            [['translatable', '=', 'true']]
+        ];
+        var args = {
+            'method': 'model.ir.lang.search',
+            'params': params.concat({})
+        };
+        Sao.rpc(args, session).then(function(lang_ids) {
+            if (jQuery.isEmptyObject(lang_ids)) {
+                Sao.common.message.run(Sao.i18n.gettext(
+                        'No other language available.'));
+                return;
+            }
+            var params = [
+                lang_ids,
+                ['code', 'name']
+            ];
+            var args = {
+                'method': 'model.ir.lang.read',
+                'params': params.concat({})
+            };
+            Sao.rpc(args, session).then(function(languages) {
+                var dialog = new Sao.View.Form.TranslateDialog(languages, this);
+            }.bind(this));
+        }.bind(this));
+    };
+    Sao.View.Form.TranslateMixin.translate_widget_set_readonly =
+            function(el, value) {
+        if (el.attr('readonly')) {
+            el.removeAttr('readonly');
+        } else {
+            el.attr('readonly', true);
+        }
+    };
+    Sao.View.Form.TranslateMixin.translate_widget_set = function(el, value) {
+        el.val(value || '');
+    };
+
     Sao.View.Form.Char = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-char',
         init: function(field_name, model, attributes) {
             Sao.View.Form.Char._super.init.call(this, field_name, model,
                 attributes);
+            Sao.View.Form.TranslateMixin.init.call(this);
             this.el = jQuery('<div/>', {
                 'class': this.class_
             });
@@ -1283,6 +1508,25 @@
             if (!attributes.size) {
                 this.group.css('width', '100%');
             }
+            if (this.attributes.translate) {
+                var button = jQuery('<button/>', {
+                    'class': 'btn btn-default btn-sm form-control',
+                    'type': 'button',
+                    'aria-label': Sao.i18n.gettext('Translate')
+                }).append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-flag'
+                })).appendTo(jQuery('<span/>', {
+                    'class': 'input-group-btn'
+                }).appendTo(this.group));
+                button.click(this.translate.bind(this));
+            }
+        },
+        get_client_value: function(record, field) {
+            var value = '';
+            if (field) {
+                value = field.get_client(record);
+            }
+            return value;
         },
         display: function(record, field) {
             Sao.View.Form.Char._super.display.call(this, record, field);
@@ -1308,16 +1552,10 @@
                     width = null;
                 }
             }
+            this.input.val(this.get_client_value(record, field));
             this.input.attr('maxlength', length);
             this.input.attr('size', length);
             this.group.css('width', width);
-
-            if (record) {
-                var value = record.field_get_client(this.field_name);
-                this.input.val(value || '');
-            } else {
-                this.input.val('');
-            }
         },
         set_value: function(record, field) {
             field.set_client(record, this.input.val());
@@ -1327,6 +1565,12 @@
         },
         focus: function() {
             this.input.focus();
+        },
+        translate_widget: function() {
+            return jQuery('<input/>', {
+                'class': 'form-control',
+                'readonly': 'readonly'
+            });
         }
     });
 
@@ -1358,12 +1602,14 @@
             jQuery('<span/>', {
                 'class': 'input-group-btn'
             }).append(jQuery('<button/>', {
-                'class': 'btn btn-default',
+                'class': 'datepickerbutton btn btn-default',
                 'type': 'button'
             }).append(jQuery('<span/>', {
                 'class': 'glyphicon glyphicon-calendar'
             }))).appendTo(this.date);
-            this.date.datetimepicker();
+            this.date.datetimepicker({
+                'locale': moment.locale()
+            });
             this.date.css('width', this._width);
             this.date.on('dp.change', this.focus_out.bind(this));
         },
@@ -1496,16 +1742,12 @@
         set_value: function(record, field) {
             field.set_client(record, this.input.val(), undefined, this.factor);
         },
-        display: function(record, field) {
-            // Skip Char call
-            Sao.View.Form.Char._super.display.call(this, record, field);
-            if (record) {
-                var value = record.model.fields[this.field_name]
-                    .get_client(record, this.factor);
-                this.input.val(value);
-            } else {
-                this.input.val('');
+        get_client_value: function(record, field) {
+            var value = '';
+            if (field) {
+                value = field.get_client(record, this.factor);
             }
+            return value;
         }
     });
 
@@ -1654,6 +1896,7 @@
         init: function(field_name, model, attributes) {
             Sao.View.Form.Text._super.init.call(this, field_name, model,
                 attributes);
+            Sao.View.Form.TranslateMixin.init.call(this);
             this.el = jQuery('<div/>', {
                 'class': this.class_
             });
@@ -1661,6 +1904,19 @@
                 'class': 'form-control input-sm'
             }).appendTo(this.el);
             this.input.change(this.focus_out.bind(this));
+            if (this.attributes.translate) {
+                var button  = jQuery('<button/>', {
+                    'class': 'btn btn-default btn-sm form-control',
+                    'type': 'button',
+                    'aria-label': Sao.i18n.gettext('Translate')
+                }).appendTo(jQuery('<span/>', {
+                    'class': 'input-group-btn'
+                }).appendTo(this.el));
+                button.append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-flag'
+                }));
+                button.click(this.translate.bind(this));
+            }
         },
         display: function(record, field) {
             Sao.View.Form.Text._super.display.call(this, record, field);
@@ -1680,26 +1936,42 @@
         },
         set_readonly: function(readonly) {
             this.input.prop('readonly', readonly);
+        },
+        translate_widget: function() {
+            return jQuery('<textarea/>', {
+                    'class': 'form-control',
+                    'readonly': 'readonly'
+                });
         }
     });
 
     Sao.View.Form.RichText = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-richtext',
         init: function(field_name, model, attributes) {
-            var i, properties, button;
-            this.is_readonly = false;
             Sao.View.Form.RichText._super.init.call(
                     this, field_name, model, attributes);
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
             });
-            this.header = jQuery('<div/>', {
-                'class': 'panel-heading'
-            }).appendTo(this.el);
-            this.toolbar = jQuery('<div/>', {
+            if (parseInt(attributes.toolbar || '1', 10)) {
+                this.get_toolbar().appendTo(this.el);
+            }
+            this.input = this.labelled = jQuery('<div/>', {
+                'class': 'richtext pre',
+                'contenteditable': true
+            }).appendTo(jQuery('<div/>', {
+                'class': 'panel-body'
+            }).appendTo(this.el));
+            this.el.focusout(this.focus_out.bind(this));
+        },
+        get_toolbar: function() {
+            var i, properties, button;
+            var toolbar = jQuery('<div/>', {
                 'class': 'btn-toolbar',
                 'role': 'toolbar'
-            }).appendTo(this.header);
+            }).appendTo(jQuery('<div/>', {
+                'class': 'panel-heading'
+            }));
 
             var button_apply_command = function(evt) {
                 document.execCommand(evt.data);
@@ -1709,7 +1981,7 @@
                 var group = jQuery('<div/>', {
                     'class': 'btn-group',
                     'role': 'group'
-                }).appendTo(this.toolbar);
+                }).appendTo(toolbar);
                 for (i in buttons) {
                     properties = buttons[i];
                     button = jQuery('<button/>', {
@@ -1720,7 +1992,7 @@
                     })).appendTo(group);
                     button.click(properties.command, button_apply_command);
                 }
-            }.bind(this);
+            };
 
             add_buttons([
                     {
@@ -1758,7 +2030,7 @@
                 var group = jQuery('<div/>', {
                     'class': 'btn-group',
                     'role': 'group'
-                }).appendTo(this.toolbar);
+                }).appendTo(toolbar);
                 button = jQuery('<button/>', {
                     'class': 'btn btn-default dropdown-toggle',
                     'type': 'button',
@@ -1798,21 +2070,15 @@
                         jQuery('<input/>', {
                             'class': 'btn btn-default',
                             'type': 'color'
-                        }).appendTo(this.toolbar)
+                        }).appendTo(toolbar)
                         .change(function() {
                             document.execCommand(command, false, jQuery(this).val());
                         }).focusin(function() {
                             document.execCommand(command, false, jQuery(this).val());
                         }).val(color);
-            }.bind(this));
-
-            this.input = this.labelled = jQuery('<div/>', {
-                'class': 'richtext pre',
-                'contenteditable': true
-            }).appendTo(jQuery('<div/>', {
-                'class': 'panel-body'
-            }).appendTo(this.el));
-            this.el.focusout(this.focus_out.bind(this));
+            });
+            this.toolbar = toolbar;
+            return toolbar;
         },
         focus_out: function() {
             // Let browser set the next focus before testing
@@ -1838,7 +2104,7 @@
             // TODO order attributes
             // [Bug Sao]
             //    > don't edit the content when widget is readonly
-            if (!this.is_readonly){
+            if (!this.input.prop('contenteditable')){
                 this.input.find('div').each(function(i, el) {
                     el = jQuery(el);
                     // Not all browsers respect the styleWithCSS
@@ -1858,13 +2124,10 @@
             field.set_client(record, value);
         },
         set_readonly: function(readonly) {
-            this.is_readonly = readonly;
             this.input.prop('contenteditable', !readonly);
-            this.toolbar.find('button,select').prop('disabled', readonly);
-            if (!readonly){
-                this.header.show();
-            } else {
-                this.header.hide();
+            if (this.toolbar) {
+                this.toolbar.find('button,select').prop('disabled', readonly);
+                this.toolbar.toggle(!readonly);
             }
         }
     });
@@ -1896,16 +2159,24 @@
             }
 
             // Append buttons after the completion to not break layout
-            var buttons = jQuery('<span/>', {
-                'class': 'input-group-btn'
-            }).appendTo(group);
-            this.but_open = jQuery('<button/>', {
+            this.but_primary = jQuery('<button/>', {
                 'class': 'btn btn-default',
                 'type': 'button'
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-search'
-            })).appendTo(buttons);
-            this.but_open.click(this.edit.bind(this));
+                'class': 'glyphicon'
+            })).appendTo(jQuery('<span/>', {
+                'class': 'input-group-btn'
+            }).prependTo(group));
+            this.but_secondary = jQuery('<button/>', {
+                'class': 'btn btn-default',
+                'type': 'button'
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon'
+            })).appendTo(jQuery('<span/>', {
+                'class': 'input-group-btn'
+            }).appendTo(group));
+            this.but_primary.click('primary', this.edit.bind(this));
+            this.but_secondary.click('secondary', this.edit.bind(this));
 
             this.el.change(this.focus_out.bind(this));
             this._readonly = false;
@@ -1970,18 +2241,35 @@
                 return;
             }
             this.set_text(field.get_client(record));
+            var primary, secondary;
             value = field.get(record);
             if (this.has_target(value)) {
-                this.but_open.button({
-                    'icons': {
-                        'primary': 'glyphicon-folder-open'
-                    }});
+                primary = 'glyphicon-folder-open';
+                secondary = 'glyphicon-erase';
             } else {
-                this.but_open.button({
-                    'icons': {
-                        'primary': 'glyphicon-search'
-                    }});
+                primary = null;
+                secondary = 'glyphicon-search';
             }
+            if (this.entry.prop('readonly')) {
+                secondary = null;
+            }
+            [
+                [primary, this.but_primary],
+                [secondary, this.but_secondary]
+            ].forEach(function(items) {
+                var icon_name = items[0];
+                var button = items[1];
+                var icon = button.find('.glyphicon');
+                icon.removeClass().addClass('glyphicon');
+                // don't use .hide/.show because the display value is not
+                // correctly restored on modal.
+                if (!icon_name) {
+                    button.parent().css('display', 'none');
+                } else {
+                    button.parent().css('display', 'table-cell');
+                    icon.addClass(icon_name);
+                }
+            });
         },
         focus: function() {
             this.entry.focus();
@@ -1992,8 +2280,8 @@
         },
         _set_button_sensitive: function() {
             this.entry.prop('readonly', this._readonly);
-            this.but_open.prop('disabled',
-                    !this.read_access());
+            this.but_primary.prop('disabled', !this.read_access());
+            this.but_secondary.prop('disabled', this._readonly);
         },
         get_access: function(type) {
             var model = this.get_model();
@@ -2031,7 +2319,16 @@
             var win, callback;
             var record = this.record();
             var value = record.field_get(this.field_name);
-            if (model && this.has_target(value)) {
+
+            if ((evt && evt.data == 'secondary') &&
+                    !this._readonly &&
+                    this.has_target(value)) {
+                this.record().field_set_client(this.field_name,
+                        this.value_from_id(null, ''));
+                this.entry.val('');
+                return;
+            }
+            if (this.has_target(value)) {
                 var screen = this.get_screen();
                 var m2o_id =
                     this.id_from_value(record.field_get(this.field_name));
@@ -2048,9 +2345,12 @@
                     }
                 };
                 win = new Sao.Window.Form(screen, callback.bind(this), {
-                    save_current: true
+                    save_current: true,
+                    title: this.attributes.string
                 });
-            } else if (model && !this._readonly) {
+                return;
+            }
+            if (model) {
                 var dom;
                 var domain = this.field().get_domain(record);
                 var context = this.field().get_context(record);
@@ -2073,8 +2373,10 @@
                                 '').split(','),
                             views_preload: (this.attributes.views || {}),
                             new_: this.create_access(),
-                            search_filter: parser.quote(text)
+                            search_filter: parser.quote(text),
+                            title: this.attributes.string
                         });
+                return;
             }
         },
         new_: function(evt) {
@@ -2095,7 +2397,9 @@
             };
             var win = new Sao.Window.Form(screen, callback.bind(this), {
                 new_: true,
-                save_current: true
+                save_current: true,
+                title: this.attributes.string,
+                rec_name: this.entry.val()
             });
         },
         key_press: function(event_) {
@@ -2174,7 +2478,8 @@
                                 views_preload: (this.attributes.views ||
                                     {}),
                                 new_: this.create_access(),
-                                search_filter: parser.quote(text)
+                                search_filter: parser.quote(text),
+                                title: this.attributes.string
                             });
                 }
             }
@@ -2378,6 +2683,7 @@
                 attributes);
 
             this._readonly = true;
+            this._required = false;
 
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
@@ -2387,16 +2693,16 @@
             });
             this.el.append(this.menu);
 
-            var label = jQuery('<label/>', {
+            this.title = jQuery('<label/>', {
                 'class': this.class_ + '-string',
                 text: attributes.string
             });
-            this.menu.append(label);
+            this.menu.append(this.title);
 
-            label.uniqueId();
+            this.title.uniqueId();
             this.el.uniqueId();
-            this.el.attr('aria-labelledby', label.attr('id'));
-            label.attr('for', this.el.attr('id'));
+            this.el.attr('aria-labelledby', this.title.attr('id'));
+            this.title.attr('for', this.el.attr('id'));
 
             var toolbar = jQuery('<div/>', {
                 'class': this.class_ + '-toolbar'
@@ -2524,7 +2830,6 @@
                 view_ids: (attributes.view_ids || '').split(','),
                 views_preload: attributes.views || {},
                 row_activate: this.activate.bind(this),
-                readonly: attributes.readonly || false,
                 exclude_field: attributes.relation_field || null,
                 pre_validate: attributes.pre_validate
             });
@@ -2625,6 +2930,15 @@
         set_readonly: function(readonly) {
             this._readonly = readonly;
             this._set_button_sensitive();
+            this._set_label_state();
+        },
+        set_required: function(required) {
+            this._required = required;
+            this._set_label_state();
+        },
+        _set_label_state: function() {
+            Sao.common.apply_label_attributes(this.title, this._readonly,
+                    this._required);
         },
         _set_button_sensitive: function() {
             var access = Sao.common.MODELACCESS.get(this.screen.model_name);
@@ -2696,18 +3010,15 @@
                         this.screen.set_current_record(null);
                     }
                 }
-                var readonly = false;
                 var domain = [];
                 var size_limit = null;
                 if (record) {
-                    readonly = field.get_state_attrs(record).readonly;
                     domain = field.get_domain(record);
                     size_limit = record.expr_eval(this.attributes.size);
                 }
                 if (!Sao.common.compare(this.screen.domain, domain)) {
                     this.screen.domain = domain;
                 }
-                this.screen.group.set_readonly(readonly);
                 this.screen.size_limit = size_limit;
                 this.screen.display();
             }.bind(this));
@@ -2762,7 +3073,8 @@
                                 '').split(','),
                         views_preload: this.attributes.views || {},
                         new_: !this.but_new.prop('disabled'),
-                        search_filter: parser.quote(text)
+                        search_filter: parser.quote(text),
+                        title: this.attributes.string
                     });
         },
         remove: function(event_) {
@@ -2800,7 +3112,8 @@
                 var win = new Sao.Window.Form(this.screen, function() {}, {
                     new_: true,
                     many: field_size,
-                    context: context
+                    context: context,
+                    title: this.attributes.string
                 });
             }
         },
@@ -2837,9 +3150,11 @@
                                     sel_multi: true,
                                     context: context,
                                     domain: domain,
-                                    search_filter: ''
+                                    search_filter: '',
+                                    title: this.attributes.string
+
                         });
-                    };
+                    }.bind(this);
 
                     var make_product = function() {
                         if (jQuery.isEmptyObject(product)) {
@@ -2872,8 +3187,8 @@
                     };
 
                     search_set();
-                });
-            });
+                }.bind(this));
+            }.bind(this));
         },
         open: function(event_) {
             this.edit();
@@ -2907,7 +3222,8 @@
             this.validate().done(function() {
                 var record = this.screen.current_record;
                 if (record) {
-                    var win = new Sao.Window.Form(this.screen, function() {});
+                    var win = new Sao.Window.Form(this.screen, function() {},
+                        {title: this.attributes.string});
                 }
             }.bind(this));
         },
@@ -2955,6 +3271,7 @@
                 attributes);
 
             this._readonly = true;
+            this._required = false;
 
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
@@ -2964,16 +3281,16 @@
             });
             this.el.append(this.menu);
 
-            var label = jQuery('<label/>', {
+            this.title = jQuery('<label/>', {
                 'class': this.class_ + '-string',
                 text: attributes.string
             });
-            this.menu.append(label);
+            this.menu.append(this.title);
 
-            label.uniqueId();
+            this.title.uniqueId();
             this.el.uniqueId();
-            this.el.attr('aria-labelledby', label.attr('id'));
-            label.attr('for', this.el.attr('id'));
+            this.el.attr('aria-labelledby', this.title.attr('id'));
+            this.title.attr('for', this.el.attr('id'));
 
             var toolbar = jQuery('<div/>', {
                 'class': this.class_ + '-toolbar'
@@ -3034,6 +3351,15 @@
         set_readonly: function(readonly) {
             this._readonly = readonly;
             this._set_button_sensitive();
+            this._set_label_state();
+        },
+        set_required: function(required) {
+            this._required = required;
+            this._set_label_state();
+        },
+        _set_label_state: function() {
+            Sao.common.apply_label_attributes(this.title, this._readonly,
+                    this._required);
         },
         _set_button_sensitive: function() {
             var size_limit = false;
@@ -3101,7 +3427,8 @@
                             '').split(','),
                         views_preload: this.attributes.views || {},
                         new_: this.attributes.create,
-                        search_filter: parser.quote(value)
+                        search_filter: parser.quote(value),
+                        title: this.attributes.string
                     });
         },
         remove: function() {
@@ -3123,12 +3450,7 @@
                 this.add();
             }
         },
-        edit: function() {
-            if (jQuery.isEmptyObject(this.screen.current_record)) {
-                return;
-            }
-            // Create a new screen that is not linked to the parent otherwise
-            // on the save of the record will trigger the save of the parent
+        _get_screen_form: function() {
             var domain = this.field().get_domain(this.record());
             var add_remove = this.record().expr_eval(
                     this.attributes.add_remove);
@@ -3136,14 +3458,26 @@
                 domain = [domain, add_remove];
             }
             var context = this.field().get_context(this.record());
-            var screen = new Sao.Screen(this.attributes.relation, {
+            var view_ids = (this.attributes.view_ids || '').split(',');
+            if (!jQuery.isEmptyObject(view_ids)) {
+                // Remove the first tree view as mode is form only
+                view_ids.shift();
+            }
+            return new Sao.Screen(this.attributes.relation, {
                 'domain': domain,
-                'view_ids': (this.attributes.view_ids || '').split(','),
+                'view_ids': view_ids,
                 'mode': ['form'],
                 'views_preload': this.attributes.views,
-                'readonly': this.attributes.readonly || false,
                 'context': context
             });
+        },
+        edit: function() {
+            if (jQuery.isEmptyObject(this.screen.current_record)) {
+                return;
+            }
+            // Create a new screen that is not linked to the parent otherwise
+            // on the save of the record will trigger the save of the parent
+            var screen = this._get_screen_form();
             screen.new_group([this.screen.current_record.id]);
             var callback = function(result) {
                 if (result) {
@@ -3154,25 +3488,12 @@
                 }
             }.bind(this);
             screen.switch_view().done(function() {
-                new Sao.Window.Form(screen, callback);
-            });
+                new Sao.Window.Form(screen, callback,
+                    {title: this.attributes.string});
+            }.bind(this));
         },
         new_: function() {
-            var domain = this.field().get_domain(this.record());
-            var add_remove = this.record().expr_eval(
-                    this.attributes.add_remove);
-            if (!jQuery.isEmptyObject(add_remove)) {
-                domain = [domain, add_remove];
-            }
-            var context = this.field().get_context(this.record());
-
-            var screen = new Sao.Screen(this.attributes.relation, {
-                'domain': domain,
-                'view_ids': (this.attributes.view_ids || '').split(','),
-                'mode': ['form'],
-                'views_preload': this.attributes.views,
-                'context': context
-            });
+            var screen = this._get_screen_form();
             var callback = function(result) {
                 if (result) {
                     var record = screen.current_record;
@@ -3183,9 +3504,11 @@
             screen.switch_view().done(function() {
                 new Sao.Window.Form(screen, callback, {
                     'new_': true,
-                    'save_current': true
+                    'save_current': true,
+                    title: this.attributes.string,
+                    rec_name: this.entry.val()
                 });
-            });
+            }.bind(this));
         }
     });
 
@@ -3298,11 +3621,17 @@
             file_dialog.modal.modal('show');
         },
         open: function() {
-            // TODO find a way to make the difference
-            // between downloading and opening
-            this.save_as();
+            var params = {};
+            var filename_field = this.filename_field();
+            if (filename_field) {
+                var filename = filename_field.get_client(this.record());
+                // Valid mimetype will make the browser directly open the file
+                params.mimetype = Sao.common.guess_mimetype(filename);
+            }
+            this.save_as(params);
         },
-        save_as: function() {
+        save_as: function(params) {
+            var mimetype = params.mimetype || 'application/octet-binary';
             var field = this.field();
             var record = this.record();
             var prm;
@@ -3312,8 +3641,7 @@
                 prm = jQuery.when(field.get(record));
             }
             prm.done(function(data) {
-                var blob = new Blob([data],
-                        {type: 'application/octet-binary'});
+                var blob = new Blob([data], {type: mimetype});
                 var blob_url = window.URL.createObjectURL(blob);
                 if (this.blob_url) {
                     window.URL.revokeObjectURL(this.blob_url);
@@ -3323,6 +3651,10 @@
             }.bind(this));
         },
         clear: function() {
+	    var filename_field = this.filename_field();
+            if (filename_field) {
+                filename_field.set_client(this.record(), null);
+            }
             this.field().set_client(this.record(), null);
         }
     });
@@ -3353,7 +3685,8 @@
             }).appendTo(this.el);
             this.size = jQuery('<input/>', {
                 type: 'input',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm',
+                'readonly': true
             }).appendTo(group);
 
             this.toolbar('input-group-btn').appendTo(group);
@@ -3426,6 +3759,7 @@
 
     Sao.View.Form.MultiSelection = Sao.class_(Sao.View.Form.Selection, {
         class_: 'form-multiselection',
+        expand: true,
         init: function(field_name, model, attributes) {
             this.nullable_widget = false;
             Sao.View.Form.MultiSelection._super.init.call(this, field_name,
@@ -3435,6 +3769,13 @@
         display_update_selection: function(record, field) {
             var i, len, element;
             this.update_selection(record, field, function() {
+                var yexpand = this.attributes.yexpand;
+                if (yexpand === undefined) {
+                    yexpand = this.expand;
+                }
+                if (!yexpand) {
+                    this.select.prop('size', this.select.children().length);
+                }
                 if (!field) {
                     return;
                 }
@@ -3733,7 +4074,8 @@
                         context: context,
                         domain: domain,
                         new_: false,
-                        search_filter: parser.quote(value)
+                        search_filter: parser.quote(value),
+                        title: this.attributes.string
                     });
         },
         add_new_keys: function(ids) {
@@ -3977,6 +4319,7 @@
             this.input.val(value || '');
         },
         set_readonly: function(readonly) {
+            this._readonly = readonly;
             this.input.prop('readonly', readonly);
         }
     });
@@ -4071,7 +4414,8 @@
                 'class': 'glyphicon glyphicon-calendar'
             })).prependTo(group);
             this.input.datetimepicker({
-                'format': Sao.common.moment_format(this.format)
+                'format': Sao.common.moment_format(this.format),
+                'locale': moment.locale()
             });
             this.input.on('dp.change',
                     this.parent_widget.focus_out.bind(this.parent_widget));
@@ -4100,6 +4444,63 @@
                 value.isDateTime = true;
             }
             return value;
+        }
+    });
+
+    Sao.View.Form.PYSON = Sao.class_(Sao.View.Form.Char, {
+        class_: 'form-pyson',
+        init: function(field_name, model, attributes) {
+            Sao.View.Form.PYSON._super.init.call(this, field_name, model,
+                attributes);
+            this.encoder = new Sao.PYSON.Encoder({});
+            this.decoder = new Sao.PYSON.Decoder({}, true);
+            this.el.keyup(this.validate_pyson.bind(this));
+            var button = jQuery('<button/>', {
+                'class': 'btn btn-default',
+                'type': 'button'
+            });
+            this.icon = jQuery('<span/>', {
+                'class': 'glyphicon'
+            });
+            button.append(this.icon);
+            button.appendTo(jQuery('<span/>', {
+                'class': 'input-group-btn'
+            }).appendTo(this.group));
+        },
+        get_encoded_value: function() {
+            var value = this.input.val();
+            if (!value) {
+                return value;
+            }
+            try {
+                return this.encoder.encode(eval_pyson(value));
+            }
+            catch (err) {
+                return null;
+            }
+        },
+        set_value: function(record, field) {
+            field.set_client(record, this.get_encoded_value());
+        },
+        get_client_value: function(record, field) {
+            var value = Sao.View.Form.PYSON._super.get_client_value.call(
+                    this, record, field);
+            if (value) {
+                value = this.decoder.decode(value).toString();
+            }
+            return value;
+        },
+        validate_pyson: function() {
+            var icon = 'ok';
+            if (this.get_encoded_value() === null) {
+                icon = 'remove';
+            }
+            this.icon.removeClass().addClass('glyphicon').addClass(
+                ' glyphicon-' + icon + '-sign');
+        },
+        focus_out: function() {
+            this.validate_pyson();
+            Sao.View.Form.PYSON._super.focus_out.call(this);
         }
     });
 

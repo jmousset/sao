@@ -24,8 +24,29 @@
         } else {
             data = jQuery.extend({}, data);
         }
+        function add_name_suffix(name){
+            if (!data.model || !data.ids) {
+                return jQuery.when(name);
+            }
+            var max_records = 5;
+            var ids = data.ids.slice(0, max_records);
+            return Sao.rpc({
+                'method': 'model.' + data.model + '.read',
+                'params': [ids, ['rec_name'], context]
+            }, Sao.Session.current_session).then(function(result) {
+                var name_suffix = result.map(function(record){
+                    return record.rec_name;
+                }).join(Sao.i18n.gettext(', '));
+
+                if (data.ids.length > max_records) {
+                    name_suffix += Sao.i18n.gettext(',\u2026');
+                }
+                return Sao.i18n.gettext('%1 (%2)', name, name_suffix);
+            });
+        }
         data.action_id = action.id;
         var params = {};
+        var name_prm;
         switch (action.type) {
             case 'ir.action.act_window':
                 params.view_ids = false;
@@ -62,44 +83,46 @@
                 var domain_context = jQuery.extend({}, ctx);
                 domain_context.context = ctx;
                 domain_context._user = session.user_id;
-                params.domain = new Sao.PYSON.Decoder(domain_context).decode(
-                        action.pyson_domain);
-
-                var search_context = jQuery.extend({}, ctx);
-                search_context.context = ctx;
-                search_context._user = session.user_id;
-                params.search_value = new Sao.PYSON.Decoder(search_context)
-                    .decode(action.pyson_search_value || '[]');
-
-                var tab_domain_context = jQuery.extend({}, ctx);
-                tab_domain_context.context = ctx;
-                tab_domain_context._user = session.user_id;
-                var decoder = new Sao.PYSON.Decoder(tab_domain_context);
+                var decoder = new Sao.PYSON.Decoder(domain_context);
+                params.domain = decoder.decode(action.pyson_domain);
+                params.order = decoder.decode(action.pyson_order);
+                params.search_value = decoder.decode(
+                    action.pyson_search_value || '[]');
                 params.tab_domain = [];
                 action.domains.forEach(function(element, index) {
                     params.tab_domain.push(
-                        [element[0], decoder.decode(element[1])]);
+                        [element[0], decoder.decode(element[1]), element[2]]);
                 });
-                params.name = false;
-                if (action.window_name) {
-                    params.name = action.name;
-                }
+                name_prm = jQuery.when(action.name);
                 params.model = action.res_model || data.res_model;
                 params.res_id = action.res_id || data.res_id;
                 params.context_model = action.context_model;
                 params.limit = action.limit;
                 params.icon = action['icon.rec_name'] || '';
-                Sao.Tab.create(params);
+
+                if ((action.keyword || '') === 'form_relate') {
+                    name_prm = add_name_suffix(action.name);
+                }
+                name_prm.then(function(name) {
+                    params.name = name;
+                    Sao.Tab.create(params);
+                });
                 return;
             case 'ir.action.wizard':
                 params.action = action.wiz_name;
                 params.data = data;
-                params.name = action.name;
                 params.context = context;
                 params.context = jQuery.extend(
                     params.context, data.extra_context || {});
                 params.window = action.window;
-                Sao.Wizard.create(params);
+                name_prm = jQuery.when(action.name);
+                if ((action.keyword || 'form_action') === 'form_action') {
+                    name_prm = add_name_suffix(action.name);
+                }
+                name_prm.done(function(name) {
+                    params.name = name;
+                    Sao.Wizard.create(params);
+                });
                 return;
             case 'ir.action.report':
                 params.name = action.report_name;
@@ -145,7 +168,7 @@
                 Sao.Action.exec_action(action, data, context);
             }, function() {
                 if (jQuery.isEmptyObject(keyact) && warning) {
-                    alert(Sao.i18n.gettext('No action defined!'));
+                    alert(Sao.i18n.gettext('No action defined.'));
                 }
             });
         };

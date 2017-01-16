@@ -18,46 +18,23 @@
         get_auth: function() {
             return btoa(this.login + ':' + this.user_id + ':' + this.session);
         },
-        do_login: function(login, password) {
+        do_login: function(login, parameters) {
             var dfd = jQuery.Deferred();
-            var timeoutID = Sao.common.processing.show();
-            var args = {
-                'method': 'common.db.login',
-                'params': [login, password]
+            var func = function(parameters) {
+                return {
+                    'method': 'common.db.login',
+                    'params': [login, parameters, Sao.i18n.getlang()]
+                };
             };
-            var ajax_prm = jQuery.ajax({
-                'contentType': 'application/json',
-                'data': JSON.stringify(args),
-                'dataType': 'json',
-                'url': '/' + this.database + '/',
-                'type': 'post',
-                'complete': [function() {
-                    Sao.common.processing.hide(timeoutID);
-                }]
+            new Sao.Login(func, this).run().then(function(result) {
+                this.user_id = result[0];
+                this.session = result[1];
+                dfd.resolve();
+            }.bind(this), function() {
+                this.user_id = null;
+                this.session = null;
+                dfd.reject();
             });
-
-            var ajax_success = function(data) {
-                if (data === null) {
-                    Sao.common.warning.run('',
-                           Sao.i18n.gettext('Unable to reach the server.'));
-                    dfd.reject();
-                } else if (data.error) {
-                    Sao.common.error.run(data.error[0], data.error[1]);
-                    dfd.reject();
-                } else {
-                    if (!data.result) {
-                        this.user_id = null;
-                        this.session = null;
-                        dfd.reject();
-                    } else {
-                        this.user_id = data.result[0];
-                        this.session = data.result[1];
-                        dfd.resolve();
-                    }
-                }
-            };
-            ajax_prm.success(ajax_success.bind(this));
-            ajax_prm.error(dfd.reject);
             return dfd.promise();
         },
         do_logout: function() {
@@ -65,6 +42,7 @@
                 return jQuery.when();
             }
             var args = {
+                'id': 0,
                 'method': 'common.db.logout',
                 'params': []
             };
@@ -117,12 +95,6 @@
             'id': 'login-login',
             'placeholder': Sao.i18n.gettext('Login')
         });
-        dialog.password_input = jQuery('<input/>', {
-            'class': 'form-control',
-            'type': 'password',
-            'id': 'login-password',
-            'placeholder': Sao.i18n.gettext('Password')
-        });
         dialog.body.append(jQuery('<div/>', {
             'class': 'form-group'
         }).append(jQuery('<label/>', {
@@ -138,13 +110,7 @@
             'for': 'login-login'
         }).append(Sao.i18n.gettext('Login')))
         .append(dialog.login_input)
-        ).append(jQuery('<div/>', {
-            'class': 'form-group'
-        }).append(jQuery('<label/>', {
-            'class': 'control-label',
-            'for': 'login-password'
-        }).append(Sao.i18n.gettext('Password')))
-        .append(dialog.password_input));
+        );
         dialog.button = jQuery('<button/>', {
             'class': 'btn btn-primary',
             'type': 'submit'
@@ -167,24 +133,24 @@
 
         var ok_func = function() {
             var login = dialog.login_input.val();
-            var password = dialog.password_input.val();
             var database = database || dialog.database_select.val() ||
                 dialog.database_input.val();
             dialog.modal.find('.has-error').removeClass('has-error');
-            if (!(login && password && database)) {
+            if (!(login && database)) {
                 empty_field().closest('.form-group').addClass('has-error');
                 return;
             }
             dialog.button.focus();
             dialog.button.prop('disabled', true);
+            dialog.modal.modal('hide');
             var session = new Sao.Session(database, login);
-            session.do_login(login, password)
+            session.do_login(login)
                 .then(function() {
                     dfd.resolve(session);
                     dialog.modal.remove();
                 }, function() {
                     dialog.button.prop('disabled', false);
-                    dialog.password_input.val('');
+                    dialog.modal.modal('show');
                     empty_field().closest('.form-group').addClass('has-error');
                     empty_field().first().focus();
                 });
@@ -201,7 +167,9 @@
 
         jQuery.when(Sao.DB.list()).then(function(databases) {
             var el;
-            if (jQuery.isEmptyObject(databases)) {
+            databases = databases || [];
+            if (databases.length <= 1 ) {
+                database = databases[0];
                 el = dialog.database_input;
             } else {
                 el = dialog.database_select;
@@ -212,32 +180,12 @@
                     }));
                 });
             }
+            el.prop('readonly', databases.length == 1);
             el.show();
             el.val(database || '');
             empty_field().first().focus();
         });
         return dfd.promise();
-    };
-
-    Sao.Session.password_dialog = function() {
-        var dialog = new Sao.Dialog(Sao.i18n.gettext('Password'), 'lg');
-        dialog.password_input = jQuery('<input/>', {
-            'class': 'form-control',
-            'type': 'password',
-            'id': 'password-password',
-            'placeholder': Sao.i18n.gettext('Password')
-        });
-        dialog.body.append(jQuery('<div/>', {
-            'class': 'form-group'
-        }).append(jQuery('<label/>', {
-            'for': 'password-password'
-        }).append(Sao.i18n.gettext('Password')))
-        .append(dialog.password_input));
-        dialog.button = jQuery('<button/>', {
-            'class': 'btn btn-primary',
-            'type': 'submit'
-        }).append(Sao.i18n.gettext('OK')).appendTo(dialog.footer);
-        return dialog;
     };
 
     Sao.Session.renew = function(session) {
@@ -246,42 +194,85 @@
         }
         var dfd = jQuery.Deferred();
         session.prm = dfd.promise();
-        var dialog = Sao.Session.password_dialog();
         if (!session.login) {
             dfd.reject();
             return session.prm;
         }
-
-        var ok_func = function() {
-            var password = dialog.password_input.val();
-            dialog.button.focus();
-            dialog.button.prop('disabled', true);
-            session.do_login(session.login, password)
-                .then(function() {
-                    dfd.resolve();
-                    dialog.modal.remove();
-                }, function() {
-                    dialog.button.prop('disabled', false);
-                    dialog.password_input.val('').focus();
-                });
-        };
-
-        dialog.modal.modal({
-            backdrop: false,
-            keyboard: false
-        });
-        dialog.modal.on('shown.bs.modal', function() {
-            dialog.password_input.focus();
-        });
-        dialog.modal.find('form').unbind().submit(function(e) {
-            ok_func();
-            e.preventDefault();
-        });
-        dialog.modal.modal('show');
+        session.do_login(session.login).then(dfd.resolve, dfd.reject);
         return session.prm;
     };
 
     Sao.Session.current_session = null;
+
+    Sao.Login = Sao.class_(Object, {
+        init: function(func, session) {
+            this.func = func;
+            this.session = session || Sao.Session.current_session;
+        },
+        run: function(parameters) {
+            if (parameters === undefined) {
+                parameters = {};
+            }
+            var dfd = jQuery.Deferred();
+            var timeoutID = Sao.common.processing.show();
+            var data = this.func(parameters);
+            data.id = 0;
+            var args = {
+                'contentType': 'application/json',
+                'data': JSON.stringify(data),
+                'dataType': 'json',
+                'url': '/' + this.session.database + '/',
+                'type': 'post',
+                'complete': [function() {
+                    Sao.common.processing.hide(timeoutID);
+                }]
+            };
+            if (this.session.user_id && this.session.session) {
+                args.headers = {
+                    'Authorization': 'Session ' + this.session.get_auth()
+                };
+            }
+            var ajax_prm = jQuery.ajax(args);
+
+            var ajax_success = function(data) {
+                if (data === null) {
+                    Sao.common.warning.run('',
+                           Sao.i18n.gettext('Unable to reach the server.'));
+                    dfd.reject();
+                } else if (data.error) {
+                    if (data.error[0].startsWith('403')) {
+                        return this.run({}).then(dfd.resolve, dfd.reject);
+                    } else if (data.error[0].startsWith('404')) {
+                        dfd.reject();
+                    } else if (data.error[0] != 'LoginException') {
+                        Sao.common.error.run(data.error[0], data.error[1]);
+                        dfd.reject();
+                    } else {
+                        var args = data.error[1];
+                        var name = args[0];
+                        var message = args[1];
+                        var type = args[2];
+                        this['get_' + type](message).then(function(value) {
+                            parameters[name] = value;
+                            return this.run(parameters).then(
+                                    dfd.resolve, dfd.reject);
+                        }.bind(this), dfd.reject);
+                    }
+                } else {
+                    dfd.resolve(data.result);
+                }
+            };
+            ajax_prm.success(ajax_success.bind(this));
+            ajax_prm.error(dfd.reject);
+            return dfd.promise();
+        },
+        get_char: function(message) {
+            return Sao.common.ask.run(message);
+        },
+        get_password: function(message) {
+            return Sao.common.ask.run(message, false);
+        },
+    });
 
     Sao.DB = {};
 
@@ -290,6 +281,7 @@
         return jQuery.ajax({
             'contentType': 'application/json',
             'data': JSON.stringify({
+                'id': 0,
                 'method': 'common.db.list',
                 'params': []
             }),
