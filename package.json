@@ -53,6 +53,7 @@
     "tryton"
   ],
   "dependencies": {
-    "bower": "^1.7"
+    "bower": "^1.7",
+    "grunt-contrib-copy": "^1.0.0"
   }
 }
