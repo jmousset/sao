@@ -1098,11 +1098,16 @@
                         .show();
                     previously_selected.empty_editable_el();
                 }
-                if (this.is_selected()) {
-                    this.edited_column = event_.data.column;
+                var selected = this.is_selected();
+                var column_name = event_.data.column;
+                var column = this.tree.columns[column_name];
+                var state_attrs = column.field.get_state_attrs(this.record);
+                var readonly = (
+                        column.attributes.readonly || state_attrs.readonly);
+                if (selected && !readonly) {
+                    this.edited_column = column_name;
                     current_td = this.get_active_td();
-                    var attributes = this.tree.columns[this.edited_column]
-                        .attributes;
+                    var attributes = column.attributes;
                     var EditableBuilder = Sao.View.editabletree_widget_get(
                         attributes.widget);
                     widget = new EditableBuilder(attributes.name,
@@ -1128,12 +1133,11 @@
                     this.get_static_el().hide();
                     this.get_editable_el().show();
                     widget.el.focus();
-                } else {
+                } else if (!selected) {
                     this.set_selection(true);
                     this.selection_changed();
                     var td = event_.data.td;
-                    var column = event_.data.column;
-                    td.on('click keypress', {column: column, td: td},
+                    td.on('click keypress', {column: column_name, td: td},
                         Sao.common.click_press(this.select_row.bind(this),
                             true));
                 }
@@ -1253,8 +1257,18 @@
                     if (next_row.length) {
                         focus_cell(next_row);
                     } else {
-                        // TODO access and size_limit
-                        this.tree.screen.new_().done(function() {
+                        var model = this.tree.screen.group;
+                        var access = Sao.common.MODELACCESS.get(
+                                this.tree.screen.model_name);
+                        var limit = ((this.tree.screen.size_limit !== null) &&
+                                (model.length >= this.tree.screen.size_limit));
+                        var prm;
+                        if (!access.create || limit) {
+                            prm = jQuery.when();
+                        } else {
+                            prm = this.tree.screen.new_();
+                        }
+                        prm.done(function() {
                             var new_row;
                             var rows = this.tree.tbody.children('tr');
                             if (this.tree.attributes.editable == 'bottom') {
@@ -1513,7 +1527,13 @@
                     name = value[1];
                 }
                 if (model) {
-                    cell.text(this.selection[model] || model + ',' + name);
+                    for (var i = 0, len = this.selection.length; i < len; i++) {
+                        if (this.selection[i][0] === model) {
+                            model = this.selection[i][1];
+                            break;
+                        }
+                    }
+                    cell.text(model + ',' + name);
                 } else {
                     cell.text(name);
                 }
