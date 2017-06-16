@@ -489,7 +489,7 @@
                     jQuery('<div/>', {
                         'class': 'col-sm-8'
                     }).append(input).appendTo(form_group);
-                    this.search_form.fields.push([field.string, entry]);
+                    this.search_form.fields.push([field.string, entry, input]);
                 }
 
                 jQuery('<button/>', {
@@ -515,7 +515,7 @@
                             fentry.val('');
                     }
                 }
-                this.search_form.fields[0][1].focus();
+                this.search_form.fields[0][2].focus();
             }
         }
     });
@@ -915,10 +915,10 @@
             this.tree_states_done = [];
             this.group = group;
             this.model = group.model;
-            if (jQuery.isEmptyObject(group)) {
-                this.set_current_record(null);
-            } else {
+            if (group && group.length) {
                 this.set_current_record(group[0]);
+            } else {
+                this.set_current_record(null);
             }
             this.group.add_fields(fields);
         },
@@ -955,7 +955,7 @@
             var deferreds = [];
             if (this.current_record &&
                     ~this.current_record.group.indexOf(this.current_record)) {
-            } else if (!jQuery.isEmptyObject(this.group) &&
+            } else if (this.group && this.group.length &&
                     (this.current_view.view_type != 'calendar')) {
                 this.current_record = this.group[0];
             } else {
@@ -1066,7 +1066,7 @@
             }
             var prm = jQuery.when();
             if (this.current_view.view_type == 'calendar') {
-                var selected_date = this.current_view.date;
+                var selected_date = this.current_view.get_selected_date();
                 prm = this.switch_view('form');
             }
             if (this.current_view &&
@@ -1132,7 +1132,7 @@
             var current_record = this.current_record;
             if (!current_record) {
                 if ((this.current_view.view_type == 'tree') &&
-                        (!jQuery.isEmptyObject(this.group))) {
+                        this.group && this.group.length) {
                     this.set_current_record(this.group[0]);
                 } else {
                     return jQuery.when();
@@ -1157,7 +1157,7 @@
                 }.bind(this));
             }
             var dfd = jQuery.Deferred();
-            prm = prm.then(function() {
+            prm.then(function() {
                 if (path && current_record.id) {
                     path.splice(-1, 1,
                             [path[path.length - 1][0], current_record.id]);
@@ -1165,8 +1165,7 @@
                 return this.group.get_by_path(path).then(function(record) {
                     this.set_current_record(record);
                 }.bind(this));
-            }.bind(this));
-            prm.then(function() {
+            }.bind(this)).then(function() {
                 this.display().always(dfd.resolve);
             }.bind(this), function() {
                 this.display().always(dfd.reject);
