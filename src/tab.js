@@ -8,6 +8,7 @@
             Sao.Tab.tabs.push(this);
             this.buttons = {};
             this.id = 'tab-' + Sao.Tab.counter++;
+            this.name = '';
             this.name_el = jQuery('<span/>');
         },
         create_tabcontent: function() {
@@ -16,7 +17,7 @@
             });
 
             var toolbar = this.create_toolbar().appendTo(this.el);
-            this.title = toolbar.find('a.navbar-brand');
+            this.title = toolbar.find('.title');
 
             this.content = jQuery('<div/>').appendTo(this.el);
 
@@ -50,92 +51,90 @@
             }.bind(this));
         },
         create_toolbar: function() {
-            var toolbar = jQuery(
-                    '<nav class="navbar-default toolbar" role="navigation">' +
-                    '<div class="container-fluid">' +
-                    '<div class="main-navbar-header navbar-header">' +
-                    '<div>' +
-                    '<div class="dropdown" title="' +
-                    Sao.i18n.gettext('Menu') +
-                    '" data-toggle="tooltip">' +
-                    '<a href="#" class="dropdown-toggle" ' +
-                    'data-toggle="dropdown" role="button" ' +
-                    'aria-expanded="false">' +
-                    '<span class="glyphicon glyphicon-wrench" ' +
-                    'aria-hidden="true"></span>' +
-                    '</span>' +
-                    '<span class="caret"></span>' +
-                    '</a>' +
-                    '<ul class="dropdown-menu" role="menu">' +
-                    '</ul>' +
-                    '</div>' +
-                    '</div>' +
-                    '<a class="navbar-brand" href="#"></a>' +
-                    '<button type="button" class="navbar-toggle collapsed" ' +
-                    'data-toggle="collapse" ' +
-                    'data-target="#navbar-' + this.id + '">' +
-                    '<span class="sr-only">' +
-                    Sao.i18n.gettext('Toggle navigation') +
-                    '</span>' +
-                    '<span class="icon-bar"></span>' +
-                    '<span class="icon-bar"></span>' +
-                    '<span class="icon-bar"></span>' +
-                    '</div>' +
-                    '<div class="main-navbar-body collapse navbar-collapse" ' +
-                    'id="navbar-' + this.id + '">' +
-                    '<ul class="nav navbar-nav">' +
-                    '</ul>' +
-                    '</div>' +
-                    '</div>' +
-                    '</nav>'
-                    );
+            var toolbar = jQuery('<nav/>', {
+                'class': 'toolbar navbar navbar-default',
+                'role': 'toolbar'
+            }).append(jQuery('<div/>', {
+                'class': 'container-fluid'
+            }).append(jQuery('<div/>', {
+                'class': 'dropdown navbar-header navbar-left'
+            }).append(jQuery('<a/>', {
+                'href': "#",
+                'class': "navbar-brand dropdown-toggle",
+                'data-toggle': 'dropdown',
+                'role': 'button',
+                'aria-expanded': false,
+                'aria-haspopup': true
+            }).append(jQuery('<span/>', {
+                'class': 'title'
+            })).append(jQuery('<span/>', {
+                'class': 'caret'
+            }))).append(jQuery('<ul/>', {
+                'class': 'dropdown-menu',
+                'role': 'menu'
+            })).append(jQuery('<button/>', {
+                'type': 'button',
+                'class': 'close visible-xs visible-sm',
+                'aria-label': Sao.i18n.gettext('Close')
+            }).append(jQuery('<span/>', {
+                'aria-hidden': true
+            }).append('&times;')).click(function() {
+                this.close();
+            }.bind(this)))).append(jQuery('<div/>', {
+                'class': 'btn-toolbar navbar-right',
+                'role': 'toolbar'
+            })));
             var wrapper = jQuery('<div/>', {
-                'class': 'nav-wrapper'
+                'class': 'toolbar-wrapper'
             }).append(toolbar);
             this.set_menu(toolbar.find('ul[role*="menu"]'));
 
+            var group;
             var add_button = function(tool) {
-                var item = jQuery('<li/>', {
-                    'role': 'presentation',
-                    'data-toggle': 'tooltip',
-                    'title': tool[2]
-                })
-                .appendTo(toolbar.find('.navbar-collapse > ul'));
-                this.buttons[tool[0]] = jQuery('<a/>', {
-                    'role': 'menuitem',
-                    'href': '#',
+                if (!tool) {
+                    group = null;
+                    return;
+                }
+                if (!group) {
+                    group = jQuery('<div/>', {
+                        'class': 'btn-group',
+                        'role': 'group'
+                    }).appendTo(toolbar.find('.btn-toolbar'));
+                }
+                this.buttons[tool[0]] = jQuery('<button/>', {
+                    'type': 'button',
+                    'class': 'btn btn-default navbar-btn',
+                    'title': tool[2],
                     'id': tool[0]
                 })
                 .append(jQuery('<span/>', {
                     'class': 'glyphicon ' + tool[1],
                     'aria-hidden': 'true'
                 }))
-                .append(jQuery('<span/>', {
-                    'class': 'visible-xs'
-                }).append(' ' + tool[2]))
-                .append(jQuery('<span/>', {
-                    'class': 'counter',
-                }))
-                .appendTo(item);
-                if (tool[4]) {
-                    this.buttons[tool[0]].click(this[tool[4]].bind(this));
+                .appendTo(group)
+                .data('toggle', 'tooltip')
+                .data('placement', 'bottom')
+                .tooltip();
+                if (tool[3]) {
+                    this.buttons[tool[0]].click(this[tool[3]].bind(this));
                 } else {
                     item.addClass('disabled');
                 }
-                // TODO tooltip
             };
             this.toolbar_def().forEach(add_button.bind(this));
+            toolbar.find('.btn-toolbar > .btn-group').last().addClass(
+                    'hidden-xs');
             var tabs = jQuery('#tabs');
             toolbar.affix({
                 'target': tabs.parent(),
                 'offset': {
                     'top': function() {
-                        return tabs.find('.nav-tabs').height();
+                        return jQuery('#main_navbar').height();
                     }
                 }
             });
             toolbar.on('affix.bs.affix', function() {
-                wrapper.height(toolbar.height());
+                wrapper.height(jQuery('#main_navbar').height());
             });
             toolbar.on('affix-top.bs.affix affix-bottom.bs.affix',
                     function() {
@@ -152,15 +151,16 @@
         },
         close: function() {
             var tabs = jQuery('#tabs');
-            var tab = tabs.find('#nav-' + this.id);
+            var tablist = jQuery('#tablist');
+            var tab = tablist.find('#nav-' + this.id);
             var content = tabs.find('#' + this.id);
-            tabs.find('a[href="#' + this.id + '"]').tab('show');
+            tablist.find('a[href="#' + this.id + '"]').tab('show');
             return this._close_allowed().then(function() {
-                var next = tab.next();
+                var next = tab.nextAll('li').first();
                 if (!next.length) {
-                    next = tab.prev();
+                    next = tab.prevAll('li').first();
                 }
-                tab.remove();
+                tab.tooltip('destroy').remove();
                 content.remove();
                 Sao.Tab.tabs.splice(Sao.Tab.tabs.indexOf(this), 1);
                 if (next) {
@@ -173,7 +173,9 @@
             return jQuery.when();
         },
         set_name: function(name) {
-            this.name_el.text(name);
+            this.name = name;
+            this.name_el.text(Sao.common.ellipsize(name, 20));
+            this.name_el.parents('li').first().attr('title', name).tooltip();
         }
     });
 
@@ -225,7 +227,7 @@
         return jQuery.when();
     };
     Sao.Tab.tabs.get_current = function() {
-        var tabs = jQuery('#tabs > ul');
+        var tabs = jQuery('#tablist');
         var i = tabs.find('li').index(tabs.find('li.active'));
         return Sao.Tab.tabs[i];
     };
@@ -249,6 +251,8 @@
 
     Sao.Tab.add = function(tab) {
         var tabs = jQuery('#tabs');
+        var tablist = jQuery('#tablist');
+        var tabcontent = jQuery('#tabcontent');
         var tab_link = jQuery('<a/>', {
             'aria-controls': tab.id,
             'role': 'tab',
@@ -267,15 +271,17 @@
         .append(tab.name_el);
         jQuery('<li/>', {
             'role': 'presentation',
+            'data-toggle': 'tooltip',
+            'data-placement': 'bottom',
             id: 'nav-' + tab.id
         }).append(tab_link)
-        .appendTo(tabs.find('> .nav-tabs'));
+        .appendTo(tablist);
         jQuery('<div/>', {
             role: 'tabpanel',
             'class': 'tab-pane',
             id: tab.id
         }).html(tab.el)
-        .appendTo(tabs.find('> .tab-content'));
+        .appendTo(tabcontent);
         tab_link.on('shown.bs.tab', function() {
             Sao.View.resize(tab.el);
         });
@@ -323,28 +329,22 @@
         toolbar_def: function() {
             return [
                 ['new', 'glyphicon-plus',
-                Sao.i18n.gettext('New'),
                 Sao.i18n.gettext('Create a new record'), 'new_'],
                 ['save', 'glyphicon-floppy-disk',
-                Sao.i18n.gettext('Save'),
                 Sao.i18n.gettext('Save this record'), 'save'],
                 ['switch', 'glyphicon-resize-full',
-                Sao.i18n.gettext('Switch'),
                 Sao.i18n.gettext('Switch view'), 'switch_'],
                 ['reload', 'glyphicon-repeat',
-                Sao.i18n.gettext('Reload'),
                 Sao.i18n.gettext('Reload'), 'reload'],
+                null,
                 ['previous', 'glyphicon-chevron-left',
-                Sao.i18n.gettext('Previous'),
                 Sao.i18n.gettext('Previous Record'), 'previous'],
                 ['next', 'glyphicon-chevron-right',
-                Sao.i18n.gettext('Next'),
                 Sao.i18n.gettext('Next Record'), 'next'],
+                null,
                 ['attach', 'glyphicon-paperclip',
-                Sao.i18n.gettext('Attachment'),
                 Sao.i18n.gettext('Add an attachment to the record'), 'attach'],
                 ['note', 'glyphicon-comment',
-                Sao.i18n.gettext('Note'),
                 Sao.i18n.gettext('Add a note to the record'), 'note']
             ];
         },
@@ -385,48 +385,58 @@
             prm.done(function(toolbars) {
                 [
                 ['action', 'glyphicon-cog',
-                    Sao.i18n.gettext('Action'),
                     Sao.i18n.gettext('Launch action')],
                 ['relate', 'glyphicon-share-alt',
-                     Sao.i18n.gettext('Relate'),
                      Sao.i18n.gettext('Open related records')],
                 ['print', 'glyphicon-print',
-                     Sao.i18n.gettext('Print'),
                      Sao.i18n.gettext('Print report')]
                 ].forEach(function(menu_action) {
-                    var button = jQuery('<li/>', {
-                        'data-toggle': 'tooltip',
-                        'title': menu_action[2],
-                        'class': 'dropdown'
+                    var disabled = false;
+                    if (menu_action[0] != 'action') {
+                        disabled = !toolbars[menu_action[0]].length;
+                    }
+                    var button = jQuery('<div/>', {
+                        'class': 'btn-group',
+                        'role': 'group'
                     })
-                    .append(jQuery('<a/>', {
-                        href: '#',
-                        id: menu_action[0],
-                        'class': 'dropdown-toggle',
+                    .append(jQuery('<button/>', {
+                        'type': 'button',
+                        'class': 'btn btn-default navbar-btn dropdown-toggle',
                         'data-toggle': 'dropdown',
-                        role: 'button',
-                        'aria-expanded': 'false'
+                        'aria-expanded': false,
+                        'aria-haspopup': true,
+                        'title': menu_action[2],
+                        'id': menu_action[0],
+                        'disabled': disabled
                     })
                         .append(jQuery('<span/>', {
                             'class': 'glyphicon ' + menu_action[1],
                             'aria-hidden': 'true'
                         }))
                         .append(jQuery('<span/>', {
-                            'class': 'visible-xs'
-                        }).append(' ' + menu_action[2] + ' '))
-                        .append(jQuery('<span/>', {
                             'class': 'caret'
-                        })))
+                        }))
+                        .data('toggle', 'tooltip')
+                        .data('placement', 'bottom')
+                        .tooltip())
                     .append(jQuery('<ul/>', {
                         'class': 'dropdown-menu',
-                        role: 'menu',
+                        'role': 'menu',
                         'aria-labelledby': menu_action[0]
                     }))
-                    .appendTo(toolbar.find('.navbar-collapse > ul'));
+                    .appendTo(toolbar.find('.btn-toolbar > .btn-group').last());
                     buttons[menu_action[0]] = button;
+                    var dropdown = button
+                        .on('show.bs.dropdown', function() {
+                            jQuery(this).parents('.btn-group').removeClass(
+                                    'hidden-xs');
+                        }).on('hide.bs.dropdown', function() {
+                            jQuery(this).parents('.btn-group').addClass(
+                                    'hidden-xs');
+                        });
                     var menu = button.find('ul[role*="menu"]');
                     if (menu_action[0] == 'action') {
-                        button.find('a').click(function() {
+                        button.click(function() {
                             menu.find('.action_button').remove();
                             var buttons = screen.get_buttons();
                             buttons.forEach(function(button) {
@@ -721,9 +731,9 @@
                 var time_format = '%H:%M:%S.%f';
                 revision = Sao.common.format_datetime(date_format, time_format,
                         revision);
-                label = this.name_el.text() + ' @ '+ revision;
+                label = this.name + ' @ '+ revision;
             } else {
-                label = this.name_el.text();
+                label = this.name;
             }
             this.title.html(label);
             this.set_buttons_sensitive(revision);
@@ -767,10 +777,13 @@
             }
         },
         attachment_count: function(count) {
-            var label = Sao.i18n.gettext(' (%1)', count);
-            var counter = this.buttons.attach.find('.counter');
-            counter.text(label);
-            counter.show();
+            var badge = this.buttons.attach.find('.badge');
+            if (!badge.length) {
+                badge = jQuery('<span/>', {
+                    'class': 'badge'
+                }).appendTo(this.buttons.attach);
+            }
+            badge.text(count);
             var record_id = this.screen.get_id();
             this.buttons.attach.prop('disabled', record_id < 0 ||
                 record_id === null || record_id === undefined);
@@ -794,10 +807,13 @@
             }
         },
         _unread_note: function(unread) {
-            var label = Sao.i18n.gettext(' (%1)', unread);
-            var counter = this.buttons.note.find('.counter');
-            counter.text(label);
-            counter.show();
+            var badge = this.buttons.note.find('.badge');
+            if (!badge.length) {
+                badge = jQuery('<span/>', {
+                    'class': 'badge'
+                }).appendTo(this.buttons.note);
+            }
+            badge.text(unread);
             var record_id = this.screen.get_id();
             this.buttons.note.prop('disabled', record_id < 0 ||
                 record_id === null || record_id === undefined);
@@ -807,20 +823,17 @@
         },
         action: function() {
             window.setTimeout(function() {
-                this.buttons.action.find('ul.dropdown-menu')
-                    .dropdown('toggle');
+                this.buttons.action.find('button').click();
             }.bind(this));
         },
         relate: function() {
             window.setTimeout(function() {
-                this.buttons.relate.find('ul.dropdown-menu')
-                    .dropdown('toggle');
+                this.buttons.relate.find('button').click();
             }.bind(this));
         },
         print: function() {
             window.setTimeout(function() {
-                this.buttons.print.find('ul.dropdown-menu')
-                    .dropdown('toggle');
+                this.buttons.print.find('button').click();
             }.bind(this));
         },
         export: function(){
@@ -828,7 +841,8 @@
                 this.screen.current_view.selected_records().map(function(r) {
                     return r.id;
                 }),
-                this.screen.current_view.get_fields());
+                this.screen.current_view.get_fields(),
+                this.screen.context);
         },
         import: function(){
             new Sao.Window.Import(this.screen);
@@ -869,8 +883,7 @@
         },
         toolbar_def: function() {
             return [
-                ['reload', 'glyphicon-repeat',
-                Sao.i18n.gettext('Reload'),
+                ['reload', 'glyphicon-refresh',
                 Sao.i18n.gettext('Reload'), 'reload']
             ];
         },

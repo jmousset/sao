@@ -2,7 +2,7 @@
   "name": "tryton-sao",
   "title": "sao",
   "description": "Tryton webclient",
-  "version": "4.2.5",
+  "version": "4.4.4",
   "homepage": "http://www.tryton.org/",
   "author": {
     "name": "Tryton"
@@ -33,19 +33,12 @@
   ],
   "scripts": {
     "test": "./node_modules/.bin/grunt test",
-    "postinstall": "./node_modules/.bin/bower install --allow-root"
+    "postinstall": "./node_modules/.bin/bower install"
   },
   "devDependencies": {
-    "grunt": "^0.4",
-    "grunt-cli": "^0.1",
-    "grunt-contrib-concat": "^0.5",
-    "grunt-contrib-jshint": "^0.11",
-    "grunt-contrib-less": "^1.2",
     "grunt-contrib-nodeunit": "^0.4",
     "grunt-contrib-qunit": "^1.2",
-    "grunt-contrib-uglify": "^0.9",
     "grunt-contrib-watch": "^0.6",
-    "grunt-po2json": "^0.3",
     "grunt-shell": "^1.2",
     "grunt-xgettext": "^0.3"
   },
@@ -53,7 +46,14 @@
     "tryton"
   ],
   "dependencies": {
-    "bower": "^1.7",
-    "grunt-contrib-copy": "^1.0.0"
+    "grunt": "^0.4",
+    "grunt-cli": "^0.1",
+    "grunt-contrib-concat": "^0.5",
+    "grunt-contrib-jshint": "^0.11",
+    "grunt-contrib-uglify": "^0.9",
+    "grunt-contrib-less": "^1.2",
+    "grunt-po2json": "^0.3",
+    "grunt-contrib-copy": "^1.0.0",
+    "bower": "^1.7"
   }
 }

@@ -108,6 +108,11 @@
                         label.addClass('editable');
                     }
                 }
+                if (column.attributes.help) {
+                    label.data('toggle', 'tooltip');
+                    label.attr('title', column.attributes.help);
+                    label.tooltip();
+                }
                 if (column.sortable) {
                     var arrow = jQuery('<span/>');
                     label.append(arrow);
@@ -162,7 +167,7 @@
                         'add_remove', 'sort', 'context', 'filename',
                         'autocomplete', 'translate', 'create', 'delete',
                         'selection_change_with', 'schema_model', 'required',
-                        'readonly'];
+                        'readonly', 'help'];
                     for (i in attribute_names) {
                         var attr = attribute_names[i];
                         if ((attr in model.fields[name].description) &&
@@ -325,10 +330,10 @@
                 if (!name) {
                     return;
                 }
-                if (decoder.decode(column.attributes.tree_invisible || '0')) {
+                if ((decoder.decode(column.attributes.tree_invisible || '0')) ||
+                        (name === this.screen.exclude_field)) {
                     column.header.hide();
-                } else if (name === this.screen.exclude_field) {
-                    column.header.hide();
+                    column.header.addClass('invisible');
                 } else {
                     var inv_domain = inversion.domain_inversion(domain, name);
                     if (typeof inv_domain != 'boolean') {
@@ -337,8 +342,10 @@
                     var unique = inversion.unique_value(inv_domain)[0];
                     if (unique && jQuery.isEmptyObject(this.children_field)) {
                         column.header.hide();
+                        column.header.addClass('invisible');
                     } else {
                         column.header.show();
+                        column.header.removeClass('invisible');
                     }
                 }
             }.bind(this));
@@ -668,7 +675,8 @@
             for (var i = 0; i < this.tree.columns.length; i++) {
                 var column = this.tree.columns[i];
                 td = jQuery('<td/>', {
-                    'data-title': column.attributes.string
+                    // TODO RTL
+                    'data-title': column.attributes.string + Sao.i18n.gettext(': ')
                 }).append(jQuery('<div/>', { // For responsive min-height
                     'aria-hidden': true
                 }));
@@ -678,6 +686,13 @@
                             true));
                 if (!this.tree.editable) {
                     td.dblclick(this.switch_row.bind(this));
+                } else {
+                    if (column.attributes.required) {
+                        td.addClass('required');
+                    }
+                    if (!column.attributes.readonly) {
+                        td.addClass('editable');
+                    }
                 }
                 var widgets = this.build_widgets();
                 var table = widgets[0];
@@ -809,8 +824,10 @@
                 if ((column.header.is(':hidden') && thead_visible) ||
                         column.header.css('display') == 'none') {
                     td.hide();
+                    td.addClass('invisible');
                 } else {
                     td.show();
+                    td.removeClass('invisible');
                 }
             }
             var row_id_path = this.get_id_path();
@@ -1703,7 +1720,8 @@
             var record = event.data[0];
             var button = event.data[1];
             if (record != this.screen.current_record) {
-                return;
+                // Need to raise the event to get the record selected
+                return true;
             }
             var states = record.expr_eval(this.attributes.states || {});
             if (states.invisible || states.readonly) {

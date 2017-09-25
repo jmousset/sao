@@ -1,7 +1,12 @@
 @import "variables";
+@import "mixins";
 
-.navbar {
-    z-index: @zindex-navbar;
+#tablist > li > a > span {
+    display: inline-block;
+    max-width: 9em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tab-form, .tab-board {
@@ -17,14 +22,9 @@
     }
 }
 
-.nav-tabs > li .close {
-    margin: -2px 0 0 10px;
-    font-size: 18px;
-}
-
 @media screen and (max-width: @screen-xs-max) {
     .tab-form, .tab-board {
-        .navbar-nav > li {
+        .navbar-header > ul > li {
             float: left;
             width: 50%;
         }
@@ -68,6 +68,7 @@ button {
             overflow: hidden;
             text-overflow: ellipsis;
             min-width: 30px;
+            text-align: center;
         }
         & > tbody > tr > td {
             cursor: pointer;
@@ -117,9 +118,9 @@ button {
 
 .form {
     width: 100%;
-    & > .form-container {
+    & > table.form-container {
         width: 100%;
-        & td {
+        & > tbody > tr > td {
             padding: 1px;
         }
     }
@@ -205,6 +206,9 @@ button {
 .column-integer, .column-float, .column-timedelta {
     text-align: right;
 }
+input.column-boolean, input.selection {
+    .center-block();
+}
 
 .form-boolean, .editabletree-boolean, .dict-boolean {
     & input[type=checkbox] {
@@ -223,6 +227,12 @@ button {
 
 .progress {
     margin-bottom: 0px;
+}
+
+.window-form {
+    & .window-form-toolbar {
+        text-align: right;
+    }
 }
 
 .csv {
@@ -248,10 +258,10 @@ button {
     table.responsive,
     table.responsive > thead,
     table.responsive > thead > tr,
-    table.responsive > thead > tr > th,
+    table.responsive > thead > tr > th:not(.invisible),
     table.responsive > tbody,
     table.responsive > tbody > tr,
-    table.responsive > tbody > tr > td {
+    table.responsive > tbody > tr > td:not(.invisible) {
         display: block !important;
     }
     table.responsive {
@@ -284,22 +294,27 @@ button {
             border: none;
             border-bottom: 1px solid #eee;
             position: relative;
-            padding-left: 30%;
         }
-        & > tbody > tr > td:before {
-            /* Now like a table header */
-            position: absolute;
-            /* Top/left values mimic padding */
-            top: 6px;
-            left: 6px;
-            width: 30%;
-            padding-right: 10px;
-            text-align: left;
-            font-weight: bold;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            /* Label */
-            content: attr(data-title);
+        & > tbody > tr {
+            & > td:before {
+                /* Now like a table header */
+                position: absolute;
+                /* Top/left values mimic padding */
+                top: 6px;
+                left: 6px;
+                padding-right: 10px;
+                text-align: left;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                /* Label */
+                content: attr(data-title);
+            }
+            & > td.required:before {
+                font-weight: bold;
+            }
+            & > td.editable:before {
+                font-style: italic;
+            }
         }
     }
 }

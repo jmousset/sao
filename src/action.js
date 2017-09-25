@@ -95,6 +95,7 @@
                 params.model = action.res_model || data.res_model;
                 params.res_id = action.res_id || data.res_id;
                 params.context_model = action.context_model;
+                params.context_domain = action.context_domain;
                 params.limit = action.limit;
                 params.icon = action['icon.rec_name'] || '';
 
@@ -198,31 +199,36 @@
             var name = result[3];
 
             // TODO direct print
-            var blob = new Blob([data],
-                {type: Sao.common.guess_mimetype(report_type)});
-            var blob_url = window.URL.createObjectURL(blob);
-            if (Sao.Action.report_blob_url) {
-                window.URL.revokeObjectURL(Sao.Action.report_blob_url);
-            }
-            Sao.Action.report_blob_url = blob_url;
-            window.open(blob_url);
+            var file_name = name + '.' + report_type;
+            Sao.common.download_file(data, file_name);
         });
     };
 
-    Sao.Action.execute = function(id, data, type, context) {
+    Sao.Action.execute = function(id, data, type, context, keyword) {
         if (!type) {
             Sao.rpc({
                 'method': 'model.ir.action.read',
                 'params': [[id], ['type'], context]
             }, Sao.Session.current_session).done(function(result) {
-                Sao.Action.execute(id, data, result[0].type, context);
+                Sao.Action.execute(id, data, result[0].type, context, keyword);
             });
         } else {
             Sao.rpc({
                 'method': 'model.' + type + '.search_read',
                 'params': [[['action', '=', id]], 0, 1, null, null, context]
             }, Sao.Session.current_session).done(function(result) {
-                Sao.Action.exec_action(result[0], data, context);
+                var action = result[0];
+                if (keyword) {
+                    var keywords = {
+                        'ir.action.report': 'form_report',
+                        'ir.action.wizard': 'form_action',
+                        'ir.action.act_window': 'form_relate'
+                    };
+                    if (!action.keyword) {
+                        action.keyword = keywords[type];
+                    }
+                }
+                Sao.Action.exec_action(action, data, context);
             });
         }
     };

@@ -247,7 +247,7 @@
             if (modified) {
                 record._changed.id = true;
             }
-            if (!(record.group.parent) || (record.id < 0) || force_remove) {
+            if ((record.id < 0) || force_remove) {
                 this._remove(record);
             }
             if (apply_changes){
@@ -304,7 +304,11 @@
                 deferreds.push(record.save());
             });
             if (!jQuery.isEmptyObject(this.record_deleted)) {
+                this.record_deleted.forEach(function(record) {
+                    this._remove(record);
+                }.bind(this));
                 deferreds.push(this.model.delete_(this.record_deleted));
+                this.record_deleted.splice(0, this.record_deleted.length);
             }
             return jQuery.when.apply(jQuery, deferreds);
         };
@@ -487,7 +491,14 @@
         init: function(model, id) {
             this.model = model;
             this.group = Sao.Group(model, {}, []);
-            this.id = id || Sao.Record.prototype.id_counter--;
+            if ((id === undefined) || (id === null)) {
+                this.id = Sao.Record.prototype.id_counter;
+            } else {
+                this.id = id;
+            }
+            if (this.id < 0) {
+                Sao.Record.prototype.id_counter--;
+            }
             this._values = {};
             this._changed = {};
             this._loaded = {};
@@ -737,7 +748,6 @@
             var name, value;
             var rec_named_fields = ['many2one', 'one2one', 'reference'];
             var later = {};
-            var promises = [];
             var fieldnames = [];
             for (name in values) {
                 if (!values.hasOwnProperty(name)) {
@@ -779,17 +789,10 @@
                 this.model.fields[name].set(this, value);
                 this._loaded[name] = true;
             }
-            for (var fname in this.model.fields) {
-                var field = this.model.fields[fname];
-                if (field.description.autocomplete &&
-                        field.description.autocomplete.length > 0) {
-                    promises.push(this.do_autocomplete(fname));
-                }
-            }
             if (validate) {
-                promises.push(this.validate(fieldnames, true));
+                return this.validate(fieldnames, true);
             }
-            return jQuery.when.apply(jQuery, promises);
+            return jQuery.when();
         },
         get: function() {
             var value = {};
@@ -798,7 +801,8 @@
                     continue;
                 }
                 var field = this.model.fields[name];
-                if (field.description.readonly) {
+                if (field.description.readonly &&
+                        !(field instanceof Sao.field.One2Many)) {
                     continue;
                 }
                 if ((this._changed[name] === undefined) && this.id >= 0) {
@@ -835,16 +839,6 @@
             this.model.fields[name].set_client(this, value, force_change);
         },
         default_get: function(rec_name) {
-            var dfd = jQuery.Deferred();
-            var promises = [];
-            // Ensure promisses is filled before default_get is resolved
-            for (var fname in this.model.fields) {
-                var field = this.model.fields[fname];
-                if (field.description.autocomplete &&
-                        field.description.autocomplete.length > 0) {
-                    promises.push(this.do_autocomplete(fname));
-                }
-            }
             if (!jQuery.isEmptyObject(this.model.fields)) {
                 var context = this.get_context();
                 if (context.default_rec_name === undefined) {
@@ -852,7 +846,7 @@
                 }
                 var prm = this.model.execute('default_get',
                         [Object.keys(this.model.fields)], context);
-                prm.then(function(values) {
+                return prm.then(function(values) {
                     if (this.group.parent &&
                             this.group.parent_name in this.group.model.fields) {
                         var parent_field =
@@ -867,15 +861,10 @@
                                 this.group.parent.id;
                         }
                     }
-                    promises.push(this.set_default(values));
-                    jQuery.when.apply(jQuery, promises).then(function() {
-                        dfd.resolve(values);
-                    });
+                    return this.set_default(values);
                 }.bind(this));
-            } else {
-                dfd.resolve();
             }
-            return dfd;
+            return jQuery.when();
         },
         set_default: function(values, validate) {
             if (validate === null || validate === undefined) {

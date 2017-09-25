@@ -622,7 +622,6 @@
             this.model_name = model_name;
             this.model = new Sao.Model(model_name, attributes);
             this.attributes = jQuery.extend({}, attributes);
-            this.attributes.limit = this.attributes.limit || Sao.config.limit;
             this.view_ids = jQuery.extend([], attributes.view_ids);
             this.view_to_load = jQuery.extend([],
                 attributes.mode || ['tree', 'form']);
@@ -634,8 +633,13 @@
             this.current_record = null;
             this.new_group();
             this.domain = attributes.domain || [];
+            this.context_domain = attributes.context_domain;
             this.size_limit = null;
-            this.limit = attributes.limit || Sao.config.limit;
+            if (this.attributes.limit === undefined) {
+                this.limit = Sao.config.limit;
+            } else {
+                this.limit = attributes.limit;
+            }
             this.offset = 0;
             this.order = this.default_order = attributes.order;
             var access = Sao.common.MODELACCESS.get(model_name);
@@ -812,6 +816,10 @@
             }
 
             var domain = this.search_domain(search_string, true);
+            if (this.context_domain) {
+                var decoder = new Sao.PYSON.Decoder(this.context);
+                domain = ['AND', domain, decoder.decode(this.context_domain)];
+            }
             var tab_domain = this.screen_container.get_tab_domain();
             if (!jQuery.isEmptyObject(tab_domain)) {
                 domain = ['AND', domain, tab_domain];
@@ -831,7 +839,8 @@
             grp_prm.done(this.display.bind(this));
             jQuery.when(grp_prm, count_prm).done(function(group, count) {
                 this.screen_container.but_next.prop('disabled',
-                        !(group.length == this.limit &&
+                        !(this.limit !== undefined &&
+                            group.length == this.limit &&
                             count > this.limit + this.offset));
             }.bind(this));
             this.screen_container.but_prev.prop('disabled', this.offset <= 0);
@@ -1143,12 +1152,15 @@
             var path = current_record.get_path(this.group);
             var prm = jQuery.Deferred();
             if (this.current_view.view_type == 'tree') {
-                prm = this.group.save();
+                prm = this.group.save().then(function() {
+                    return this.current_record;
+                }.bind(this));
             } else {
                 current_record.validate(fields).then(function(validate) {
                     if (validate) {
-                        current_record.save().then(
-                            prm.resolve, prm.reject);
+                        current_record.save().then(function() {
+                            prm.resolve(current_record);
+                        }, prm.reject);
                     } else {
                         this.current_view.display().done(
                                 this.set_cursor.bind(this));
@@ -1157,8 +1169,8 @@
                 }.bind(this));
             }
             var dfd = jQuery.Deferred();
-            prm.then(function() {
-                if (path && current_record.id) {
+            prm.then(function(current_record) {
+                if (path && current_record && current_record.id) {
                     path.splice(-1, 1,
                             [path[path.length - 1][0], current_record.id]);
                 }
@@ -1393,11 +1405,15 @@
             });
         },
         search_prev: function(search_string) {
-            this.offset -= this.limit;
+            if (this.limit) {
+                this.offset -= this.limit;
+            }
             this.search_filter(search_string);
         },
         search_next: function(search_string) {
-            this.offset += this.limit;
+            if (this.limit) {
+                this.offset += this.limit;
+            }
             this.search_filter(search_string);
         },
         invalid_message: function(record) {
@@ -1507,7 +1523,7 @@
                         model: this.model_name,
                         id: this.current_record.id,
                         ids: ids
-                    }, null, this.context);
+                    }, null, this.context, true);
                 }
             };
 

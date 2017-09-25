@@ -2613,8 +2613,7 @@
         },
         run: function() {
             if (this.running) {
-                // [Bug Sao]
-                return this.running;
+                return jQuery.when();
             }
             var args = Array.prototype.slice.call(arguments);
             var prm = jQuery.Deferred();
@@ -2680,8 +2679,7 @@
         build_dialog: function(message, title, prm) {
             var dialog = Sao.common.WarningDialog._super.build_dialog.call(
                 this);
-            dialog.add_title(title);
-            dialog.body.append(jQuery('<div/>', {
+            var content = jQuery('<div/>', {
                 'class': 'alert alert-warning',
                 role: 'alert'
             }).append(jQuery('<span/>', {
@@ -2690,9 +2688,15 @@
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
             }).append(Sao.i18n.gettext('Warning: '))
-            ).append(jQuery('<span/>')
-                .append(message)
-                .css('white-space', 'pre-wrap')));
+            ).append(jQuery('<h4/>')
+                .append(title)
+                .css('white-space', 'pre-wrap'));
+            if (message) {
+                content.append(jQuery('<span/>')
+                    .append(message)
+                    .css('white-space', 'pre-wrap'));
+            }
+            dialog.body.append(content);
             jQuery('<button/>', {
                 'class': 'btn btn-primary',
                 'type': 'button'
@@ -2974,7 +2978,7 @@
             });
             this.el.append(jQuery('<span/>', {
                 'class': 'label label-info',
-                'text': 'Processing...'
+                'text': Sao.i18n.gettext('Processing...')
             }));
             this.el.hide();
             jQuery(function() {
@@ -3281,5 +3285,50 @@
         } else {
             label.removeClass('editable required');
         }
+    };
+
+    Sao.common.download_file = function(data, name) {
+        var type = Sao.common.guess_mimetype(
+            name ? name.split('.').pop() : undefined);
+        var blob = new Blob([data], {type: type});
+        var blob_url = window.URL.createObjectURL(blob);
+
+        var dialog = new Sao.Dialog(Sao.i18n.gettext('Download'));
+        var close = function() {
+            dialog.modal.modal('hide');
+        };
+        var a = jQuery('<a/>', {
+                'href': blob_url,
+                'download': name,
+                'text': name,
+                'target': '_blank'
+                }).appendTo(dialog.body)
+                .append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-download-alt'}))
+                .click(close);
+        var button = jQuery('<button/>', {
+            'class': 'btn btn-default',
+            'type': 'button'
+        }).append(Sao.i18n.gettext('Close')).click(close)
+            .appendTo(dialog.footer);
+        dialog.modal.on('shown.bs.modal', function() {
+            // Force the click trigger
+            a[0].click();
+        });
+        dialog.modal.modal('show');
+
+        dialog.modal.on('hidden.bs.modal', function() {
+            jQuery(this).remove();
+            window.URL.revokeObjectURL(this.blob_url);
+        });
+
+    };
+
+    Sao.common.ellipsize = function(string, length) {
+        if (string.length <= length) {
+            return string;
+        }
+        var ellipsis = Sao.i18n.gettext('...');
+        return string.slice(0, length - ellipsis.length) + ellipsis;
     };
 }());

@@ -458,6 +458,7 @@ function eval_pyson(value){
     Sao.View.Form.Container = Sao.class_(Object, {
         init: function(col) {
             if (col === undefined) col = 4;
+            if (col < 0) col = 0;
             this.col = col;
             this.el = jQuery('<table/>', {
                 'class': 'form-container responsive responsive-noheader'
@@ -480,14 +481,16 @@ function eval_pyson(value){
             if (xfill === undefined) xfill = 1;
             var xexpand = attributes.xexpand;
             if (xexpand === undefined) xexpand = 1;
-            var len = 0;
             var row = this.row();
-            row.children().map(function(i, e) {
-                len += Number(jQuery(e).attr('colspan') || 1);
-            });
-            if (len + colspan > this.col) {
-                this.add_row();
-                row = this.row();
+            if (this.col > 0) {
+                var len = 0;
+                row.children().map(function(i, e) {
+                    len += Number(jQuery(e).attr('colspan') || 1);
+                });
+                if (len + colspan > this.col) {
+                    this.add_row();
+                    row = this.row();
+                }
             }
             var el;
             if (widget) {
@@ -1445,7 +1448,7 @@ function eval_pyson(value){
         }
         var session = this.model.session;
         var params = [
-            [['translatable', '=', 'true']]
+            [['translatable', '=', true]]
         ];
         var args = {
             'method': 'model.ir.lang.search',
@@ -1498,7 +1501,7 @@ function eval_pyson(value){
                 'type': 'text',
                 'class': 'form-control input-sm'
             }).appendTo(this.group);
-            if (attributes.autocomplete) {
+            if (!jQuery.isEmptyObject(attributes.autocomplete)) {
                 this.datalist = jQuery('<datalist/>').appendTo(this.el);
                 this.datalist.uniqueId();
                 this.input.attr('list', this.datalist.attr('id'));
@@ -1532,15 +1535,22 @@ function eval_pyson(value){
             Sao.View.Form.Char._super.display.call(this, record, field);
             if (this.datalist) {
                 this.datalist.children().remove();
-                var selection = [];
-                if (record) {
-                    selection = record.autocompletion[this.field_name] || [];
+                var set_autocompletion = function() {
+                    var selection = [];
+                    if (record) {
+                        selection = record.autocompletion[this.field_name] || [];
+                    }
+                    selection.forEach(function(e) {
+                        jQuery('<option/>', {
+                            'value': e
+                        }).appendTo(this.datalist);
+                    }.bind(this));
+                }.bind(this);
+                if (record && !(this.field_name in record.autocompletion)) {
+                    record.do_autocomplete(this.field_name).done(set_autocompletion);
+                } else {
+                    set_autocompletion();
                 }
-                selection.forEach(function(e) {
-                    jQuery('<option/>', {
-                        'value': e
-                    }).appendTo(this.datalist);
-                }.bind(this));
             }
 
             // Set size
@@ -1580,6 +1590,32 @@ function eval_pyson(value){
             Sao.View.Form.Password._super.init.call(this, field_name, model,
                 attributes);
             this.input.prop('type', 'password');
+            this.button = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm form-control',
+                'type': 'button'
+            }).appendTo(jQuery('<span/>', {
+                'class': 'input-group-btn'
+            }).appendTo(this.group));
+            this._set_password_label();
+            this.button.click(this.toggle_visibility.bind(this));
+
+        },
+        toggle_visibility: function() {
+            if (this.input.prop('type') == 'password') {
+                this.input.prop('type', 'text');
+                this.input.attr('autocomplete', 'off');
+            } else {
+                this.input.prop('type', 'password');
+                this.input.removeAttr('autocomplete');
+            }
+            this._set_password_label();
+        },
+        _set_password_label: function() {
+            if (this.input.prop('type') == 'password') {
+                this.button.text(Sao.i18n.gettext('Show'));
+            } else {
+                this.button.text(Sao.i18n.gettext('Hide'));
+            }
         }
     });
 
@@ -2507,7 +2543,7 @@ function eval_pyson(value){
             var value = field.get(record);
             if (this.has_target(value)) {
                 var id = this.id_from_value(value);
-                if ((id !== undefined) && (id > 0)) {
+                if ((id !== undefined) && (id >= 0)) {
                     return jQuery.when();
                 }
             }
@@ -2831,6 +2867,7 @@ function eval_pyson(value){
                 views_preload: attributes.views || {},
                 row_activate: this.activate.bind(this),
                 exclude_field: attributes.relation_field || null,
+                limit: null,
                 pre_validate: attributes.pre_validate
             });
             if (attributes.group)
@@ -3351,7 +3388,8 @@ function eval_pyson(value){
                 mode: ['tree'],
                 view_ids: (attributes.view_ids || '').split(','),
                 views_preload: attributes.views || {},
-                row_activate: this.activate.bind(this)
+                row_activate: this.activate.bind(this),
+                limit: null
             });
             this.prm = this.screen.switch_view('tree').done(function() {
                 this.content.append(this.screen.screen_container.el);
@@ -3371,9 +3409,15 @@ function eval_pyson(value){
                     this._required);
         },
         _set_button_sensitive: function() {
-            var size_limit = false;
-            if (this.record() && this.field()) {
-                // TODO
+            var size_limit = false,
+                record = this.record(),
+                field = this.field();
+            if (record && field) {
+                var field_size = record.expr_eval(this.attributes.size);
+                var m2m_size = field.get_eval(record).length;
+                size_limit = (((field_size !== undefined) &&
+                            (field_size !== null)) &&
+                        (m2m_size >= field_size >= 0));
             }
 
             this.entry.prop('disabled', this._readonly);
@@ -3650,13 +3694,12 @@ function eval_pyson(value){
                 prm = jQuery.when(field.get(record));
             }
             prm.done(function(data) {
-                var blob = new Blob([data], {type: mimetype});
-                var blob_url = window.URL.createObjectURL(blob);
-                if (this.blob_url) {
-                    window.URL.revokeObjectURL(this.blob_url);
+                var name;
+                var field = this.filename_field();
+                if (field) {
+                    name = field.get(this.record());
                 }
-                this.blob_url = blob_url;
-                window.open(blob_url);
+                Sao.common.download_file(data, name);
             }.bind(this));
         },
         clear: function() {
@@ -4265,9 +4308,7 @@ function eval_pyson(value){
                 }
                 var removed_key_names = Object.keys(this.fields).filter(
                         function(e) {
-                            // [Bug Sao] server can return null
-                            //           as false for boolean.
-                            return (value[e] === undefined);
+                            return !(e in value);
                         });
                 for (i = 0, len = removed_key_names.length; i < len; i++) {
                     key = removed_key_names[i];
