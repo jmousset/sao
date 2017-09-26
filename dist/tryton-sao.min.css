@@ -1,5 +1,9 @@
-.navbar {
-  z-index: 1000;
+#tablist > li > a > span {
+  display: inline-block;
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tab-form nav.toolbar,
 .tab-board nav.toolbar {
@@ -14,13 +18,9 @@
   top: 51px;
   z-index: 999;
 }
-.nav-tabs > li .close {
-  margin: -2px 0 0 10px;
-  font-size: 18px;
-}
 @media screen and (max-width: 767px) {
-  .tab-form .navbar-nav > li,
-  .tab-board .navbar-nav > li {
+  .tab-form .navbar-header > ul > li,
+  .tab-board .navbar-header > ul > li {
     float: left;
     width: 50%;
   }
@@ -53,6 +53,7 @@ button img.icon {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 30px;
+  text-align: center;
 }
 .treeview > table.tree > thead > tr > th > label.sortable {
   cursor: pointer;
@@ -109,10 +110,10 @@ button img.icon {
 .form {
   width: 100%;
 }
-.form > .form-container {
+.form > table.form-container {
   width: 100%;
 }
-.form > .form-container td {
+.form > table.form-container > tbody > tr > td {
   padding: 1px;
 }
 .form td.form-label {
@@ -203,6 +204,12 @@ button img.icon {
 .column-timedelta {
   text-align: right;
 }
+input.column-boolean,
+input.selection {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
 .form-boolean input[type=checkbox],
 .editabletree-boolean input[type=checkbox],
 .dict-boolean input[type=checkbox] {
@@ -217,6 +224,9 @@ button img.icon {
 }
 .progress {
   margin-bottom: 0px;
+}
+.window-form .window-form-toolbar {
+  text-align: right;
 }
 .csv .modal-dialog .column-fields {
   height: 35vh;
@@ -235,10 +245,10 @@ button img.icon {
   table.responsive,
   table.responsive > thead,
   table.responsive > thead > tr,
-  table.responsive > thead > tr > th,
+  table.responsive > thead > tr > th:not(.invisible),
   table.responsive > tbody,
   table.responsive > tbody > tr,
-  table.responsive > tbody > tr > td {
+  table.responsive > tbody > tr > td:not(.invisible) {
     display: block !important;
   }
   table.responsive {
@@ -268,7 +278,6 @@ button img.icon {
     border: none;
     border-bottom: 1px solid #eee;
     position: relative;
-    padding-left: 30%;
   }
   table.responsive-header > tbody > tr > td:before {
     /* Now like a table header */
@@ -276,14 +285,18 @@ button img.icon {
     /* Top/left values mimic padding */
     top: 6px;
     left: 6px;
-    width: 30%;
     padding-right: 10px;
     text-align: left;
-    font-weight: bold;
     overflow: hidden;
     text-overflow: ellipsis;
     /* Label */
     content: attr(data-title);
+  }
+  table.responsive-header > tbody > tr > td.required:before {
+    font-weight: bold;
+  }
+  table.responsive-header > tbody > tr > td.editable:before {
+    font-style: italic;
   }
 }
 #processing {
