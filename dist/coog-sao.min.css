@@ -1,0 +1,578 @@
+/* variables */
+/* custom */
+/* style */
+#menu {
+  padding-right: 0;
+  padding-left: 0;
+  /* search input */
+  /* menu body */
+  /* global-search */
+}
+#menu .global-search-container input {
+  box-shadow: none;
+  border: 0;
+  border-bottom: 1px solid #ccc;
+  border-radius: 0;
+}
+#menu .content-box .expander > span {
+  width: 12px;
+  margin-left: 4px;
+  margin-right: 4px;
+  font-size: 12px;
+  color: #0097c8;
+}
+#menu .content-box .expander > span:focus {
+  outline: 0;
+}
+#menu .content-box .prefix > img {
+  height: 17px;
+  width: 17px;
+  margin-right: 4px;
+}
+#menu .content-box .widget {
+  font-size: 13px;
+}
+#menu .content-box .table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: white;
+  background-color: #f9f9f9;
+}
+#menu .content-box .table-hover > tbody > tr:hover {
+  background-color: #3399ff;
+  color: white;
+}
+#menu .content-box .table-hover > tbody > tr:hover .glyphicon {
+  color: white;
+}
+#menu .content-box .table > tbody > tr {
+  background-color: white;
+}
+#menu .content-box .table > tbody > tr > td {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+#menu .open .dropdown-menu .completion .global-search-icon {
+  height: 15px;
+  width: 15px;
+  margin-right: 4px;
+}
+#menu .open .dropdown-menu .completion .global-search-text {
+  font-size: 12px;
+}
+/* global header */
+/* Header */
+/* custom button */
+/* style */
+body > .navbar-default {
+  margin-bottom: 0px!important;
+  border-bottom-width: 0px;
+  /* colors */
+  background-color: none;
+  /* menu toggle button */
+}
+body > .navbar-default .navbar-header > a {
+  color: #777;
+}
+body > .navbar-default #user_menu_collapse > ul > li > a {
+  color: #777;
+}
+body > .navbar-default .button-default-color {
+  color: #337ab7;
+  background-color: #fff;
+  border-color: #eee;
+  outline: none;
+}
+body > .navbar-default .navbar-header > p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+body > .navbar-default .navbar-header > p > .btn-primary {
+  color: #337ab7;
+  background-color: #fff;
+  border-color: #eee;
+  outline: none;
+  padding: 5px 10px;
+  margin-top: 10px;
+  font-size: none;
+}
+body > .navbar-default .navbar-header > p > .btn-primary:active,
+body > .navbar-default .navbar-header > p > .btn-primary:focus {
+  color: #337ab7;
+  background-color: #fff;
+  border-color: #eee;
+  outline: none;
+}
+body > .navbar-default .navbar-header > p > .btn-primary:hover {
+  color: #fff;
+  background-color: #337ab7;
+  border-color: #337ab7;
+}
+body > .navbar-default .navbar-header > p > .btn-primary .glyphicon {
+  display: inline-block !important;
+}
+body > .navbar-default .navbar-header > p > .btn-primary #toggle-text {
+  display: none;
+}
+/* menu */
+@media screen and (min-width: 991px) {
+  .row-offcanvas {
+    position: relative;
+    -webkit-transition: all 0.25s ease-out;
+    -o-transition: all 0.25s ease-out;
+    transition: all 0.25s ease-out;
+  }
+  .row-offcanvas-left {
+    left: 0;
+  }
+  .row-offcanvas-left .sidebar-offcanvas {
+    left: calc(-25%);
+  }
+  .main-screen-offcanvas {
+    width: 75%;
+  }
+  .row-offcanvas-left.active {
+    left: calc(25%);
+  }
+  .main-screen-offcanvas.full_mode {
+    width: 100%;
+  }
+  .sidebar-offcanvas {
+    position: absolute;
+    top: 0;
+    width: 25%;
+  }
+}
+/* main-screen */
+/* attributes */
+/* custom */
+/* style */
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form,
+.modal-body {
+  /* header */
+  /* body */
+  /* dictionary */
+  /* filter-box */
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .nav-wrapper > .toolbar > .container-fluid,
+.modal-body > .nav-wrapper > .toolbar > .container-fluid {
+  background-color: #f8f8f8;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .nav-wrapper > .toolbar > .container-fluid .glyphicon,
+.modal-body > .nav-wrapper > .toolbar > .container-fluid .glyphicon {
+  color: #3399ff;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .navbar-btn .glyphicon,
+.modal-body .navbar-btn .glyphicon {
+  color: #3399ff;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container,
+.modal-body > .screen-container {
+  font-size: 12px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .glyphicon,
+.modal-body > .screen-container .glyphicon {
+  color: #3399ff;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .form-container .row,
+.modal-body .form-container .row {
+  margin-bottom: 5px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .form-container .dict-label,
+.modal-body .form-container .dict-label {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .filter-box input.form-control,
+.modal-body .filter-box input.form-control {
+  font-size: 12px;
+  height: 31px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .filter-box button.btn.btn-default,
+.modal-body .filter-box button.btn.btn-default {
+  font-size: 12px;
+}
+.modal-footer .btn {
+  font-size: 12px;
+}
+/* inputs */
+/* attributes */
+/* style */
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container,
+.modal-body {
+  /* sizes */
+  /* single text input */
+  /* full border elem color */
+  /* fix */
+  /* fix */
+  /* fix */
+  /* buttons */
+  /* disabled input */
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .input-group-sm > .form-control,
+.modal-body .input-group-sm > .form-control,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .input-group-sm > .input-group-addon,
+.modal-body .input-group-sm > .input-group-addon {
+  font-size: 12px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .input-group-sm > .input-group-btn > .btn,
+.modal-body .input-group-sm > .input-group-btn > .btn {
+  font-size: 12px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .input-group-sm > .input-group-btn > .btn .glyphicon,
+.modal-body .input-group-sm > .input-group-btn > .btn .glyphicon {
+  color: #3399ff;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-notebook .form-container td,
+.modal-body .form-notebook .form-container td {
+  padding-bottom: 4px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form .form-char input,
+.modal-body .form .form-char input,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form .form-password input,
+.modal-body .form .form-password input,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form .form-integer input,
+.modal-body .form .form-integer input,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form .form-float input,
+.modal-body .form .form-float input {
+  border-radius: 3px;
+  border-width: 1px;
+  box-shadow: none;
+  border-color: #ccc;
+  background-color: azure;
+  color: #555;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form .form-char input:focus,
+.modal-body .form .form-char input:focus,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form .form-password input:focus,
+.modal-body .form .form-password input:focus,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form .form-integer input:focus,
+.modal-body .form .form-integer input:focus,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form .form-float input:focus,
+.modal-body .form .form-float input:focus {
+  outline: none;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .full-border-input-colors,
+.modal-body .full-border-input-colors {
+  border-radius: 3px;
+  border-width: 1px;
+  box-shadow: none;
+  color: #555;
+  background-color: azure;
+  border-color: #ccc;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-dict .input-group select.form-control,
+.modal-body .form-dict .input-group select.form-control,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-date .input-group select.form-control,
+.modal-body .form-date .input-group select.form-control {
+  border-radius: 3px;
+  border-width: 1px;
+  box-shadow: none;
+  color: #555;
+  background-color: azure;
+  border-color: #ccc;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-dict .input-group button,
+.modal-body .form-dict .input-group button,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-date .input-group button,
+.modal-body .form-date .input-group button {
+  border-width: 1px;
+  border-color: #ccc;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-dict .input-group input,
+.modal-body .form-dict .input-group input,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-date .input-group input,
+.modal-body .form-date .input-group input {
+  float: right;
+  border-radius: 3px;
+  border-width: 1px;
+  box-shadow: none;
+  color: #555;
+  background-color: azure;
+  border-color: #ccc;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-container .form-selection .form-control,
+.modal-body .form-container .form-selection .form-control {
+  border-radius: 3px;
+  border-width: 1px;
+  box-shadow: none;
+  color: #555;
+  background-color: azure;
+  border-color: #ccc;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-container .form-many2one > .dropdown > .form-control,
+.modal-body .form-container .form-many2one > .dropdown > .form-control {
+  border: 1px solid;
+  border-radius: 3px;
+  border-width: 1px;
+  box-shadow: none;
+  color: #555;
+  background-color: azure;
+  border-color: #ccc;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-container .form-many2one > .dropdown > .input-group-btn > button,
+.modal-body .form-container .form-many2one > .dropdown > .input-group-btn > button {
+  border-width: 1px;
+  border-color: #ccc;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-dict-body .container-fluid,
+.modal-body .form-dict-body .container-fluid {
+  padding: 0;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-boolean input[type=checkbox],
+.modal-body .form-boolean input[type=checkbox] {
+  margin: 0 0 0 0;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-text textarea,
+.modal-body .form-text textarea {
+  min-height: 15em;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .btn-default,
+.modal-body .btn-default {
+  font-size: 12px;
+  background-color: #fff;
+  color: #333;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .btn-default:hover,
+.modal-body .btn-default:hover {
+  background-color: #3399ff;
+  color: white;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .btn-default:hover .glyphicon,
+.modal-body .btn-default:hover .glyphicon {
+  color: white !important;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-control[disabled],
+.modal-body .form-control[disabled],
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .form-control[readonly],
+.modal-body .form-control[readonly],
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container fieldset[disabled] .form-control,
+.modal-body fieldset[disabled] .form-control {
+  background-color: #eee !important;
+  color: none !important;
+  border: 1px solid #ddd!important;
+  box-shadow: none!important;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .btn.disabled,
+.modal-body .btn.disabled,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .btn[disabled],
+.modal-body .btn[disabled],
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container fieldset[disabled] .btn,
+.modal-body fieldset[disabled] .btn {
+  background-color: #eee !important;
+  color: #333!important;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .btn.disabled .glyphicon,
+.modal-body .btn.disabled .glyphicon,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .btn[disabled] .glyphicon,
+.modal-body .btn[disabled] .glyphicon,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container fieldset[disabled] .btn .glyphicon,
+.modal-body fieldset[disabled] .btn .glyphicon {
+  color: #777!important;
+}
+/* panel */
+/* attributes */
+/* style */
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default,
+.modal-body .panel-default {
+  border-color: #b3e6ff;
+  /* header */
+  /* toolbar */
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading,
+.modal-body .panel-default > .panel-heading {
+  background-color: #f5f5f5;
+  color: none;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading .form-control,
+.modal-body .panel-default > .panel-heading .form-control {
+  z-index: 3;
+  border-radius: 2px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn {
+  background-color: #f5f5f5;
+  border: 0;
+  margin-right: 2px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn .glyphicon,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn .glyphicon {
+  color: #3399ff !important;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:active,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:active {
+  background-color: #e6ffff;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:active .glyphicon,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:active .glyphicon {
+  color: none !important;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:focus,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:focus {
+  outline: 0;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:hover,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:hover {
+  background-color: #3399ff;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:hover .glyphicon,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn:hover .glyphicon {
+  color: white !important;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn.disabled,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn.disabled,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn[disabled],
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn[disabled] {
+  background-color: #f5f5f5 !important;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn.disabled .glyphicon,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn.disabled .glyphicon,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn[disabled] .glyphicon,
+.modal-body .panel-default > .panel-heading > div > .input-group > .input-group-btn > .btn[disabled] .glyphicon {
+  color: #333 !important;
+}
+/* tabs */
+/* attributes */
+/* style */
+.main-screen-offcanvas > #tabs > .nav-tabs {
+  background-color: none;
+  padding-left: none;
+  padding-top: 3px;
+  padding-bottom: 1px;
+}
+.main-screen-offcanvas > #tabs > .nav-tabs > li > a {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.main-screen-offcanvas > #tabs .nav-tabs > li > a {
+  border: 1px solid #ddd;
+  background-color: white;
+  color: #555;
+}
+.main-screen-offcanvas > #tabs .nav-tabs > li > a:hover,
+.main-screen-offcanvas > #tabs .nav-tabs > li > a:active {
+  text-decoration: none;
+  background-color: #3399ff;
+  color: white;
+}
+.main-screen-offcanvas > #tabs .nav-tabs > li.active > a {
+  border-style: solid;
+  border-color: #ddd;
+  border-width: 1px 1px 0 1px;
+  text-decoration: none;
+  background-color: #b3e6ff;
+  color: #333333;
+}
+.main-screen-offcanvas > #tabs .nav-tabs > li.active > a:hover,
+.main-screen-offcanvas > #tabs .nav-tabs > li.active > a:active {
+  text-decoration: none;
+  background-color: #3399ff;
+  border-color: #3399ff;
+  color: white;
+}
+/* attributes */
+/* style */
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .nav-tabs,
+.modal-body .nav-tabs {
+  margin-bottom: 4px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .nav-tabs > li > a,
+.modal-body .nav-tabs > li > a {
+  border: 1px solid #ddd;
+  background-color: white;
+  color: #555;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .nav-tabs > li > a:hover,
+.modal-body .nav-tabs > li > a:hover,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .nav-tabs > li > a:active,
+.modal-body .nav-tabs > li > a:active {
+  text-decoration: none;
+  background-color: #3399ff;
+  color: white;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .nav-tabs > li.active > a,
+.modal-body .nav-tabs > li.active > a {
+  border-style: solid;
+  border-color: #ddd;
+  border-width: 1px 1px 0 1px;
+  text-decoration: none;
+  background-color: #b3e6ff;
+  color: #333333;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .nav-tabs > li.active > a:hover,
+.modal-body .nav-tabs > li.active > a:hover,
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .nav-tabs > li.active > a:active,
+.modal-body .nav-tabs > li.active > a:active {
+  text-decoration: none;
+  background-color: #3399ff;
+  color: white;
+}
+/* tree */
+/* variables */
+/* style */
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview,
+.modal-body {
+  font-size: 12px;
+  color: #333;
+  /* header */
+  /* body */
+  /* strip */
+  /* hover */
+  /* treefooter */
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview .treeview > .table > thead > tr,
+.modal-body .treeview > .table > thead > tr {
+  background-color: none;
+  color: #333;
+  font-size: 12px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview .table > tbody > tr,
+.modal-body .table > tbody > tr {
+  background-color: none;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview .table > tbody > tr > td,
+.modal-body .table > tbody > tr > td {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview .table > tbody > tr img,
+.modal-body .table > tbody > tr img {
+  height: 17px;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview .table-striped > tbody > tr:nth-of-type(odd),
+.modal-body .table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: none;
+  background-color: #e6ffff;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview .table-hover > tbody > tr:hover,
+.modal-body .table-hover > tbody > tr:hover {
+  background-color: #3399ff;
+  color: white;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview .table-hover > tbody > tr:hover .glyphicon,
+.modal-body .table-hover > tbody > tr:hover .glyphicon {
+  color: white;
+}
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container .treeview .treefooter > .btn,
+.modal-body .treefooter > .btn {
+  font-size: 12px !important;
+}
+/* tree view selections */
+.treeview thead > tr > th.selection,
+.modal-body .treeview thead > tr > th.selection {
+  display: none;
+}
+.treeview tbody > tr > td.selection,
+.modal-body .treeview tbody > tr > td.selection {
+  display: none;
+}
+.treeview .row-active,
+.modal-body .treeview .row-active {
+  background-color: #3399ff !important;
+  color: white;
+}
+/* PANEL COLOR */
+/* lighter blue */
+/* blue */
+/* light blue */
+/* azure */
