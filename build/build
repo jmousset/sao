@@ -1,0 +1,50 @@
+#!/bin/sh
+
+[ -z "$1" ] && echo missing branch or tag >&2 && exit 1
+VERSION="$1"
+
+DOCKER_IMAGE="build/sao"
+
+get_dir() {
+    local script_path; script_path=$(readlink -f "$0")
+    local script_dir; script_dir=$(dirname "$script_path")
+    echo "$script_dir"
+}
+
+BUILD_DIR=$(get_dir)
+ROOT_DIR=$(readlink -f "$BUILD_DIR/..")
+
+archive() {
+    echo "archive"
+    (cd "$ROOT_DIR" && \
+        git archive -o "$BUILD_DIR/sao.tar.gz" "$VERSION") || return 1
+}
+
+extract() {
+    echo "extract"
+    (cd "$BUILD_DIR" && \
+        mkdir sao && \
+        tar -xf sao.tar.gz -C sao) || return 1
+}
+
+image() {
+    echo "image"
+    (cd "$BUILD_DIR" && \
+        docker build -t "$DOCKER_IMAGE" . > /dev/null && \
+        rm -rf sao*) || return 1
+}
+
+build() {
+    echo "build"
+    (cd "$BUILD_DIR" && \
+        docker run -t --rm -v /tmp:/tmp "$DOCKER_IMAGE" > /dev/null && \
+        && cd /tmp/sao && npm install --production && grunt && \
+        cp -fr /tmp/sao/dist "$ROOT_DIR/dist/" && cp /tmp/sao/index.html "$ROOT_DIR/dist/") || return 1
+}
+
+clean() {
+    echo "clean"
+    docker rmi "$DOCKER_IMAGE" > /dev/null || return 1
+}
+
+archive && extract && image && build && clean

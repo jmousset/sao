@@ -1,0 +1,6 @@
+#!/bin/sh
+
+npm install && \
+    npm run build && \
+    rm -rf /tmp/sao && \
+    mv dist /tmp/sao
