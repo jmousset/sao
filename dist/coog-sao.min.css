@@ -159,6 +159,10 @@ body > .navbar-default .navbar-header > p > .btn-primary #toggle-text {
 .modal-body > .nav-wrapper > .toolbar > .container-fluid .glyphicon {
   color: #3399ff;
 }
+.main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form .navbar-btn .glyphicon,
+.modal-body .navbar-btn .glyphicon {
+  color: #3399ff;
+}
 .main-screen-offcanvas > #tabs > .tab-content > .tab-pane > .tab-form > .screen-container,
 .modal-body > .screen-container {
   font-size: 12px;
