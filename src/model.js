@@ -510,6 +510,8 @@
             this.state_attrs = {};
             this.autocompletion = {};
             this.exception = false;
+            // JMO: report https://github.com/coopengo/tryton/pull/13
+            this.fields_to_load = {};
         },
         has_changed: function() {
             return !jQuery.isEmptyObject(this._changed);
@@ -616,9 +618,18 @@
             } else {
                 fnames = Object.keys(this.model.fields);
             }
+
+            // JMO: report https://github.com/coopengo/tryton/pull/13
+            if (Object.keys(this.fields_to_load).length > 0) {
+              fnames = fnames.filter(function(e, i, a) {
+                return (e in this.fields_to_load);
+              }.bind(this));
+            }
+
             fnames = fnames.filter(function(e, i, a) {
                 return !(e in this._loaded);
             }.bind(this));
+
             var fnames_to_fetch = fnames.slice();
             var rec_named_fields = ['many2one', 'one2one', 'reference'];
             for (var i in fnames) {

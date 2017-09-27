@@ -293,18 +293,22 @@ function eval_pyson(value){
             if (record) {
                 // Force to set fields in record
                 // Get first the lazy one to reduce number of requests
+
+                // JMO: report https://github.com/coopengo/tryton/pull/13
                 var fields = [];
-                for (name in record.model.fields) {
+                for (name in this._field_keys) {
                     field = record.model.fields[name];
                     fields.push([name, field.description.loading || 'eager']);
                 }
                 fields.sort(function(a, b) {
                     return a[1].localeCompare(b[1]);
                 });
+                record.fields_to_load = this._field_keys;
                 fields.forEach(function(e) {
                     var name = e[0];
                     promesses[name] = record.load(name);
                 });
+                record.fields_to_load = {};
             }
             var set_state = function(record, field, name) {
                 var prm = jQuery.when();
