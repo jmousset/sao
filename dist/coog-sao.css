@@ -52,6 +52,7 @@
 }
 #menu .open .dropdown-menu .completion .global-search-icon {
   height: 15px;
+  width: 15px;
   margin-right: 4px;
 }
 #menu .open .dropdown-menu .completion .global-search-text {
