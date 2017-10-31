@@ -712,7 +712,7 @@
                 this.select.append(jQuery('<option/>', {
                     value: revision.valueOf(),
                     text: Sao.common.format_datetime(
-                        date_format, time_format, revision) + ' ' + this.title
+                        date_format, time_format, revision) + ' ' + name,
                 }));
             }.bind(this));
             this.el.modal('show');
@@ -1283,21 +1283,7 @@
                         .always(prm.reject);
                 },
                 complete: function(results) {
-                    function encode_utf8(s) {
-                        return unescape(encodeURIComponent(s));
-                    }
-                    var data = [];
-                    results.data.pop('');
-                    results.data.forEach(function(line, i) {
-                        if(i < skip) {
-                            return;
-                        }
-                        var arr = [];
-                        line.forEach(function(x){
-                            arr.push(encode_utf8(x));
-                        });
-                        data.push(arr);
-                    });
+                    var data = results.data.slice(skip, results.data.length - 1);
                     Sao.rpc({
                         'method': 'model.' + this.screen.model_name +
                         '.import_data',

@@ -664,7 +664,7 @@
                     if (this.nullable_widget) {
                         selection.push([null, '']);
                     }
-                    this._last_domain = domain;
+                    this._last_domain = [domain, context];
                     this._domain_cache[jdomain] = selection;
                     this.selection = jQuery.extend([], selection);
                     if (callback) {
@@ -1308,7 +1308,7 @@
                 var results = [];
                 var test_value = value !== null ? value : '';
                 if (value instanceof Array) {
-                    test_value = value[value.length - 1];
+                    test_value = value[value.length - 1] || '';
                 }
                 test_value = test_value.replace(/^%*|%*$/g, '');
                 var i, len, svalue, test;

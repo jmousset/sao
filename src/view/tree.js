@@ -938,7 +938,7 @@
                 this.tree.select_changed(this.record);
                 this.switch_row();
             } else {
-                if (!event_.ctrlKey &&
+                if (!event_.ctrlKey ||
                         this.tree.selection_mode ==
                         Sao.common.SELECTION_SINGLE) {
                     this.tree.rows.forEach(function(row) {
@@ -1028,6 +1028,9 @@
                     column_index += this.tree.columns.length;
                 }
                 column = this.tree.columns[column_index];
+                if (!column.field) {
+                    continue;
+                }
                 state_attrs = column.field.get_state_attrs(this.record);
                 invisible = state_attrs.invisible;
                 if (column.header.is(':hidden')) {

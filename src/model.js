@@ -152,7 +152,12 @@
             }
             this.record_deleted = record_deleted;
             if (new_records.length && modified) {
-                this.changed();
+                var root_group = this.root_group();
+                this.changed().then(function() {
+                    root_group.screens.forEach(function(screen) {
+                        screen.display();
+                    });
+                });
             }
         };
         array.get = function(id) {
@@ -250,8 +255,8 @@
             if ((record.id < 0) || force_remove) {
                 this._remove(record);
             }
+            record.group.changed();
             if (apply_changes){
-                record.group.changed();
                 record.group.root_group().screens.forEach(function(screen) {
                     screen.display();
                 });
@@ -265,29 +270,26 @@
             this.record_removed.splice(this.record_removed.indexOf(record), 1);
             this.record_deleted.splice(this.record_deleted.indexOf(record), 1);
             record.group.changed();
-            record.group.root_group().screens.forEach(function(screen) {
-                screen.display();
-            });
         };
         array.changed = function() {
             if (!this.parent) {
-                return jQuery.when();
+                return jQuery.when.apply(jQuery,
+                    this.screens.map(function(screen) {
+                        return screen.display();
+                    }));
             }
             this.parent._changed[this.child_name] = true;
-            var prm = jQuery.Deferred();
             var changed_prm = this.parent.model.fields[this.child_name]
                 .changed(this.parent);
             // One2Many.changed could return undefined
-            if (changed_prm) {
-                changed_prm.then(function() {
-                    this.parent.validate(null, true).done(function() {
-                        this.parent.group.changed().done(prm.resolve);
-                    }.bind(this));
-                }.bind(this));
-            } else {
-                prm.resolve();
+            if (!changed_prm) {
+                changed_prm = jQuery.when();
             }
-            return prm;
+            return changed_prm.then(function() {
+                this.parent.validate(null, true).done(function() {
+                    return this.parent.group.changed();
+                }.bind(this));
+            }.bind(this));
         };
         array.root_group = function() {
             var root = this;
@@ -954,6 +956,7 @@
                     continue;
                 value[key] = this.model.fields[key].get_eval(this);
             }
+            value.id = this.id;
             return value;
         },
         get_on_change_value: function(skip) {
@@ -1392,12 +1395,7 @@
                 record._changed[this.name] = true;
                 this.changed(record).done(function() {
                     record.validate(null, true).then(function() {
-                        record.group.changed().done(function() {
-                            var root_group = record.group.root_group();
-                            root_group.screens.forEach(function(screen) {
-                                screen.display();
-                            });
-                        });
+                        record.group.changed();
                     });
                 });
             } else if (force_change) {
@@ -2059,12 +2057,7 @@
                 record._changed[this.name] = true;
                 this.changed(record).done(function() {
                     record.validate(null, true).then(function() {
-                        record.group.changed().done(function() {
-                            var root_group = record.group.root_group();
-                            root_group.screens.forEach(function(screen) {
-                                screen.display();
-                            });
-                        });
+                        record.group.changed();
                     });
                 });
             } else if (force_change) {
