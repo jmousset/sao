@@ -1,12 +1,18 @@
 @import "variables";
 @import "mixins";
 
-#tablist > li > a > span {
-    display: inline-block;
-    max-width: 9em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+#tablist > li > a {
+    border: 0;
+    & > span {
+        max-width: 9em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+#menu, #tabs {
+    padding-top: 5px;
 }
 
 .tab-form, .tab-board {
@@ -52,13 +58,20 @@ button {
    }
 }
 
+.filter-box {
+    margin: 5px 5px;
+}
+
 .treeview {
     overflow-x: auto;
 
     & > table.tree {
         width: 100%;
 
-        & > thead > tr > th.selection {
+        & th.selection, td.selection {
+            & > input {
+                .center-block();
+            }
             width: 30px;
         }
         & > thead > tr > th {
@@ -69,6 +82,13 @@ button {
             text-overflow: ellipsis;
             min-width: 30px;
             text-align: center;
+            &.char, &.text, &.many2one, &.one2one, &.date, &.time, &.selection,
+            &.reference, &.url, &.email, &.callto, &.sip {
+                text-align: left;
+            }
+            &.timedelta, &.float, &.numeric, &.integer, &.biginteger {
+                text-align: right;
+            }
         }
         & > tbody > tr > td {
             cursor: pointer;
@@ -118,7 +138,7 @@ button {
 
 .form {
     width: 100%;
-    & > table.form-container {
+    & table.form-container {
         width: 100%;
         & > tbody > tr > td {
             padding: 1px;
@@ -137,6 +157,9 @@ button {
             width: 1em;
             height: 1em;
         }
+    }
+    & .form-many2one > .input-group {
+        width: 100%;
     }
     & td.form-one2many, td.form-many2many {
         vertical-align: top;
@@ -187,8 +210,15 @@ button {
     & label.editable {
         font-style: italic;
     }
+    .nav-tabs {
+        margin-bottom: 15px;
+    }
     .panel-heading {
         padding: 1px 1px;
+    }
+    & fieldset.form-group_ > legend {
+        font-size: @font-size-base;
+        margin-bottom: 5px;
     }
 }
 
@@ -206,7 +236,10 @@ button {
 .column-integer, .column-float, .column-timedelta {
     text-align: right;
 }
-input.column-boolean, input.selection {
+.column-many2many, .column-one2many {
+    text-align: center;
+}
+input.column-boolean {
     .center-block();
 }
 
@@ -274,10 +307,11 @@ input.column-boolean, input.selection {
         & > thead > tr,
         & > tbody > tr > td {
             text-align: left !important;
-        }
-        /* Force height to empty content */
-        & td > div:empty {
-            min-height: 20px;
+            /* Force height to empty content */
+            & > span:empty {
+                min-height: 20px;
+                display: block;
+            }
         }
     }
     table.responsive-noheader {

@@ -33,7 +33,7 @@
             }).append(Sao.i18n.gettext('Filters'));
             this.filter_button.click(this.search_box.bind(this));
             this.search_entry = jQuery('<input/>', {
-                'class': 'form-control',
+                'class': 'form-control mousetrap',
                 'placeholder': Sao.i18n.gettext('Search')
             });
             this.search_list = jQuery('<datalist/>');
@@ -1314,14 +1314,9 @@
                 return this._domain_parser[view_id];
             }
             if (!(view_id in this.fields_view_tree)) {
-                // Fetch default view for the next time
-                this.model.execute('fields_view_get', [false, 'tree'],
-                        this.context).then(function(view) {
-                    this.fields_view_tree[view_id] = view;
-                    domain_parser.update_fields(view.fields);
-                }.bind(this));
-                view_tree = {};
-                view_tree.fields = {};
+                view_tree = this.model.execute('fields_view_get', [false, 'tree'],
+                        this.context, false);
+                this.fields_view_tree[view_id] = view_tree;
             } else {
                 view_tree = this.fields_view_tree[view_id];
             }
@@ -1503,9 +1498,6 @@
             var buttons = this.current_view.get_buttons();
             selected_records.forEach(function(record) {
                 buttons = buttons.filter(function(button) {
-                    if (record.group.get_readonly() || record.readonly()) {
-                        return false;
-                    }
                     if (button.attributes.type === 'instance') {
                         return false;
                     }
