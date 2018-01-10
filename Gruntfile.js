@@ -128,7 +128,10 @@ module.exports = function(grunt) {
           { src: 'bower_components/papaparse/papaparse.min.js', dest: 'dist/js/papaparse.min.js' },
           { src: 'bower_components/fullcalendar/dist/fullcalendar.min.js', dest: 'dist/js/fullcalendar.min.js' },
           { src: 'bower_components/fullcalendar/dist/locale-all.js', dest: 'dist/js/locale-all.js' },
+          { src: 'bower_components/mousetrap/mousetrap.js', dest: 'dist/js/mousetrap.js' },
+          { src: 'bower_components/mousetrap/mousetrap.min.js', dest: 'dist/js/mousetrap.min.js' },
           { src: 'bower_components/bootstrap/dist/css/bootstrap.min.css', dest: 'dist/css/bootstrap.min.css' },
+          { src: 'bower_components/bootstrap/dist/css/bootstrap.min.css.map', dest: 'dist/css/bootstrap.min.css.map' },
           { src: 'bower_components/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css', dest: 'dist/css/bootstrap-datetimepicker.min.css' },
           { src: 'bower_components/c3/c3.min.css', dest: 'dist/css/c3.min.css' },
           { src: 'bower_components/fullcalendar/dist/fullcalendar.min.css', dest: 'dist/css/fullcalendar.min.css' },
@@ -170,7 +173,7 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-uglify');
     grunt.loadNpmTasks('grunt-contrib-less');
     grunt.loadNpmTasks('grunt-po2json');
-    grunt.task.run(['concat', 'jshint', 'uglify', 'less', 'po2json']);
+    grunt.task.run(['concat', 'jshint', 'uglify', 'less', 'copy', 'po2json']);
     });
   grunt.registerTask('dev', 'Build for development.', function() {
     grunt.loadNpmTasks('grunt-contrib-concat');
