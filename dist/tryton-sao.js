@@ -2714,6 +2714,8 @@ var Sao = {};
             this.state_attrs = {};
             this.autocompletion = {};
             this.exception = false;
+            // JMO: report https://github.com/coopengo/tryton/pull/13
+            this.fields_to_load = {};
         },
         has_changed: function() {
             return !jQuery.isEmptyObject(this._changed);
@@ -2820,6 +2822,14 @@ var Sao = {};
             } else {
                 fnames = Object.keys(this.model.fields);
             }
+
+            // JMO: report https://github.com/coopengo/tryton/pull/13
+            if (Object.keys(this.fields_to_load).length > 0) {
+              fnames = fnames.filter(function(e, i, a) {
+                return (e in this.fields_to_load);
+              }.bind(this));
+            }
+
             fnames = fnames.filter(function(e, i, a) {
                 return !(e in this._loaded);
             }.bind(this));
@@ -7837,8 +7847,12 @@ function eval_pyson(value){
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 var fields = [];
                 for (name in record.model.fields) {
+                    console.log(record.model.fields);
+                    console.log("culprit below");
+                    console.log(name);
                     field = record.model.fields[name];
-                    fields.push([name, field.description.loading || 'eager']);
+                    //fields.push([name, field.description.loading || 'eager']);
+                    fields.push([name, 'eager']);
                 }
                 fields.sort(function(a, b) {
                     return a[1].localeCompare(b[1]);
@@ -7848,6 +7862,7 @@ function eval_pyson(value){
                     var name = e[0];
                     promesses.push(record.load(name));
                 });
+                record.fields_to_load = {};
             }
             var display = function(record, field) {
                 return function(widget) {
@@ -12136,6 +12151,10 @@ function eval_pyson(value){
             this.editable = (Boolean(this.attributes.editable) &&
                 !screen.attributes.readonly);
 
+            // [Coog specific]
+            //      > attribute always_expand (expand tree view)
+            this.always_expand = this.attributes.always_expand || null;
+
             // Columns
             this.columns = [];
             this.create_columns(screen.model, xml);
@@ -12813,7 +12832,8 @@ function eval_pyson(value){
             }
             var row_id_path = this.get_id_path();
             if (this.is_expanded() ||
-                    Sao.common.contains(expanded, row_id_path)) {
+                    Sao.common.contains(expanded, row_id_path) ||
+                    (this.tree.always_expand && !this.is_leaf())) {
                 this.tree.expanded[this.path] = this;
                 this.expand_children(selected, expanded);
             }
@@ -14747,6 +14767,8 @@ function eval_pyson(value){
                     decoder.decode( action.pyson_context || '{}'));
                 ctx = jQuery.extend(ctx, params.context);
                 ctx = jQuery.extend(ctx, context);
+                // [Coog Specific] handle extra_context
+                ctx = jQuery.extend(ctx, data.extra_context || {});
 
                 ctx.context = ctx;
                 decoder = new Sao.PYSON.Decoder(ctx);
@@ -14783,6 +14805,9 @@ function eval_pyson(value){
                 params.action = action.wiz_name;
                 params.data = data;
                 params.context = context;
+                // [Coog Specific] handle extra_context
+                params.context = jQuery.extend(
+                    params.context, data.extra_context || {});
                 params.window = action.window;
                 name_prm = jQuery.when(action.name);
                 if ((action.keyword || 'form_action') === 'form_action') {

@@ -63,6 +63,10 @@
             this.editable = (Boolean(this.attributes.editable) &&
                 !screen.attributes.readonly);
 
+            // [Coog specific]
+            //      > attribute always_expand (expand tree view)
+            this.always_expand = this.attributes.always_expand || null;
+
             // Columns
             this.columns = [];
             this.create_columns(screen.model, xml);
@@ -740,7 +744,8 @@
             }
             var row_id_path = this.get_id_path();
             if (this.is_expanded() ||
-                    Sao.common.contains(expanded, row_id_path)) {
+                    Sao.common.contains(expanded, row_id_path) ||
+                    (this.tree.always_expand && !this.is_leaf())) {
                 this.tree.expanded[this.path] = this;
                 this.expand_children(selected, expanded);
             }

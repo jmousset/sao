@@ -298,7 +298,8 @@ function eval_pyson(value){
                 var fields = [];
                 for (name in this._field_keys) {
                     field = record.model.fields[name];
-                    fields.push([name, field.description.loading || 'eager']);
+                    //fields.push([name, field.description.loading || 'eager']);
+                    fields.push([name, 'eager']);
                 }
                 fields.sort(function(a, b) {
                     return a[1].localeCompare(b[1]);
@@ -308,6 +309,7 @@ function eval_pyson(value){
                     var name = e[0];
                     promesses.push(record.load(name));
                 });
+                record.fields_to_load = {};
             }
             var display = function(record, field) {
                 return function(widget) {
