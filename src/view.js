@@ -49,10 +49,14 @@
         return path;
     };
 
-    Sao.View.parse = function(screen, xml, children_field) {
+    // [Coog specific] multi_mixed_view
+    Sao.View.parse = function(screen, xml, children_field,
+            children_definitions) {
         switch (xml.children().prop('tagName')) {
             case 'tree':
-                return new Sao.View.Tree(screen, xml, children_field);
+                // [Coog specific] multi_mixed_view
+                return new Sao.View.Tree(screen, xml, children_field,
+                    children_definitions);
             case 'form':
                 return new Sao.View.Form(screen, xml);
             case 'graph':

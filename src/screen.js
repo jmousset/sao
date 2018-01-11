@@ -736,9 +736,12 @@
                 }
             }
             this.group.add_fields(fields);
-            var view_widget = Sao.View.parse(this, xml_view, view.field_childs);
+            // [Coog specific] multi_mixed_view
+            var view_widget = Sao.View.parse(this, xml_view, view.field_childs,
+                view.children_definitions);
             view_widget.view_id = view_id;
             this.views.push(view_widget);
+
             // JMO: report https://github.com/coopengo/tryton/pull/13
             var fkeys = {};
             for  (var k in fields) {fkeys[k] = '';}
