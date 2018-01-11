@@ -754,6 +754,13 @@
             row = row || this.el;
             return jQuery(row.children()[column_index + 1]);
         },
+
+        // [Coog specific)
+        // > Used for always_expand
+        is_leaf: function(){
+            return !this.record.model.fields.hasOwnProperty(this.children_field);
+        },
+
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
