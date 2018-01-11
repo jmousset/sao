@@ -448,56 +448,6 @@
                 this.update_revision();
             }.bind(this));
         },
-        toolbar_def: function() {
-            return [
-                ['new', 'glyphicon-plus',
-                Sao.i18n.gettext('Create a new record'), 'new_'],
-                ['save', 'glyphicon-floppy-disk',
-                Sao.i18n.gettext('Save this record'), 'save'],
-                ['switch', 'glyphicon-resize-full',
-                Sao.i18n.gettext('Switch view'), 'switch_'],
-                ['reload', 'glyphicon-repeat',
-                Sao.i18n.gettext('Reload'), 'reload'],
-                null,
-                ['previous', 'glyphicon-chevron-left',
-                Sao.i18n.gettext('Previous Record'), 'previous'],
-                ['next', 'glyphicon-chevron-right',
-                Sao.i18n.gettext('Next Record'), 'next'],
-                null,
-                ['attach', 'glyphicon-paperclip',
-                Sao.i18n.gettext('Add an attachment to the record'), 'attach'],
-                ['note', 'glyphicon-comment',
-                Sao.i18n.gettext('Add a note to the record'), 'note']
-            ];
-        },
-        menu_def: function() {
-            return [
-                ['glyphicon-plus', Sao.i18n.gettext('New'), 'new_'],
-                ['glyphicon-floppy-disk', Sao.i18n.gettext('Save'), 'save'],
-                ['glyphicon-resize-full', Sao.i18n.gettext('Switch'), 'switch_'],
-                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'),
-                    'reload'],
-                ['glyphicon-duplicate', Sao.i18n.gettext('Duplicate'), 'copy'],
-                ['glyphicon-trash', Sao.i18n.gettext('Delete'), 'delete_'],
-                ['glyphicon-chevron-left', Sao.i18n.gettext('Previous'),
-                    'previous'],
-                ['glyphicon-chevron-right', Sao.i18n.gettext('Next'), 'next'],
-                ['glyphicon-search', Sao.i18n.gettext('Search'), 'search'],
-                ['glyphicon-time', Sao.i18n.gettext('View Logs...'), 'logs'],
-                ['glyphicon-time', Sao.i18n.gettext('Show revisions...'),
-                    Sao.common.MODELHISTORY.contains(this.screen.model_name) ?
-                        'revision' : null],
-                ['glyphicon-remove', Sao.i18n.gettext('Close Tab'), 'close'],
-                ['glyphicon-paperclip', Sao.i18n.gettext('Attachment'),
-                    'attach'],
-                ['glyphicon-comment', Sao.i18n.gettext('Note'), 'note'],
-                ['glyphicon-cog', Sao.i18n.gettext('Action'), 'action'],
-                ['glyphicon-share-alt', Sao.i18n.gettext('Relate'), 'relate'],
-                ['glyphicon-print', Sao.i18n.gettext('Print'), 'print'],
-                ['glyphicon-export', Sao.i18n.gettext('Export'), 'export'],
-                ['glyphicon-import', Sao.i18n.gettext('Import'), 'import']
-            ];
-        },
         create_toolbar: function() {
             var toolbar = Sao.Tab.Form._super.create_toolbar.call(this);
             var screen = this.screen;
@@ -728,7 +678,6 @@
                             this.info_bar.message(
                                     Sao.i18n.gettext('Records removed.'),
                                     'info');
-                            Sao.Tab.tabs.close_current();
                             this.screen.count_tab_domain();
                         }.bind(this), function() {
                             this.info_bar.message(
@@ -918,8 +867,8 @@
             }
             badge.text(count);
             var record_id = this.screen.get_id();
-            this.buttons.attach.prop('disabled', record_id < 0 ||
-                record_id === null || record_id === undefined);
+            this.buttons.attach.prop('disabled',
+                record_id < 0 || record_id === null);
         },
         note: function() {
             var record = this.screen.current_record;
@@ -948,8 +897,8 @@
             }
             badge.text(unread);
             var record_id = this.screen.get_id();
-            this.buttons.note.prop('disabled', record_id < 0 ||
-                record_id === null || record_id === undefined);
+            this.buttons.note.prop('disabled',
+                    record_id < 0 || record_id === null);
         },
         record_message: function() {
             this.info_bar.message();
@@ -1013,17 +962,6 @@
             this.create_tabcontent();
             this.set_name(this.name);
             this.title.html(this.name_el.text());
-        },
-        toolbar_def: function() {
-            return [
-                ['reload', 'glyphicon-refresh',
-                Sao.i18n.gettext('Reload'), 'reload']
-            ];
-        },
-        menu_def: function() {
-            return [
-                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'), 'reload']
-            ];
         },
         reload: function() {
             this.board.reload();

@@ -133,11 +133,8 @@ var Sao = {};
 
     Sao.DateTime = function(year, month, day, hour, minute, second,
             millisecond, utc) {
-        // [Bug Sao] - handle all values to null
-        // TODO: report to tryton
         var datetime;
-        if ((month === undefined || month === null) &&
-            (year !== undefined && year !== null)) {
+        if (month === undefined) {
             datetime = moment(year);
             year = undefined;
         }
@@ -150,7 +147,7 @@ var Sao = {};
         datetime.year(year);
         datetime.month(month);
         datetime.date(day);
-        if (month !== undefined && month !== null) {
+        if (month !== undefined) {
             datetime.hour(hour || 0);
             datetime.minute(minute || 0);
             datetime.second(second || 0);
@@ -200,7 +197,7 @@ var Sao = {};
     Sao.config.display_size = 20;
     Sao.config.roundup = {};
     Sao.config.roundup.url = 'http://bugs.tryton.org/roundup/';
-    Sao.config.title = 'Coog';
+    Sao.config.title = 'Tryton';
 
     Sao.i18n = i18n();
     Sao.i18n.setlang = function(lang) {
@@ -429,7 +426,8 @@ var Sao = {};
             'view_ids': view_ids,
             'domain': domain,
             'context': action_ctx,
-            'selection_mode': Sao.common.SELECTION_SINGLE
+            'selection_mode': Sao.common.SELECTION_NONE,
+            'limit': null
         });
         Sao.Tab.tabs.splice(Sao.Tab.tabs.indexOf(form), 1);
         form.view_prm.done(function() {
@@ -794,12 +792,6 @@ var Sao = {};
             var $modal = jQuery(this);
             modalZIndex++;
             $modal.css('zIndex', modalZIndex);
-            var visible_height = jQuery(window).height() * 0.8;
-            var modal_body = $modal.find('.modal-body');
-            if (modal_body.height() > visible_height) {
-                modal_body.addClass('scrollable-modal');
-                modal_body.css('max-height', visible_height);
-            }
             $modal.next('.modal-backdrop.in').addClass('hidden')
             .css('zIndex', modalZIndex - 1);
         });

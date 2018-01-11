@@ -6,7 +6,7 @@
     Sao.ScreenContainer = Sao.class_(Object, {
         init: function(tab_domain) {
             this.alternate_viewport = jQuery('<div/>', {
-                'class': 'screen-container scrollable'
+                'class': 'screen-container'
             });
             this.alternate_view = false;
             this.search_modal = null;
@@ -629,9 +629,9 @@
             this.views_preload = attributes.views_preload || {};
             this.exclude_field = attributes.exclude_field;
             this.context = attributes.context || {};
+            this.new_group();
             this.current_view = null;
             this.current_record = null;
-            this.new_group();
             this.domain = attributes.domain || [];
             this.context_domain = attributes.context_domain;
             this.size_limit = null;
@@ -684,8 +684,6 @@
             this._domain_parser = {};
             this.pre_validate = false;
             this.tab = null;
-            // [Coog specific] used for group_sync
-            this.parent = null;
             this.count_tab_domain();
         },
         load_next_view: function() {
@@ -736,20 +734,16 @@
                 }
             }
             this.group.add_fields(fields);
-            var view_widget = Sao.View.parse(this, xml_view, view.field_childs,
-                view.children_definitions);
+            var view_widget = Sao.View.parse(this, xml_view, view.field_childs);
             view_widget.view_id = view_id;
             this.views.push(view_widget);
-            // JMO: report https://github.com/coopengo/tryton/pull/13
-            var fkeys = {};
-            for  (var k in fields) {fkeys[k] = '';}
-            view_widget._field_keys = fkeys;
+
             return view_widget;
         },
         number_of_views: function() {
             return this.views.length + this.view_to_load.length;
         },
-        switch_view: function(view_type, view_id) {
+        switch_view: function(view_type) {
             if (this.current_view) {
                 this.current_view.set_value();
                 if (this.current_record &&
@@ -785,13 +779,7 @@
                         this.current_view = this.views[
                             (this.views.indexOf(this.current_view) + 1) %
                             this.views.length];
-                        // JMO: report https://github.com/coopengo/tryton/pull/13
-                        if (view_id) {
-                          if (this.current_view.view_id  == view_id) {
-                            break;
-                          }
-                        }
-                        else if (!view_type) {
+                        if (!view_type) {
                             break;
                         } else if (this.current_view.view_type == view_type) {
                             break;
@@ -949,7 +937,6 @@
             this.set_group(group);
         },
         set_current_record: function(record) {
-            var changed = this.current_record !== record;
             this.current_record = record;
             // TODO position
             if (this.tab) {
@@ -963,10 +950,6 @@
                     this.tab.update_unread_note(0);
                 }
                 this.tab.record_message();
-            }
-            // [Coog specific] multi_mixed_view
-            if (this.parent && changed){
-                this.parent.group_sync(this, this.current_record);
             }
         },
         display: function(set_cursor) {
@@ -984,13 +967,11 @@
                         ~['tree', 'graph', 'calendar'].indexOf(
                             this.current_view.view_type));
                 deferreds.push(search_prm);
-                // JMO: report https://github.com/coopengo/tryton/pull/13
-                //for (var i = 0; i < this.views.length; i++) {
-                //    if (this.views[i]) {
-                //        deferreds.push(this.views[i].display());
-                //    }
-                //}
-                deferreds.push(this.current_view.display());
+                for (var i = 0; i < this.views.length; i++) {
+                    if (this.views[i]) {
+                        deferreds.push(this.views[i].display());
+                    }
+                }
             }
             return jQuery.when.apply(jQuery, deferreds).then(function() {
                 this.set_tree_state();
@@ -1242,7 +1223,7 @@
             var path = top_record.get_path(this.group);
             return prm.then(function() {
                 records.forEach(function(record) {
-                    record.group.remove(record, remove, true, force_remove, false);
+                    record.group.remove(record, remove, true, force_remove);
                 });
                 var prms = [];
                 if (delete_) {
@@ -1479,7 +1460,7 @@
             this.current_view.set_value();
             return this.current_record.get_on_change_value();
         },
-        reload: function(ids, written, no_display) {
+        reload: function(ids, written) {
             this.group.reload(ids);
             if (written) {
                 this.group.written(ids);
@@ -1487,8 +1468,7 @@
             if (this.group.parent) {
                 this.group.parent.root_parent().reload();
             }
-            if (!no_display)
-                this.display();
+            this.display();
         },
         get_buttons: function() {
             var selected_records = this.current_view.selected_records();
@@ -1511,37 +1491,12 @@
         button: function(attributes) {
             var ids;
             var process_action = function(action) {
-                // JMO: report https://github.com/coopengo/tryton/pull/13
-                var action_id;
-                if (action && typeof action != 'string' &&
-                  action.length && action.length === 2) {
-                  action_id = action[0];
-                  action = action[1];
-                } else if (typeof action == 'number') {
-                  action_id = action;
-                  action = undefined;
-                }
-
-                if (!action || typeof action != 'string' ||
-                  !(action.startsWith('toggle'))) {
-                    this.reload(ids, true);
-                }
-
-                if (action && typeof action == 'string' &&
-                    action.indexOf('delete') > -1)
-                    this.reload(ids, true, true);
-                else if (action && typeof action != 'string')
-                    this.reload(ids, true, true);
-                else
-                    this.reload(ids, true);
+                this.reload(ids, true);
                 if (typeof action == 'string') {
                     this.client_action(action);
-                    if (action.startsWith('toggle')) {
-                      this.reload(ids, true);
-                    }
                 }
-                else if (action_id) {
-                    Sao.Action.execute(action_id, {
+                else if (action) {
+                    Sao.Action.execute(action, {
                         model: this.model_name,
                         id: this.current_record.id,
                         ids: ids
@@ -1618,13 +1573,6 @@
         },
         client_action: function(action) {
             var access = Sao.common.MODELACCESS.get(this.model_name);
-            // [Coog specific] Allow multiple actions
-            var actions = action.split(',');
-            for (var i in actions){
-                this.do_single_action(actions[i], access);
-            }
-        },
-        do_single_action: function(action, access) {
             if (action == 'new') {
                 if (access.create) {
                     this.new_();
@@ -1646,17 +1594,10 @@
             } else if (action == 'previous') {
                 this.display_previous();
             } else if (action == 'close') {
-                // [Bug Sao]
-                // TODO: report to tryton
-                Sao.Tab.tabs.close_current();
+                Sao.Tab.close_current();
             } else if (action.startsWith('switch')) {
                 var view_type = action.split(' ')[1];
                 this.switch_view(view_type);
-            } else if (action.startsWith('toggle')) {
-              // JMO: report https://github.com/coopengo/tryton/pull/13
-              var split_action = action.split(':');
-              var view_id = split_action[1];
-              this.switch_view(undefined, Number(view_id));
             } else if (action == 'reload') {
                 if (~['tree', 'graph', 'calendar'].indexOf(this.current_view.view_type) &&
                         !this.group.parent) {

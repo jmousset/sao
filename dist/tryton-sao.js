@@ -80,6 +80,17 @@ var Sao = {};
         })()
     });
 
+    window.onbeforeunload = function(e) {
+        if (Sao.main_menu_screen) {
+            Sao.main_menu_screen.save_tree_state(true);
+        }
+        if (Sao.Tab.tabs.length) {
+            var dialog = Sao.i18n.gettext("Are your sure to leave?");
+            e.returnValue = dialog;
+            return dialog;
+        }
+    };
+
     Sao.class_ = function(Parent, props) {
         var ClassConstructor = function() {
             if (!(this instanceof ClassConstructor))
@@ -122,11 +133,8 @@ var Sao = {};
 
     Sao.DateTime = function(year, month, day, hour, minute, second,
             millisecond, utc) {
-        // [Bug Sao] - handle all values to null
-        // TODO: report to tryton
         var datetime;
-        if ((month === undefined || month === null) &&
-            (year !== undefined && year !== null)) {
+        if (month === undefined) {
             datetime = moment(year);
             year = undefined;
         }
@@ -139,7 +147,7 @@ var Sao = {};
         datetime.year(year);
         datetime.month(month);
         datetime.date(day);
-        if (month !== undefined && month !== null) {
+        if (month !== undefined) {
             datetime.hour(hour || 0);
             datetime.minute(minute || 0);
             datetime.second(second || 0);
@@ -189,7 +197,7 @@ var Sao = {};
     Sao.config.display_size = 20;
     Sao.config.roundup = {};
     Sao.config.roundup.url = 'http://bugs.tryton.org/roundup/';
-    Sao.config.title = 'Coog';
+    Sao.config.title = 'Tryton';
 
     Sao.i18n = i18n();
     Sao.i18n.setlang = function(lang) {
@@ -239,11 +247,7 @@ var Sao = {};
                     (preferences.actions || []).forEach(function(action_id) {
                         Sao.Action.execute(action_id, {}, null, {});
                     });
-                    var title = Sao.config.title;
-                    if (!jQuery.isEmptyObject(preferences.status_bar)) {
-                        title += ' - ' + preferences.status_bar;
-                    }
-                    document.title = title;
+                    Sao.set_title(preferences.status_bar);
                     var new_lang = preferences.language != Sao.i18n.getLocale();
                     var prm = jQuery.Deferred();
                     Sao.i18n.setlang(preferences.language).always(function() {
@@ -256,6 +260,27 @@ var Sao = {};
                 });
             });
         });
+    };
+
+    Sao.set_title = function(value) {
+        var title = [Sao.config.title];
+        var session = Sao.Session.current_session;
+        var login_info = '';
+        if (session) {
+            if (session.login) {
+                login_info = session.login + '@' + document.location.host;
+            }
+            if (session.database) {
+                login_info += '/' + session.database;
+            }
+            title = title.concat(login_info);
+        } else {
+            title = title.concat(document.location.host);
+        }
+        if (value) {
+            title = title.concat(value);
+        }
+        document.title = title.join(' - ');
     };
 
     Sao.login = function() {
@@ -276,8 +301,8 @@ var Sao = {};
             jQuery('#user-logout').children().remove();
             jQuery('#user-favorites').children().remove();
             jQuery('#menu').children().remove();
-            document.title = Sao.config.title;
             session.do_logout().always(Sao.login);
+            Sao.set_title();
         });
     };
 
@@ -401,12 +426,14 @@ var Sao = {};
             'view_ids': view_ids,
             'domain': domain,
             'context': action_ctx,
-            'selection_mode': Sao.common.SELECTION_SINGLE
+            'selection_mode': Sao.common.SELECTION_NONE,
+            'limit': null
         });
         Sao.Tab.tabs.splice(Sao.Tab.tabs.indexOf(form), 1);
         form.view_prm.done(function() {
             Sao.main_menu_screen = form.screen;
             var view = form.screen.current_view;
+            view.table.removeClass('table table-bordered table-striped');
             view.table.find('thead').hide();
             jQuery('#menu').children().remove();
 
@@ -500,6 +527,14 @@ var Sao = {};
             this.footer = jQuery('<div/>', {
                 'class': 'modal-footer'
             }).appendTo(this.content);
+
+            this.modal.on('shown.bs.modal', function() {
+                var currently_focused = jQuery(document.activeElement);
+                var has_focus = currently_focused.closest(this.el) > 0;
+                if (!has_focus) {
+                    jQuery(this).find(':input:visible:first').focus();
+                }
+            });
         },
         add_title: function(title) {
             this.header.append(jQuery('<h4/>', {
@@ -514,7 +549,8 @@ var Sao = {};
                 'class': 'global-search-container'
             });
             this.search_entry = jQuery('<input>', {
-                'class': 'form-control',
+                'id': 'global-search-entry',
+                'class': 'form-control mousetrap',
                 'placeholder': Sao.i18n.gettext('Search...')
             });
             this.el.append(this.search_entry);
@@ -576,6 +612,168 @@ var Sao = {};
         }
     });
 
+    function shortcuts_defs() {
+        // Shortcuts available on Tab on this format:
+        // {shortcut, label, id of tab button or callback method}
+        return [
+            {
+                shortcut: 'ctrl+a',
+                label: Sao.i18n.gettext('New'),
+                id: 'new_',
+            }, {
+                shortcut: 'ctrl+s',
+                label: Sao.i18n.gettext('Save'),
+                id: 'save',
+            }, {
+                shortcut: 'ctrl+l',
+                label: Sao.i18n.gettext('Switch'),
+                id: 'switch_',
+            }, {
+                shortcut: 'ctrl+r',
+                label: Sao.i18n.gettext('Reload/Undo'),
+                id: 'reload',
+            }, {
+                shortcut: 'ctrl+shift+d',
+                label: Sao.i18n.gettext('Duplicate'),
+                id: 'copy',
+            }, {
+                shortcut: 'ctrl+d',
+                label: Sao.i18n.gettext('Delete'),
+                id: 'delete_',
+            }, {
+                shortcut: 'ctrl+up',
+                label: Sao.i18n.gettext('Previous'),
+                id: 'previous',
+            }, {
+                shortcut: 'ctrl+down',
+                label: Sao.i18n.gettext('Next'),
+                id: 'next',
+            }, {
+                shortcut: 'ctrl+f',
+                label: Sao.i18n.gettext('Search'),
+                id: 'search',
+            }, {
+                shortcut: 'ctrl+x',
+                label: Sao.i18n.gettext('Close Tab'),
+                id: 'close',
+            }, {
+                shortcut: 'ctrl+shift+t',
+                label: Sao.i18n.gettext('Attachment'),
+                id: 'attach',
+            }, {
+                shortcut: 'ctrl+shift+o',
+                label: Sao.i18n.gettext('Note'),
+                id: 'note',
+            }, {
+                shortcut: 'ctrl+e',
+                label: Sao.i18n.gettext('Action'),
+                id: 'action',
+            }, {
+                shortcut: 'ctrl+shift+r',
+                label: Sao.i18n.gettext('Relate'),
+                id: 'relate',
+            }, {
+                shortcut: 'ctrl+p',
+                label: Sao.i18n.gettext('Print'),
+                id: 'print',
+            }, {
+                shortcut: 'ctrl+left',
+                label: Sao.i18n.gettext('Previous tab'),
+                callback: function() {
+                    Sao.Tab.previous_tab();
+                },
+            }, {
+                shortcut: 'ctrl+right',
+                label: Sao.i18n.gettext('Next tab'),
+                callback: function() {
+                    Sao.Tab.next_tab();
+                },
+            }, {
+                shortcut: 'ctrl+k',
+                label: Sao.i18n.gettext('Global search'),
+                callback: function() {
+                    jQuery('#global-search-entry').focus();
+                },
+            }, {
+                shortcut: 'ctrl+h',
+                label: Sao.i18n.gettext('Show this help'),
+                callback: function() {
+                    shortcuts_dialog();
+                },
+            },
+        ];
+    }
+
+    jQuery(document).ready(function() {
+        set_shortcuts();
+    });
+
+    function set_shortcuts() {
+        if (typeof Mousetrap != 'undefined') {
+            shortcuts_defs().forEach(function(definition) {
+                Mousetrap.bind(definition.shortcut, function() {
+                    if (definition.id){
+                        var current_tab = Sao.Tab.tabs.get_current();
+                        if (current_tab) {
+                            var focused = $(':focus');
+                            focused.blur();
+                            current_tab.el.find('a[id="' + definition.id + '"]').click();
+                            focused.focus();
+                        }
+                    } else if (definition.callback) {
+                        jQuery.when().then(definition.callback);
+                    }
+                    return false;
+                });
+            });
+        }
+    }
+
+    function shortcuts_dialog() {
+        var dialog = new Sao.Dialog(Sao.i18n.gettext('Keyboard shortcuts'),
+            'shortcut-dialog', 'm');
+        jQuery('<button>', {
+            'class': 'close',
+            'data-dismiss': 'modal',
+            'aria-label': Sao.i18n.gettext("Close"),
+        }).append(jQuery('<span>', {
+            'aria-hidden': true,
+        }).append('&times;')).prependTo(dialog.header);
+        var row = jQuery('<div/>', {
+            'class': 'row'
+        }).appendTo(dialog.body);
+        var global_shortcuts_dl = jQuery('<dl/>', {
+            'class': 'dl-horizontal col-md-6'
+        }).append(jQuery('<h5/>')
+                  .append(Sao.i18n.gettext('Global shortcuts')))
+            .appendTo(row);
+        var tab_shortcuts_dl = jQuery('<dl/>', {
+            'class': 'dl-horizontal col-md-6'
+        }).append(jQuery('<h5/>')
+            .append(Sao.i18n.gettext('Tab shortcuts')))
+        .appendTo(row);
+
+        shortcuts_defs().forEach(function(definition) {
+            var dt = jQuery('<dt/>').append(definition.label);
+            var dd = jQuery('<dd/>').append(jQuery('<kbd>')
+                .append(definition.shortcut));
+            var dest_dl;
+            if (definition.id) {
+                dest_dl = tab_shortcuts_dl;
+            } else {
+                dest_dl = global_shortcuts_dl;
+            }
+            dt.appendTo(dest_dl);
+            dd.appendTo(dest_dl);
+        });
+        dialog.modal.on('hidden.bs.modal', function() {
+            jQuery(this).remove();
+        });
+
+        dialog.modal.modal('show');
+        return false;
+    }
+
     // Fix stacked modal
     jQuery(document)
         .on('show.bs.modal', '.modal', function(event) {
@@ -594,12 +792,6 @@ var Sao = {};
             var $modal = jQuery(this);
             modalZIndex++;
             $modal.css('zIndex', modalZIndex);
-            var visible_height = jQuery(window).height() * 0.8;
-            var modal_body = $modal.find('.modal-body');
-            if (modal_body.height() > visible_height) {
-                modal_body.addClass('scrollable-modal');
-                modal_body.css('max-height', visible_height);
-            }
             $modal.next('.modal-backdrop.in').addClass('hidden')
             .css('zIndex', modalZIndex - 1);
         });
@@ -613,32 +805,19 @@ var Sao = {};
 (function() {
     'use strict';
 
-    Sao.rpc = function(args, session) {
-        var dfd = jQuery.Deferred();
+    Sao.rpc = function(args, session, async) {
+        var dfd = jQuery.Deferred(),
+            result;
         if (!session) {
             session = new Sao.Session();
+        }
+        if (async === undefined) {
+            async = true;
         }
         var params = jQuery.extend([], args.params);
         params.push(jQuery.extend({}, session.context, params.pop()));
 
         var timeoutID = Sao.common.processing.show();
-        var ajax_prm = jQuery.ajax({
-            'headers': {
-                'Authorization': 'Session ' + session.get_auth()
-            },
-            'contentType': 'application/json',
-            'data': JSON.stringify(Sao.rpc.prepareObject({
-                'id': Sao.rpc.id++,
-                'method': args.method,
-                'params': params
-            })),
-            'dataType': 'json',
-            'url': '/' + (session.database || '') + '/',
-            'type': 'post',
-            'complete': [function() {
-                Sao.common.processing.hide(timeoutID);
-            }]
-        });
 
         var ajax_success = function(data) {
             if (data === null) {
@@ -700,11 +879,12 @@ var Sao = {};
                 dfd.reject();
             } else {
                 dfd.resolve(data.result);
+                result = data.result;
             }
         };
 
         var ajax_error = function(query, status_, error) {
-            if (query.status == 403) {
+            if ((query.status == 403) || (query.status == 401)) {
                 //Try to relog
                 Sao.Session.renew(session).then(function() {
                     Sao.rpc(args, session).then(dfd.resolve, dfd.reject);
@@ -715,10 +895,32 @@ var Sao = {};
                 dfd.reject();
             }
         };
-        ajax_prm.success(ajax_success);
-        ajax_prm.error(ajax_error);
 
-        return dfd.promise();
+        jQuery.ajax({
+            'async': async,
+            'headers': {
+                'Authorization': 'Session ' + session.get_auth()
+            },
+            'contentType': 'application/json',
+            'data': JSON.stringify(Sao.rpc.prepareObject({
+                'id': Sao.rpc.id++,
+                'method': args.method,
+                'params': params
+            })),
+            'dataType': 'json',
+            'url': '/' + (session.database || '') + '/',
+            'type': 'post',
+            'complete': [function() {
+                Sao.common.processing.hide(timeoutID);
+            }],
+            'success': ajax_success,
+            'error': ajax_error,
+        });
+        if (async) {
+            return dfd.promise();
+        } else {
+            return result;
+        }
     };
 
     Sao.rpc.id = 0;
@@ -1081,6 +1283,8 @@ var Sao = {};
             return Boolean(value.v.hour() || value.v.minute() ||
                     value.v.second() || value.v.millisecond());
         } else if (moment.isDuration(value.v)) {
+            return Boolean(value.v.valueOf());
+        } else if (value.v instanceof Number) {
             return Boolean(value.v.valueOf());
         } else if (value.v instanceof Object) {
             return !jQuery.isEmptyObject(value.v);
@@ -2020,17 +2224,18 @@ var Sao = {};
         add_fields: function(descriptions) {
             var added = [];
             for (var name in descriptions) {
-                if (descriptions.hasOwnProperty(name) &&
-                    (!(name in this.fields))) {
-                        var desc = descriptions[name];
-                        var Field = Sao.field.get(desc.type);
-                        this.fields[name] = new Field(desc);
-                        added.push(name);
-                    }
+                var desc = descriptions[name];
+                if (!(name in this.fields)) {
+                    var Field = Sao.field.get(desc.type);
+                    this.fields[name] = new Field(desc);
+                    added.push(name);
+                } else {
+                    jQuery.extend(this.fields[name].description, desc);
+                }
             }
             return added;
         },
-        execute: function(method, params, context) {
+        execute: function(method, params, context, async) {
             if (context === undefined) {
                 context = {};
             }
@@ -2038,7 +2243,7 @@ var Sao = {};
                 'method': 'model.' + this.name + '.' + method,
                 'params': params.concat(context)
             };
-            return Sao.rpc(args, this.session);
+            return Sao.rpc(args, this.session, async);
         },
         find: function(condition, offset, limit, order, context) {
             if (!offset) offset = 0;
@@ -2159,7 +2364,15 @@ var Sao = {};
             }
             this.record_deleted = record_deleted;
             if (new_records.length && modified) {
-                this.changed();
+                new_records.forEach(function(record) {
+                    record._changed.id = true;
+                });
+                var root_group = this.root_group();
+                this.changed().then(function() {
+                    root_group.screens.forEach(function(screen) {
+                        screen.display();
+                    });
+                });
             }
         };
         array.get = function(id) {
@@ -2220,18 +2433,10 @@ var Sao = {};
             }
             return record;
         };
-        // [Bug Sao]
-        // TODO: report to tryton
-        //      limit calls to changed()
-        array.remove = function(record, remove, modified, force_remove, apply_changes) {
+        array.remove = function(record, remove, modified, force_remove) {
             if (modified === undefined) {
                 modified = true;
             }
-
-            if (apply_changes === undefined) {
-                apply_changes = true;
-            }
-
             var idx = this.indexOf(record);
             if (record.id >= 0) {
                 if (remove) {
@@ -2257,12 +2462,7 @@ var Sao = {};
             if ((record.id < 0) || force_remove) {
                 this._remove(record);
             }
-            if (apply_changes){
-                record.group.changed();
-                record.group.root_group().screens.forEach(function(screen) {
-                    screen.display();
-                });
-            }
+            record.group.changed();
         };
         array._remove = function(record) {
             var idx = this.indexOf(record);
@@ -2272,29 +2472,26 @@ var Sao = {};
             this.record_removed.splice(this.record_removed.indexOf(record), 1);
             this.record_deleted.splice(this.record_deleted.indexOf(record), 1);
             record.group.changed();
-            record.group.root_group().screens.forEach(function(screen) {
-                screen.display();
-            });
         };
         array.changed = function() {
             if (!this.parent) {
-                return jQuery.when();
+                return jQuery.when.apply(jQuery,
+                    this.screens.map(function(screen) {
+                        return screen.display();
+                    }));
             }
             this.parent._changed[this.child_name] = true;
-            var prm = jQuery.Deferred();
             var changed_prm = this.parent.model.fields[this.child_name]
                 .changed(this.parent);
             // One2Many.changed could return undefined
-            if (changed_prm) {
-                changed_prm.then(function() {
-                    this.parent.validate(null, true).done(function() {
-                        this.parent.group.changed().done(prm.resolve);
-                    }.bind(this));
-                }.bind(this));
-            } else {
-                prm.resolve();
+            if (!changed_prm) {
+                changed_prm = jQuery.when();
             }
-            return prm;
+            return changed_prm.then(function() {
+                this.parent.validate(null, true).done(function() {
+                    return this.parent.group.changed();
+                }.bind(this));
+            }.bind(this));
         };
         array.root_group = function() {
             var root = this;
@@ -2517,8 +2714,6 @@ var Sao = {};
             this.state_attrs = {};
             this.autocompletion = {};
             this.exception = false;
-            // JMO: report https://github.com/coopengo/tryton/pull/13
-            this.fields_to_load = {};
         },
         has_changed: function() {
             return !jQuery.isEmptyObject(this._changed);
@@ -2625,18 +2820,9 @@ var Sao = {};
             } else {
                 fnames = Object.keys(this.model.fields);
             }
-
-            // JMO: report https://github.com/coopengo/tryton/pull/13
-            if (Object.keys(this.fields_to_load).length > 0) {
-              fnames = fnames.filter(function(e, i, a) {
-                return (e in this.fields_to_load);
-              }.bind(this));
-            }
-
             fnames = fnames.filter(function(e, i, a) {
                 return !(e in this._loaded);
             }.bind(this));
-
             var fnames_to_fetch = fnames.slice();
             var rec_named_fields = ['many2one', 'one2one', 'reference'];
             for (var i in fnames) {
@@ -2827,6 +3013,11 @@ var Sao = {};
                     continue;
                 }
                 value[name] = field.get(this);
+                // Sending an empty x2MField breaks ModelFieldAccess.check
+                if ((field instanceof Sao.field.One2Many) &&
+                        (value[name].length === 0)) {
+                    delete value[name];
+                }
             }
             return value;
         },
@@ -2885,22 +3076,13 @@ var Sao = {};
             return jQuery.when();
         },
         set_default: function(values, validate) {
-            if (validate === null || validate === undefined) {
+            if (validate === undefined) {
                 validate = true;
             }
             var promises = [];
             var fieldnames = [];
-            var exclude_fields = [];
-            this.group.screens.forEach(function(screen){
-                if (screen.exclude_field){
-                    exclude_fields.push(screen.exclude_field);
-                }
-            });
             for (var fname in values) {
                 if (!values.hasOwnProperty(fname)) {
-                    continue;
-                }
-                if (exclude_fields.indexOf(fname) >= 0){
                     continue;
                 }
                 var value = values[fname];
@@ -2961,6 +3143,7 @@ var Sao = {};
                     continue;
                 value[key] = this.model.fields[key].get_eval(this);
             }
+            value.id = this.id;
             return value;
         },
         get_on_change_value: function(skip) {
@@ -3399,12 +3582,7 @@ var Sao = {};
                 record._changed[this.name] = true;
                 this.changed(record).done(function() {
                     record.validate(null, true).then(function() {
-                        record.group.changed().done(function() {
-                            var root_group = record.group.root_group();
-                            root_group.screens.forEach(function(screen) {
-                                screen.display();
-                            });
-                        });
+                        record.group.changed();
                     });
                 });
             } else if (force_change) {
@@ -3513,10 +3691,13 @@ var Sao = {};
             }
             return record.state_attrs[this.name];
         },
+        _is_empty: function(record) {
+            return !this.get_eval(record);
+        },
         check_required: function(record) {
             var state_attrs = this.get_state_attrs(record);
             if (state_attrs.required == 1) {
-                if (!this.get(record) && (state_attrs.readonly != 1)) {
+                if (this._is_empty(record) && (state_attrs.readonly != 1)) {
                     return false;
                 }
             }
@@ -3817,19 +3998,12 @@ var Sao = {};
         get_client: function(record) {
             var rec_name = record._values[this.name + '.rec_name'];
             if (rec_name === undefined) {
-                var prm = this.set(record, this.get(record));
-                if (prm !== null){
-                    return prm.then(function(){
-                        return record._values[this.name + '.rec_name'] || '';
-                    }.bind(this));
-                } else {
-                    return record._values[this.name + '.rec_name'] || '';
-                }
+                this.set(record, this.get(record));
+                rec_name = record._values[this.name + '.rec_name'] || '';
             }
             return rec_name;
         },
         set: function(record, value) {
-            var prm = null;
             var rec_name = record._values[this.name + '.rec_name'] || '';
             var store_rec_name = function(rec_name) {
                 record._values[this.name + '.rec_name'] = rec_name[0].rec_name;
@@ -3837,7 +4011,7 @@ var Sao = {};
             if (!rec_name && (value >= 0) && (value !== null)) {
                 var model_name = record.model.fields[this.name].description
                     .relation;
-                prm = Sao.rpc({
+                Sao.rpc({
                     'method': 'model.' + model_name + '.read',
                     'params': [[value], ['rec_name'], record.get_context()]
                 }, record.model.session).done(store_rec_name.bind(this)).done(
@@ -3851,7 +4025,6 @@ var Sao = {};
                 store_rec_name.call(this, [{'rec_name': rec_name}]);
             }
             record._values[this.name] = value;
-            return prm;
         },
         set_client: function(record, value, force_change) {
             var rec_name;
@@ -3909,7 +4082,7 @@ var Sao = {};
             Sao.field.One2Many._super.init.call(this, description);
         },
         _default: null,
-        _set_value: function(record, value, default_) {
+        _set_value: function(record, value, default_, modified) {
             this._set_default_value(record);
             var group = record._values[this.name];
             var prm = jQuery.when();
@@ -3959,14 +4132,14 @@ var Sao = {};
                             group.remove(old_record, true);
                         }
                     }
-                    group.load(value);
+                    group.load(value, modified);
                 } else {
                     value.forEach(function(vals) {
                         var new_record = group.new_(false);
                         if (default_) {
                             // Don't validate as parent will validate
                             promises.push(new_record.set_default(vals, false));
-                            group.add(new_record, -1, false);
+                            group.add(new_record);
                         } else {
                             promises.push(new_record.set(vals));
                             group.push(new_record);
@@ -4015,14 +4188,15 @@ var Sao = {};
                 }
                 var values;
                 if (record2.id >= 0) {
-                    values = record2.get();
-                    delete values[parent_name];
-                    if (record2.has_changed() &&
-                            !jQuery.isEmptyObject(values)) {
-                        to_write.push([record2.id]);
-                        to_write.push(values);
+                    if (record2.has_changed()) {
+                        values = record2.get();
+                        delete values[parent_name];
+                        if (!jQuery.isEmptyObject(values)) {
+                            to_write.push([record2.id]);
+                            to_write.push(values);
+                        }
+                        to_add.push(record2.id);
                     }
-                    to_add.push(record2.id);
                 } else {
                     values = record2.get();
                     delete values[parent_name];
@@ -4061,17 +4235,14 @@ var Sao = {};
             }
 
             var previous_ids = this.get_eval(record);
-            this._set_value(record, value);
-            if (!Sao.common.compare(previous_ids.sort(), value.sort())) {
+            var modified = !Sao.common.compare(
+                previous_ids.sort(), value.sort());
+            this._set_value(record, value, false, modified);
+            if (modified) {
                 record._changed[this.name] = true;
                 this.changed(record).done(function() {
                     record.validate(null, true).then(function() {
-                        record.group.changed().done(function() {
-                            var root_group = record.group.root_group();
-                            root_group.screens.forEach(function(screen) {
-                                screen.display();
-                            });
-                        });
+                        record.group.changed();
                     });
                 });
             } else if (force_change) {
@@ -4098,7 +4269,7 @@ var Sao = {};
             record._changed[this.name] = true;
             this._set_default_value(record);
             if (value instanceof Array) {
-                this._set_value(record, value);
+                this._set_value(record, value, false, true);
                 return;
             }
             var prm = jQuery.when();
@@ -4150,7 +4321,7 @@ var Sao = {};
                 }.bind(this));
             }
             to_remove.forEach(function(record2) {
-                group.remove(record2, false, true, false, false);
+                group.remove(record2, false, true, false);
             }.bind(this));
 
             if (value.add || value.update) {
@@ -4197,17 +4368,16 @@ var Sao = {};
             record._values[this.name] = group;
         },
         get_timestamp: function(record) {
-            var group = record._values[this.name];
-            if (group === undefined) {
-                return {};
-            }
-
             var timestamps = {};
+            var group = record._values[this.name] || [];
+            var records = group.filter(function(record) {
+                return record.has_changed();
+            });
             var record2;
-            for (var i = 0, len = group.length; i < len; i++) {
-                record2 = group[i];
-                jQuery.extend(timestamps, record2.get_timestamp());
-            }
+            jQuery.extend(records, group.record_removed, group.record_deleted)
+            .forEach(function(record) {
+                jQuery.extend(timestamps, record.get_timestamp());
+            });
             return timestamps;
         },
         get_eval: function(record) {
@@ -4271,12 +4441,8 @@ var Sao = {};
             for (var i = 0, len = (record._values[this.name] || []).length;
                     i < len; i++) {
                 var record2 = record._values[this.name][i];
-                // [Bug Sao]
-                // TODO: report to tryton
-                //      empty list equal false in python but true in js
                 if (!record2.get_loaded() && (record2.id >= 0) &&
-                    (!pre_validate || (pre_validate instanceof Array &&
-                        pre_validate.length === 0))){
+                        !pre_validate) {
                     continue;
                 }
                 if (!record2.validate(null, softvalidation, ldomain, true)) {
@@ -4422,7 +4588,15 @@ var Sao = {};
             return inversion.concat([inversion.localize_domain(
                         inversion.filter_leaf(screen_domain, this.name, model),
                         true), attr_domain]);
-        }
+        },
+        _is_empty: function(record) {
+            var result = Sao.field.Reference._super._is_empty.call(
+                this, record);
+            if (!result && record._values[this.name][1] < 0) {
+                result = true;
+            }
+            return result;
+        },
     });
 
     Sao.field.Binary = Sao.class_(Sao.field.Field, {
@@ -4509,9 +4683,101 @@ var Sao = {};
         init: function() {
             Sao.Tab.tabs.push(this);
             this.buttons = {};
+            this.menu_buttons = {};
             this.id = 'tab-' + Sao.Tab.counter++;
             this.name = '';
             this.name_el = jQuery('<span/>');
+        },
+        menu_def: function() {
+            return [
+                {
+                    id: 'switch_',
+                    icon: 'glyphicon-list-alt',
+                    label: Sao.i18n.gettext('Switch'),
+                    tooltip: Sao.i18n.gettext('Switch view'),
+                }, {
+                    id: 'previous',
+                    icon: 'glyphicon-chevron-left',
+                    label: Sao.i18n.gettext('Previous'),
+                    tooltip: Sao.i18n.gettext('Previous Record')
+                }, {
+                    id: 'next',
+                    icon: 'glyphicon-chevron-right',
+                    label: Sao.i18n.gettext('Next'),
+                    tooltip: Sao.i18n.gettext('Next Record'),
+                }, {
+                    id: 'search',
+                    icon: 'glyphicon-search',
+                    label: Sao.i18n.gettext('Search'),
+                }, null, {
+                    id: 'new_',
+                    icon: 'glyphicon-edit',
+                    label: Sao.i18n.gettext('New'),
+                    tooltip: Sao.i18n.gettext('Create a new record'),
+                }, {
+                    id: 'save',
+                    icon: 'glyphicon-save',
+                    label: Sao.i18n.gettext('Save'),
+                    tooltip: Sao.i18n.gettext('Save this record'),
+                }, {
+                    id: 'reload',
+                    icon: 'glyphicon-refresh',
+                    label: Sao.i18n.gettext('Reload/Undo'),
+                    tooltip: Sao.i18n.gettext('Reload'),
+                }, {
+                    id: 'copy',
+                    icon: 'glyphicon-duplicate',
+                    label: Sao.i18n.gettext('Duplicate'),
+                }, {
+                    id: 'delete_',
+                    icon: 'glyphicon-trash',
+                    label: Sao.i18n.gettext('Delete'),
+                }, null, {
+                    id: 'logs',
+                    icon: 'glyphicon-time',
+                    label: Sao.i18n.gettext('View Logs...'),
+                }, {
+                    id: (this.screen &&
+                        Sao.common.MODELHISTORY.contains(this.screen.model_name)) ?
+                        'revision': null,
+                    icon: 'glyphicon-time',
+                    label: Sao.i18n.gettext('Show revisions...'),
+                }, null, {
+                    id: 'attach',
+                    icon: 'glyphicon-paperclip',
+                    label: Sao.i18n.gettext('Attachment'),
+                    tooltip: Sao.i18n.gettext('Add an attachment to the record'),
+                }, {
+                    id: 'note',
+                    icon: 'glyphicon-comment',
+                    label: Sao.i18n.gettext('Note'),
+                    tooltip: Sao.i18n.gettext('Add a note to the record'),
+                }, {
+                    id: 'action',
+                    icon: 'glyphicon-cog',
+                    label: Sao.i18n.gettext('Action'),
+                }, null, {
+                    id: 'relate',
+                    icon: 'glyphicon-share-alt',
+                    label: Sao.i18n.gettext('Relate'),
+                }, {
+                    id: 'print',
+                    icon: 'glyphicon-print',
+                    label: Sao.i18n.gettext('Print'),
+                }, null, {
+                    id: 'export',
+                    icon: 'glyphicon-export',
+                    label: Sao.i18n.gettext('Export'),
+                }, {
+                    id: 'import',
+                    icon: 'glyphicon-import',
+                    label: Sao.i18n.gettext('Import'),
+                }, null, {
+                    id: 'close',
+                    icon: 'glyphicon-remove',
+                    label: Sao.i18n.gettext('Close Tab'),
+                },
+            ];
         },
         create_tabcontent: function() {
             this.el = jQuery('<div/>', {
@@ -4528,28 +4794,39 @@ var Sao = {};
             }
         },
         set_menu: function(menu) {
-            this.menu_def().forEach(function(definition) {
-                var icon = definition[0];
-                var name = definition[1];
-                var func = definition[2];
-                var item = jQuery('<li/>', {
-                    'role': 'presentation'
-                }).appendTo(menu);
-                var link = jQuery('<a/>', {
-                    'role': 'menuitem',
-                    'href': '#',
-                    'tabindex': -1
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon ' + icon,
-                    'aria-hidden': 'true'
-                })).append(' ' + name).appendTo(item);
-                if (func) {
+            var previous;
+            this.menu_def().forEach(function(item) {
+                var menuitem;
+                if (item) {
+                    if (!this[item.id]) {
+                        return;
+                    }
+                    menuitem = jQuery('<li/>', {
+                        'role': 'presentation'
+                    });
+                    var link = jQuery('<a/>', {
+                        'id': item.id,
+                        'role': 'menuitem',
+                        'href': '#',
+                        'tabindex': -1
+                    }).append(jQuery('<span/>', {
+                        'class': 'glyphicon ' + item.icon,
+                        'aria-hidden': 'true'
+                    })).append(' ' + item.label).appendTo(menuitem);
+                    this.menu_buttons[item.id] = menuitem;
                     link.click(function() {
-                        this[func]();
+                        this[item.id]();
                     }.bind(this));
+                } else if (!item && previous) {
+                    menuitem = jQuery('<li/>', {
+                        'role': 'separator',
+                        'class': 'divider',
+                    });
                 } else {
-                    item.addClass('disabled');
+                    return;
                 }
+                previous = menuitem;
+                menuitem.appendTo(menu);
             }.bind(this));
         },
         create_toolbar: function() {
@@ -4592,9 +4869,12 @@ var Sao = {};
             this.set_menu(toolbar.find('ul[role*="menu"]'));
 
             var group;
-            var add_button = function(tool) {
-                if (!tool) {
+            var add_button = function(item) {
+                if (!item || !item.tooltip) {
                     group = null;
+                    return;
+                }
+                if (!item.id || !this[item.id]) {
                     return;
                 }
                 if (!group) {
@@ -4603,27 +4883,23 @@ var Sao = {};
                         'role': 'group'
                     }).appendTo(toolbar.find('.btn-toolbar'));
                 }
-                this.buttons[tool[0]] = jQuery('<button/>', {
+                this.buttons[item.id] = jQuery('<button/>', {
                     'type': 'button',
                     'class': 'btn btn-default navbar-btn',
-                    'title': tool[2],
-                    'id': tool[0]
+                    'title': item.label,
+                    'id': item.id
                 })
                 .append(jQuery('<span/>', {
-                    'class': 'glyphicon ' + tool[1],
+                    'class': 'glyphicon ' + item.icon,
                     'aria-hidden': 'true'
                 }))
                 .appendTo(group)
                 .data('toggle', 'tooltip')
                 .data('placement', 'bottom')
                 .tooltip();
-                if (tool[3]) {
-                    this.buttons[tool[0]].click(this[tool[3]].bind(this));
-                } else {
-                    item.addClass('disabled');
-                }
+                this.buttons[item.id].click(this[item.id].bind(this));
             };
-            this.toolbar_def().forEach(add_button.bind(this));
+            this.menu_def().forEach(add_button.bind(this));
             toolbar.find('.btn-toolbar > .btn-group').last().addClass(
                     'hidden-xs');
             var tabs = jQuery('#tabs');
@@ -4791,6 +5067,26 @@ var Sao = {};
         tabs.trigger('ready');
     };
 
+    Sao.Tab.previous_tab = function() {
+        Sao.Tab.move('prevAll');
+    };
+
+    Sao.Tab.next_tab = function() {
+        Sao.Tab.move('nextAll');
+    };
+
+    Sao.Tab.move = function(direction) {
+        var current_tab = this.tabs.get_current();
+        var tabs = jQuery('#tabs');
+        var tablist = jQuery('#tablist');
+        var tab = tablist.find('#nav-' + current_tab.id);
+        var next = tab[direction]('li').first();
+        if (next) {
+            next.find('a').tab('show');
+            tabs.trigger('ready');
+        }
+    };
+
     Sao.Tab.Form = Sao.class_(Sao.Tab, {
         class_: 'tab-form',
         init: function(model_name, attributes) {
@@ -4827,56 +5123,6 @@ var Sao = {};
                 }
                 this.update_revision();
             }.bind(this));
-        },
-        toolbar_def: function() {
-            return [
-                ['new', 'glyphicon-plus',
-                Sao.i18n.gettext('Create a new record'), 'new_'],
-                ['save', 'glyphicon-floppy-disk',
-                Sao.i18n.gettext('Save this record'), 'save'],
-                ['switch', 'glyphicon-resize-full',
-                Sao.i18n.gettext('Switch view'), 'switch_'],
-                ['reload', 'glyphicon-repeat',
-                Sao.i18n.gettext('Reload'), 'reload'],
-                null,
-                ['previous', 'glyphicon-chevron-left',
-                Sao.i18n.gettext('Previous Record'), 'previous'],
-                ['next', 'glyphicon-chevron-right',
-                Sao.i18n.gettext('Next Record'), 'next'],
-                null,
-                ['attach', 'glyphicon-paperclip',
-                Sao.i18n.gettext('Add an attachment to the record'), 'attach'],
-                ['note', 'glyphicon-comment',
-                Sao.i18n.gettext('Add a note to the record'), 'note']
-            ];
-        },
-        menu_def: function() {
-            return [
-                ['glyphicon-plus', Sao.i18n.gettext('New'), 'new_'],
-                ['glyphicon-floppy-disk', Sao.i18n.gettext('Save'), 'save'],
-                ['glyphicon-resize-full', Sao.i18n.gettext('Switch'), 'switch_'],
-                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'),
-                    'reload'],
-                ['glyphicon-duplicate', Sao.i18n.gettext('Duplicate'), 'copy'],
-                ['glyphicon-trash', Sao.i18n.gettext('Delete'), 'delete_'],
-                ['glyphicon-chevron-left', Sao.i18n.gettext('Previous'),
-                    'previous'],
-                ['glyphicon-chevron-right', Sao.i18n.gettext('Next'), 'next'],
-                ['glyphicon-search', Sao.i18n.gettext('Search'), 'search'],
-                ['glyphicon-time', Sao.i18n.gettext('View Logs...'), 'logs'],
-                ['glyphicon-time', Sao.i18n.gettext('Show revisions...'),
-                    Sao.common.MODELHISTORY.contains(this.screen.model_name) ?
-                        'revision' : null],
-                ['glyphicon-remove', Sao.i18n.gettext('Close Tab'), 'close'],
-                ['glyphicon-paperclip', Sao.i18n.gettext('Attachment'),
-                    'attach'],
-                ['glyphicon-comment', Sao.i18n.gettext('Note'), 'note'],
-                ['glyphicon-cog', Sao.i18n.gettext('Action'), 'action'],
-                ['glyphicon-share-alt', Sao.i18n.gettext('Relate'), 'relate'],
-                ['glyphicon-print', Sao.i18n.gettext('Print'), 'print'],
-                ['glyphicon-export', Sao.i18n.gettext('Export'), 'export'],
-                ['glyphicon-import', Sao.i18n.gettext('Import'), 'import']
-            ];
         },
         create_toolbar: function() {
             var toolbar = Sao.Tab.Form._super.create_toolbar.call(this);
@@ -5108,7 +5354,6 @@ var Sao = {};
                             this.info_bar.message(
                                     Sao.i18n.gettext('Records removed.'),
                                     'info');
-                            Sao.Tab.tabs.close_current();
                             this.screen.count_tab_domain();
                         }.bind(this), function() {
                             this.info_bar.message(
@@ -5243,21 +5488,32 @@ var Sao = {};
         set_buttons_sensitive: function(revision) {
             if (!revision) {
                 var access = Sao.common.MODELACCESS.get(this.screen.model_name);
-                [['new', access.create],
-                ['save', access.create || access.write]
+                [['new_', access.create],
+                ['save', access.create || access.write],
+                ['delete_', access.delete],
+                ['copy', access.create],
+                ['import', access.create],
                 ].forEach(function(e) {
                     var button = e[0];
                     var access = e[1];
-                    if (access) {
-                        this.buttons[button].parent().removeClass('disabled');
-                    } else {
-                        this.buttons[button].parent().addClass('disabled');
+                    if (this.buttons[button]) {
+                        this.buttons[button].toggleClass('disabled', !access);
+                    }
+                    if (this.menu_buttons[name]) {
+                        this.menu_buttons[name]
+                            .toggleClass('disabled', !access);
                     }
                 }.bind(this));
             } else {
-                ['new', 'save'].forEach(function(button) {
-                    this.buttons[button].parent().addClass('disabled');
-                }.bind(this));
+                ['new_', 'save', 'delete_', 'copy', 'import'].forEach(
+                    function(name) {
+                        if (this.buttons[name]) {
+                            this.buttons[name].addClass('disabled');
+                        }
+                        if (this.menu_buttons[name]) {
+                            this.menu_buttons[name].addClass('disabled');
+                        }
+                    }.bind(this));
             }
         },
         attach: function() {
@@ -5287,8 +5543,8 @@ var Sao = {};
             }
             badge.text(count);
             var record_id = this.screen.get_id();
-            this.buttons.attach.prop('disabled', record_id < 0 ||
-                record_id === null || record_id === undefined);
+            this.buttons.attach.prop('disabled',
+                record_id < 0 || record_id === null);
         },
         note: function() {
             var record = this.screen.current_record;
@@ -5317,8 +5573,8 @@ var Sao = {};
             }
             badge.text(unread);
             var record_id = this.screen.get_id();
-            this.buttons.note.prop('disabled', record_id < 0 ||
-                record_id === null || record_id === undefined);
+            this.buttons.note.prop('disabled',
+                    record_id < 0 || record_id === null);
         },
         record_message: function() {
             this.info_bar.message();
@@ -5383,17 +5639,6 @@ var Sao = {};
             this.set_name(this.name);
             this.title.html(this.name_el.text());
         },
-        toolbar_def: function() {
-            return [
-                ['reload', 'glyphicon-refresh',
-                Sao.i18n.gettext('Reload'), 'reload']
-            ];
-        },
-        menu_def: function() {
-            return [
-                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'), 'reload']
-            ];
-        },
         reload: function() {
             this.board.reload();
         },
@@ -5457,7 +5702,7 @@ var Sao = {};
     Sao.ScreenContainer = Sao.class_(Object, {
         init: function(tab_domain) {
             this.alternate_viewport = jQuery('<div/>', {
-                'class': 'screen-container scrollable'
+                'class': 'screen-container'
             });
             this.alternate_view = false;
             this.search_modal = null;
@@ -5484,7 +5729,7 @@ var Sao = {};
             }).append(Sao.i18n.gettext('Filters'));
             this.filter_button.click(this.search_box.bind(this));
             this.search_entry = jQuery('<input/>', {
-                'class': 'form-control',
+                'class': 'form-control mousetrap',
                 'placeholder': Sao.i18n.gettext('Search')
             });
             this.search_list = jQuery('<datalist/>');
@@ -6080,9 +6325,9 @@ var Sao = {};
             this.views_preload = attributes.views_preload || {};
             this.exclude_field = attributes.exclude_field;
             this.context = attributes.context || {};
+            this.new_group();
             this.current_view = null;
             this.current_record = null;
-            this.new_group();
             this.domain = attributes.domain || [];
             this.context_domain = attributes.context_domain;
             this.size_limit = null;
@@ -6135,8 +6380,6 @@ var Sao = {};
             this._domain_parser = {};
             this.pre_validate = false;
             this.tab = null;
-            // [Coog specific] used for group_sync
-            this.parent = null;
             this.count_tab_domain();
         },
         load_next_view: function() {
@@ -6187,20 +6430,16 @@ var Sao = {};
                 }
             }
             this.group.add_fields(fields);
-            var view_widget = Sao.View.parse(this, xml_view, view.field_childs,
-                view.children_definitions);
+            var view_widget = Sao.View.parse(this, xml_view, view.field_childs);
             view_widget.view_id = view_id;
             this.views.push(view_widget);
-            // JMO: report https://github.com/coopengo/tryton/pull/13
-            var fkeys = {};
-            for  (var k in fields) {fkeys[k] = '';}
-            view_widget._field_keys = fkeys;
+
             return view_widget;
         },
         number_of_views: function() {
             return this.views.length + this.view_to_load.length;
         },
-        switch_view: function(view_type, view_id) {
+        switch_view: function(view_type) {
             if (this.current_view) {
                 this.current_view.set_value();
                 if (this.current_record &&
@@ -6236,13 +6475,7 @@ var Sao = {};
                         this.current_view = this.views[
                             (this.views.indexOf(this.current_view) + 1) %
                             this.views.length];
-                        // JMO: report https://github.com/coopengo/tryton/pull/13
-                        if (view_id) {
-                          if (this.current_view.view_id  == view_id) {
-                            break;
-                          }
-                        }
-                        else if (!view_type) {
+                        if (!view_type) {
                             break;
                         } else if (this.current_view.view_type == view_type) {
                             break;
@@ -6400,7 +6633,6 @@ var Sao = {};
             this.set_group(group);
         },
         set_current_record: function(record) {
-            var changed = this.current_record !== record;
             this.current_record = record;
             // TODO position
             if (this.tab) {
@@ -6414,10 +6646,6 @@ var Sao = {};
                     this.tab.update_unread_note(0);
                 }
                 this.tab.record_message();
-            }
-            // [Coog specific] multi_mixed_view
-            if (this.parent && changed){
-                this.parent.group_sync(this, this.current_record);
             }
         },
         display: function(set_cursor) {
@@ -6435,13 +6663,11 @@ var Sao = {};
                         ~['tree', 'graph', 'calendar'].indexOf(
                             this.current_view.view_type));
                 deferreds.push(search_prm);
-                // JMO: report https://github.com/coopengo/tryton/pull/13
-                //for (var i = 0; i < this.views.length; i++) {
-                //    if (this.views[i]) {
-                //        deferreds.push(this.views[i].display());
-                //    }
-                //}
-                deferreds.push(this.current_view.display());
+                for (var i = 0; i < this.views.length; i++) {
+                    if (this.views[i]) {
+                        deferreds.push(this.views[i].display());
+                    }
+                }
             }
             return jQuery.when.apply(jQuery, deferreds).then(function() {
                 this.set_tree_state();
@@ -6693,7 +6919,7 @@ var Sao = {};
             var path = top_record.get_path(this.group);
             return prm.then(function() {
                 records.forEach(function(record) {
-                    record.group.remove(record, remove, true, force_remove, false);
+                    record.group.remove(record, remove, true, force_remove);
                 });
                 var prms = [];
                 if (delete_) {
@@ -6765,14 +6991,9 @@ var Sao = {};
                 return this._domain_parser[view_id];
             }
             if (!(view_id in this.fields_view_tree)) {
-                // Fetch default view for the next time
-                this.model.execute('fields_view_get', [false, 'tree'],
-                        this.context).then(function(view) {
-                    this.fields_view_tree[view_id] = view;
-                    domain_parser.update_fields(view.fields);
-                }.bind(this));
-                view_tree = {};
-                view_tree.fields = {};
+                view_tree = this.model.execute('fields_view_get', [false, 'tree'],
+                        this.context, false);
+                this.fields_view_tree[view_id] = view_tree;
             } else {
                 view_tree = this.fields_view_tree[view_id];
             }
@@ -6935,7 +7156,7 @@ var Sao = {};
             this.current_view.set_value();
             return this.current_record.get_on_change_value();
         },
-        reload: function(ids, written, no_display) {
+        reload: function(ids, written) {
             this.group.reload(ids);
             if (written) {
                 this.group.written(ids);
@@ -6943,8 +7164,7 @@ var Sao = {};
             if (this.group.parent) {
                 this.group.parent.root_parent().reload();
             }
-            if (!no_display)
-                this.display();
+            this.display();
         },
         get_buttons: function() {
             var selected_records = this.current_view.selected_records();
@@ -6954,9 +7174,6 @@ var Sao = {};
             var buttons = this.current_view.get_buttons();
             selected_records.forEach(function(record) {
                 buttons = buttons.filter(function(button) {
-                    if (record.group.get_readonly() || record.readonly()) {
-                        return false;
-                    }
                     if (button.attributes.type === 'instance') {
                         return false;
                     }
@@ -6970,37 +7187,12 @@ var Sao = {};
         button: function(attributes) {
             var ids;
             var process_action = function(action) {
-                // JMO: report https://github.com/coopengo/tryton/pull/13
-                var action_id;
-                if (action && typeof action != 'string' &&
-                  action.length && action.length === 2) {
-                  action_id = action[0];
-                  action = action[1];
-                } else if (typeof action == 'number') {
-                  action_id = action;
-                  action = undefined;
-                }
-
-                if (!action || typeof action != 'string' ||
-                  !(action.startsWith('toggle'))) {
-                    this.reload(ids, true);
-                }
-
-                if (action && typeof action == 'string' &&
-                    action.indexOf('delete') > -1)
-                    this.reload(ids, true, true);
-                else if (action && typeof action != 'string')
-                    this.reload(ids, true, true);
-                else
-                    this.reload(ids, true);
+                this.reload(ids, true);
                 if (typeof action == 'string') {
                     this.client_action(action);
-                    if (action.startsWith('toggle')) {
-                      this.reload(ids, true);
-                    }
                 }
-                else if (action_id) {
-                    Sao.Action.execute(action_id, {
+                else if (action) {
+                    Sao.Action.execute(action, {
                         model: this.model_name,
                         id: this.current_record.id,
                         ids: ids
@@ -7077,13 +7269,6 @@ var Sao = {};
         },
         client_action: function(action) {
             var access = Sao.common.MODELACCESS.get(this.model_name);
-            // [Coog specific] Allow multiple actions
-            var actions = action.split(',');
-            for (var i in actions){
-                this.do_single_action(actions[i], access);
-            }
-        },
-        do_single_action: function(action, access) {
             if (action == 'new') {
                 if (access.create) {
                     this.new_();
@@ -7105,17 +7290,10 @@ var Sao = {};
             } else if (action == 'previous') {
                 this.display_previous();
             } else if (action == 'close') {
-                // [Bug Sao]
-                // TODO: report to tryton
-                Sao.Tab.tabs.close_current();
+                Sao.Tab.close_current();
             } else if (action.startsWith('switch')) {
                 var view_type = action.split(' ')[1];
                 this.switch_view(view_type);
-            } else if (action.startsWith('toggle')) {
-              // JMO: report https://github.com/coopengo/tryton/pull/13
-              var split_action = action.split(':');
-              var view_id = split_action[1];
-              this.switch_view(undefined, Number(view_id));
             } else if (action == 'reload') {
                 if (~['tree', 'graph', 'calendar'].indexOf(this.current_view.view_type) &&
                         !this.group.parent) {
@@ -7208,6 +7386,7 @@ var Sao = {};
                 return;
             }
             if (view.view_type == 'tree' && !view.attributes.tree_state) {
+                this.tree_states_done.push(view);
                 return;
             }
 
@@ -7320,12 +7499,10 @@ var Sao = {};
         return path;
     };
 
-    Sao.View.parse = function(screen, xml, children_field,
-            children_definitions) {
+    Sao.View.parse = function(screen, xml, children_field) {
         switch (xml.children().prop('tagName')) {
             case 'tree':
-                return new Sao.View.Tree(screen, xml, children_field,
-                    children_definitions);
+                return new Sao.View.Tree(screen, xml, children_field);
             case 'form':
                 return new Sao.View.Form(screen, xml);
             case 'graph':
@@ -7652,14 +7829,14 @@ function eval_pyson(value){
             var record = this.screen.current_record;
             var field;
             var name;
-            var promesses = {};
+            var promesses = [];
             if (record) {
                 // Force to set fields in record
                 // Get first the lazy one to reduce number of requests
 
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 var fields = [];
-                for (name in this._field_keys) {
+                for (name in record.model.fields) {
                     field = record.model.fields[name];
                     fields.push([name, field.description.loading || 'eager']);
                 }
@@ -7669,46 +7846,31 @@ function eval_pyson(value){
                 record.fields_to_load = this._field_keys;
                 fields.forEach(function(e) {
                     var name = e[0];
-                    promesses[name] = record.load(name);
+                    promesses.push(record.load(name));
                 });
-                record.fields_to_load = {};
             }
-            var set_state = function(record, field, name) {
-                var prm = jQuery.when();
-                if (name in promesses) {
-                    prm = promesses[name];
-                }
-                promesses[name] = prm.done(function() {
-                    field.set_state(record);
-                });
-            };
-            var display = function(record, field, name) {
+            var display = function(record, field) {
                 return function(widget) {
-                    var prm = jQuery.when();
-                    if (name in promesses) {
-                        prm = promesses[name];
-                    }
-                    promesses[name] = prm.then(function() {
-                        return widget.display(record, field);
-                    });
+                    widget.display(record, field);
                 };
             };
-            for (name in this.widgets) {
-                var widgets = this.widgets[name];
-                field = null;
-                if (record) {
-                    field = record.model.fields[name];
-                }
-                if (field) {
-                    set_state(record, field, name);
-                }
-                widgets.forEach(display(record, field, name));
-            }
-            return jQuery.when.apply(jQuery,
-                    jQuery.map(promesses, function(p) {
-                        return p;
-                    })
-                ).done(function() {
+            return jQuery.when.apply(jQuery,promesses)
+                .done(function() {
+                    var record = this.screen.current_record;
+                    for (name in this.widgets) {
+                        var widgets = this.widgets[name];
+                        field = null;
+                        if (record) {
+                            field = record.model.fields[name];
+                        }
+                        if (field) {
+                            field.set_state(record);
+                        }
+                        widgets.forEach(display(record, field));
+                    }
+                }.bind(this))
+                .done(function() {
+                    var record = this.screen.current_record;
                     var j;
                     for (j in this.state_widgets) {
                         var state_widget = this.state_widgets[j];
@@ -7762,7 +7924,7 @@ function eval_pyson(value){
                 if (reset_view) {
                     for (i = 0; i < this.notebooks.length; i++) {
                         notebook = this.notebooks[i];
-                        notebook.set_current_page(0);
+                        notebook.set_current_page();
                     }
                 }
                 if (this.attributes.cursor in this.widgets) {
@@ -7816,8 +7978,8 @@ function eval_pyson(value){
                         }
                     }
                 }
-                // Only input & textarea can grab the focus
-                jQuery(focus_el).find('input,select,textarea').focus();
+                jQuery(focus_el).find('input,select,textarea')
+                    .addBack(focus_el).focus();
             }
         }
     });
@@ -7897,12 +8059,6 @@ function eval_pyson(value){
                 widget.el.data('toggle', 'tooltip');
                 widget.el.attr('title', attributes.help);
                 widget.el.tooltip();
-            }
-            // dirty fix for span rendering
-            //      > bugs.tryton.org/issue5419
-            if (this.col == 6 && !(colspan == 1 || colspan == 6)) {
-                cell.removeClass('xexpand');
-                cell.removeClass('xfill');
             }
         },
         resize: function() {
@@ -7992,10 +8148,18 @@ function eval_pyson(value){
                     } else {
                         cell.css('width', '');
                     }
+                    // show/hide when container is horizontal or vertical
+                    // to not show padding
                     if (cell.children().css('display') == 'none') {
                         cell.css('visibility', 'collapse');
+                        if (col <= 1) {
+                            cell.hide();
+                        }
                     } else {
                         cell.css('visibility', 'visible');
+                        if (col <= 1) {
+                            cell.show();
+                        }
                     }
                     i += colspan;
                 });
@@ -8139,8 +8303,13 @@ function eval_pyson(value){
             return page;
         },
         set_current_page: function(page_index) {
-            var tab = this.nav.find(
-                    'li[role="presentation"]:eq(' + page_index + ') a');
+            var selector;
+            if (page_index === undefined) {
+                selector = ':visible:first';
+            } else {
+                selector = ':eq(' + page_index + '):visible';
+            }
+            var tab = this.nav.find('li' + selector + ' a');
             tab.tab('show');
         },
         get_n_pages: function() {
@@ -8155,6 +8324,12 @@ function eval_pyson(value){
         init: function(el, attributes) {
             Sao.View.Form.Page._super.init.call(this, attributes);
             this.el = el;
+        },
+        hide: function() {
+            Sao.View.Form.Page._super.hide.call(this);
+            if (this.el.hasClass('active')) {
+                this.el.next(':visible').find('a').tab('show');
+            }
         }
     });
 
@@ -8162,9 +8337,12 @@ function eval_pyson(value){
         class_: 'form-group_',
         init: function(attributes) {
             Sao.View.Form.Group._super.init.call(this, attributes);
-            this.el = jQuery('<div/>', {
+            this.el = jQuery('<fieldset/>', {
                 'class': this.class_
             });
+            if (attributes.string) {
+                this.el.append(jQuery('<legend/>').text(attributes.string));
+            }
         },
         add: function(widget) {
             this.el.append(widget.el);
@@ -8299,7 +8477,17 @@ function eval_pyson(value){
                 readonly = true;
             }
             this.set_readonly(readonly);
+            if (readonly) {
+                this.el.addClass('readonly');
+            } else {
+                this.el.removeClass('readonly');
+            }
             this.set_required(required);
+            if (!readonly && required) {
+                this.el.addClass('required');
+            } else {
+                this.el.removeClass('required');
+            }
             var invalid = state_attrs.invalid;
             if (!readonly && invalid) {
                 this.el.addClass('has-error');
@@ -8346,10 +8534,8 @@ function eval_pyson(value){
             this.visible = !invisible;
             if (invisible) {
                 this.el.hide();
-                this.el.css('width', '0px');
             } else {
                 this.el.show();
-                this.el.css('width', '100%');
             }
         }
     });
@@ -8866,7 +9052,7 @@ function eval_pyson(value){
             }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(this.group);
             if (!jQuery.isEmptyObject(attributes.autocomplete)) {
                 this.datalist = jQuery('<datalist/>').appendTo(this.el);
@@ -9000,7 +9186,7 @@ function eval_pyson(value){
             }).appendTo(this.el);
             this.input = jQuery('<input/>', {
                 'type': 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(this.date);
             jQuery('<span/>', {
                 'class': 'input-group-btn'
@@ -9019,32 +9205,16 @@ function eval_pyson(value){
         get_format: function(record, field) {
             return field.date_format(record);
         },
-      get_picker: function() {
-        // [Bug Sao] - remove once record.destroy() is implemented.
-        // When Screen.remove() is called, record.destroy() should be
-        // called as well but is not implemented yet.
-        // Therefore display() of all elements child of the
-        // removed screen are called.
-        if (!this.date.data('DateTimePicker')) {
-            this.date.datetimepicker();
-            this.date.css('width', this._width);
-            this.date.on('dp.change', this.focus_out.bind(this));
-        }
-        return this.date.data('DateTimePicker');
-      },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
-                // [Bug Sao] - DateTimePicker.date() return dateTime
-                // TODO: report to tryton
-                value.startOf('day');
                 value.isDate = true;
             }
             return value;
         },
         display: function(record, field) {
             if (record && field) {
-                this.get_picker().format(
+                this.date.data('DateTimePicker').format(
                     Sao.common.moment_format(this.get_format(record, field)));
             }
             Sao.View.Form.Date._super.display.call(this, record, field);
@@ -9054,7 +9224,7 @@ function eval_pyson(value){
             } else {
                 value = null;
             }
-            this.get_picker().date(value);
+            this.date.data('DateTimePicker').date(value);
         },
         focus: function() {
             this.input.focus();
@@ -9075,7 +9245,7 @@ function eval_pyson(value){
             return field.date_format(record) + ' ' + field.time_format(record);
         },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
                 value.isDateTime = true;
             }
@@ -9090,7 +9260,7 @@ function eval_pyson(value){
             return field.time_format(record);
         },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
                 value.isTime = true;
             }
@@ -9108,7 +9278,7 @@ function eval_pyson(value){
             });
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(this.el);
             this.el.change(this.focus_out.bind(this));
         },
@@ -9167,7 +9337,7 @@ function eval_pyson(value){
                 'class': this.class_
             });
             this.select = this.labelled = jQuery('<select/>', {
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             });
             this.el.append(this.select);
             this.select.change(this.focus_out.bind(this));
@@ -9198,11 +9368,9 @@ function eval_pyson(value){
             });
         },
         display_update_selection: function(record, field) {
-            var dfrd = jQuery.Deferred();
             this.update_selection(record, field, function() {
                 if (!field) {
                     this.select.val('');
-                    dfrd.resolve();
                     return;
                 }
                 var value = field.get(record);
@@ -9216,7 +9384,7 @@ function eval_pyson(value){
                 if (!found) {
                     prm = Sao.common.selection_mixin.get_inactive_selection
                         .call(this, value);
-                    prm = prm.done(function(inactive) {
+                    prm.done(function(inactive) {
                         this.select.append(jQuery('<option/>', {
                             value: JSON.stringify(inactive[0]),
                             text: inactive[1],
@@ -9228,14 +9396,12 @@ function eval_pyson(value){
                 }
                 prm.done(function() {
                     this.select.val(JSON.stringify(value));
-                    dfrd.resolve();
                 }.bind(this));
             }.bind(this));
-            return (dfrd.promise());
         },
         display: function(record, field) {
             Sao.View.Form.Selection._super.display.call(this, record, field);
-            return this.display_update_selection(record, field);
+            this.display_update_selection(record, field);
         },
         focus: function() {
             this.select.focus();
@@ -9260,13 +9426,10 @@ function eval_pyson(value){
             this.el = jQuery('<div/>', {
                 'class': this.class_
             });
-            this.group = jQuery('<div/>', {
-                'class': 'input-group input-group-sm'
-            }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'checkbox',
-                'class': 'form-control input-sm'
-            }).appendTo(this.group);
+                'class': 'form-control input-sm mousetrap'
+            }).appendTo(this.el);
             this.input.change(this.focus_out.bind(this));
             this.input.click(function() {
                 // Dont trigger click if field is readonly as readonly has no
@@ -9304,7 +9467,7 @@ function eval_pyson(value){
                 'class': this.class_
             });
             this.input = this.labelled = jQuery('<textarea/>', {
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(this.el);
             this.input.change(this.focus_out.bind(this));
             if (this.attributes.translate) {
@@ -9360,7 +9523,7 @@ function eval_pyson(value){
                 this.get_toolbar().appendTo(this.el);
             }
             this.input = this.labelled = jQuery('<div/>', {
-                'class': 'richtext pre',
+                'class': 'richtext mousetrap',
                 'contenteditable': true
             }).appendTo(jQuery('<div/>', {
                 'class': 'panel-body'
@@ -9480,7 +9643,6 @@ function eval_pyson(value){
                             document.execCommand(command, false, jQuery(this).val());
                         }).val(color);
             });
-            this.toolbar = toolbar;
             return toolbar;
         },
         focus_out: function() {
@@ -9505,24 +9667,20 @@ function eval_pyson(value){
         },
         set_value: function(record, field) {
             // TODO order attributes
-            // [Bug Sao]
-            //    > don't edit the content when widget is readonly
-            if (!this.input.prop('contenteditable')){
-                this.input.find('div').each(function(i, el) {
-                    el = jQuery(el);
-                    // Not all browsers respect the styleWithCSS
-                    if (el.css('text-align')) {
-                        // Remove browser specific prefix
-                        var align = el.css('text-align').split('-').pop();
-                        el.attr('align', align);
-                        el.css('text-align', '');
-                    }
-                    // Some browsers set start as default align
-                    if (el.attr('align') == 'start') {
-                        el.attr('align', 'left');
-                    }
-                });
-            }
+            this.input.find('div').each(function(i, el) {
+                el = jQuery(el);
+                // Not all browsers respect the styleWithCSS
+                if (el.css('text-align')) {
+                    // Remove browser specific prefix
+                    var align = el.css('text-align').split('-').pop();
+                    el.attr('align', align);
+                    el.css('text-align', '');
+                }
+                // Some browsers set start as default align
+                if (el.attr('align') == 'start') {
+                    el.attr('align', 'left');
+                }
+            });
             var value = this.input.html() || '';
             field.set_client(record, value);
         },
@@ -9530,7 +9688,6 @@ function eval_pyson(value){
             this.input.prop('contenteditable', !readonly);
             if (this.toolbar) {
                 this.toolbar.find('button,select').prop('disabled', readonly);
-                this.toolbar.toggle(!readonly);
             }
         }
     });
@@ -9548,7 +9705,7 @@ function eval_pyson(value){
             }).appendTo(this.el);
             this.entry = this.labelled = jQuery('<input/>', {
                 'type': 'input',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(group);
             // Use keydown to not receive focus-in TAB
             this.entry.on('keydown', this.key_press.bind(this));
@@ -9587,11 +9744,16 @@ function eval_pyson(value){
         get_screen: function() {
             var domain = this.field().get_domain(this.record());
             var context = this.field().get_context(this.record());
+            var view_ids = (this.attributes.view_ids || '').split(',');
+            if (!jQuery.isEmptyObject(view_ids)) {
+                // Remove the first tree view as mode is form only
+                view_ids.shift();
+            }
             return new Sao.Screen(this.get_model(), {
                 'context': context,
                 'domain': domain,
                 'mode': ['form'],
-                'view_ids': (this.attributes.view_ids || '').split(','),
+                'view_ids': view_ids,
                 'views_preload': this.attributes.views,
                 'readonly': this._readonly
             });
@@ -9600,10 +9762,7 @@ function eval_pyson(value){
             if (jQuery.isEmptyObject(value)) {
                 value = '';
             }
-            jQuery.when(value).then(function(text){
-                if (text && typeof text == 'string')
-                    this.entry.val(text);
-            }.bind(this));
+            this.entry.val(value);
         },
         get_text: function() {
             var record = this.record();
@@ -9996,7 +10155,7 @@ function eval_pyson(value){
             return this.select.val();
         },
         has_target: function(value) {
-            if (value === null || value === undefined) {
+            if (value === null) {
                 return false;
             }
             var model = value.split(',')[0];
@@ -10126,6 +10285,38 @@ function eval_pyson(value){
                 'class': 'input-group-btn'
             }).appendTo(group);
 
+            this.but_switch = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm',
+                'type': 'button',
+                'aria-label': Sao.i18n.gettext('Switch')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-list-alt'
+            })).appendTo(buttons);
+            this.but_switch.click(this.switch_.bind(this));
+
+            this.but_previous = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm',
+                'type': 'button',
+                'aria-label': Sao.i18n.gettext('Previous')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-chevron-left'
+            })).appendTo(buttons);
+            this.but_previous.click(this.previous.bind(this));
+
+            this.label = jQuery('<span/>', {
+                'class': 'btn'
+            }).appendTo(buttons);
+            this.label.text('(0, 0)');
+
+            this.but_next = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm',
+                'type': 'button',
+                'aria-label': Sao.i18n.gettext('Next')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-chevron-right'
+            })).appendTo(buttons);
+            this.but_next.click(this.next.bind(this));
+
             if (attributes.add_remove) {
                 this.wid_text.show();
                 // TODO add completion
@@ -10154,7 +10345,7 @@ function eval_pyson(value){
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext('New')
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-pencil'
+                'class': 'glyphicon glyphicon-edit'
             })).appendTo(buttons);
             this.but_new.click(this.new_.bind(this));
 
@@ -10185,37 +10376,6 @@ function eval_pyson(value){
             })).appendTo(buttons);
             this.but_undel.click(this.undelete.bind(this));
 
-            this.but_previous = jQuery('<button/>', {
-                'class': 'btn btn-default btn-sm',
-                'type': 'button',
-                'aria-label': Sao.i18n.gettext('Previous')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-chevron-left'
-            })).appendTo(buttons);
-            this.but_previous.click(this.previous.bind(this));
-
-            this.label = jQuery('<span/>', {
-                'class': 'btn'
-            }).appendTo(buttons);
-            this.label.text('(0, 0)');
-
-            this.but_next = jQuery('<button/>', {
-                'class': 'btn btn-default btn-sm',
-                'type': 'button',
-                'aria-label': Sao.i18n.gettext('Next')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-chevron-right'
-            })).appendTo(buttons);
-            this.but_next.click(this.next.bind(this));
-
-            this.but_switch = jQuery('<button/>', {
-                'class': 'btn btn-default btn-sm',
-                'type': 'button',
-                'aria-label': Sao.i18n.gettext('Switch')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-resize-full'
-            })).appendTo(buttons);
-            this.but_switch.click(this.switch_.bind(this));
 
             // [Coog specific]
             //      > attribute expand_toolbar (hide toolbar)
@@ -10432,7 +10592,6 @@ function eval_pyson(value){
                     this.screen.domain = domain;
                 }
                 this.screen.size_limit = size_limit;
-                this.screen.attributes.readonly = this._readonly;
                 this.screen.display();
             }.bind(this));
         },
@@ -10715,7 +10874,7 @@ function eval_pyson(value){
             }).appendTo(toolbar);
             this.entry = jQuery('<input/>', {
                 type: 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(group);
             // Use keydown to not receive focus-in TAB
             this.entry.on('keydown', this.key_press.bind(this));
@@ -10944,6 +11103,14 @@ function eval_pyson(value){
                 'role': 'group'
             });
 
+            this.but_save_as = jQuery('<button/>', {
+                'class': 'btn btn-default',
+                'type': 'button'
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-save'
+            })).appendTo(group);
+            this.but_save_as.click(this.save_as.bind(this));
+
             this.but_select = jQuery('<button/>', {
                 'class': 'btn btn-default',
                 'type': 'button'
@@ -10951,24 +11118,6 @@ function eval_pyson(value){
                 'class': 'glyphicon glyphicon-search'
             })).appendTo(group);
             this.but_select.click(this.select.bind(this));
-
-            if (this.filename) {
-                this.but_open = jQuery('<button/>', {
-                    'class': 'btn btn-default',
-                    'type': 'button'
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-folder-open'
-                })).appendTo(group);
-                this.but_open.click(this.open.bind(this));
-            }
-
-            this.but_save_as = jQuery('<button/>', {
-                'class': 'btn btn-default',
-                'type': 'button'
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-floppy-disk'
-            })).appendTo(group);
-            this.but_save_as.click(this.save_as.bind(this));
 
             this.but_clear = jQuery('<button/>', {
                 'class': 'btn btn-default',
@@ -10984,6 +11133,17 @@ function eval_pyson(value){
             var record = this.record();
             if (record) {
                 return record.model.fields[this.filename];
+            }
+        },
+        update_buttons: function(value) {
+            if (value) {
+                this.but_save_as.show();
+                this.but_select.hide();
+                this.but_clear.show();
+            } else {
+                this.but_save_as.hide();
+                this.but_select.show();
+                this.but_clear.hide();
             }
         },
         select: function() {
@@ -11070,7 +11230,7 @@ function eval_pyson(value){
             }.bind(this));
         },
         clear: function() {
-	    var filename_field = this.filename_field();
+            var filename_field = this.filename_field();
             if (filename_field) {
                 filename_field.set_client(this.record(), null);
             }
@@ -11088,39 +11248,48 @@ function eval_pyson(value){
             this.el = jQuery('<div/>', {
                 'class': this.class_
             });
-
-            if (this.filename && attributes.filename_visible) {
-                this.text = jQuery('<input/>', {
-                    type: 'input',
-                    'class': 'form-control input-sm'
-                }).appendTo(this.el);
-                this.text.change(this.focus_out.bind(this));
-                // Use keydown to not receive focus-in TAB
-                this.text.on('keydown', this.key_press.bind(this));
-            }
-
             var group = jQuery('<div/>', {
                 'class': 'input-group input-group-sm'
             }).appendTo(this.el);
+
             this.size = jQuery('<input/>', {
                 type: 'input',
                 'class': 'form-control input-sm',
                 'readonly': true
             }).appendTo(group);
 
+            if (this.filename && attributes.filename_visible) {
+                this.text = jQuery('<input/>', {
+                    type: 'input',
+                    'class': 'form-control input-sm'
+                }).prependTo(group);
+                this.text.change(this.focus_out.bind(this));
+                // Use keydown to not receive focus-in TAB
+                this.text.on('keydown', this.key_press.bind(this));
+                this.text.css('width', '50%');
+                this.size.css('width', '50%');
+
+                this.but_open = jQuery('<button/>', {
+                    'class': 'btn btn-default',
+                    'type': 'button'
+                }).append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-folder-open'
+                })).appendTo(jQuery('<span/>', {
+                    'class': 'input-group-btn',
+                }).prependTo(group));
+                this.but_open.click(this.open.bind(this));
+            }
+
             this.toolbar('input-group-btn').appendTo(group);
         },
         display: function(record, field) {
             Sao.View.Form.Binary._super.display.call(this, record, field);
             if (!field) {
-                this.size.val('');
-                if (this.filename) {
-                    this.but_open.button('disable');
-                }
                 if (this.text) {
                     this.text.val('');
                 }
-                this.but_save_as.button('disable');
+                this.size.val('');
+                this.but_save_as.hide();
                 return;
             }
             var size;
@@ -11129,21 +11298,17 @@ function eval_pyson(value){
             } else {
                 size = field.get(record).length;
             }
-            var button_sensitive;
-            if (size) {
-                button_sensitive = 'enable';
-            } else {
-                button_sensitive = 'disable';
-            }
-
-            if (this.filename) {
-                if (this.text) {
-                    this.text.val(this.filename_field().get(record) || '');
-                }
-                this.but_open.button(button_sensitive);
-            }
             this.size.val(Sao.common.humanize(size));
-            this.but_save_as.button(button_sensitive);
+
+            if (this.text) {
+                this.text.val(this.filename_field().get(record) || '');
+                if (size) {
+                    this.but_open.parent().show();
+                } else {
+                    this.but_open.parent().hide();
+                }
+            }
+            this.update_buttons(Boolean(size));
         },
         key_press: function(evt) {
             var editable = !this.wid_text.prop('readonly');
@@ -11162,14 +11327,8 @@ function eval_pyson(value){
             }
         },
         set_readonly: function(readonly) {
-            if (readonly) {
-                this.but_select.hide();
-                this.but_clear.hide();
-
-            } else {
-                this.but_select.show();
-                this.but_clear.show();
-            }
+            this.but_select.prop('disabled', readonly);
+            this.but_clear.prop('disabled', readonly);
             if (this.wid_text) {
                 this.wid_text.prop('readonly', readonly);
             }
@@ -11247,12 +11406,8 @@ function eval_pyson(value){
             this.update_img();
         },
         set_readonly: function(readonly) {
-            [this.but_select, this.but_open, this.but_save_as, this.but_clear]
-                .forEach(function(button) {
-                    if (button) {
-                        button.prop('disable', readonly);
-                    }
-                });
+            this.but_select.prop('disable', readonly);
+            this.but_clear.prop('disable', readonly);
         },
         clear: function() {
             Sao.View.Form.Image._super.clear.call(this);
@@ -11283,6 +11438,7 @@ function eval_pyson(value){
                     url = window.URL.createObjectURL(blob);
                 }
                 this.image.attr('src', url);
+                this.update_buttons(Boolean(data));
             }.bind(this));
         },
         display: function(record, field) {
@@ -11408,16 +11564,15 @@ function eval_pyson(value){
         init: function(field_name, model, attributes) {
             Sao.View.Form.Dict._super.init.call(
                     this, field_name, model, attributes);
+
             this.schema_model = new Sao.Model(attributes.schema_model);
             this.keys = {};
             this.fields = {};
             this.rows = {};
-            this.no_command = attributes.no_command || false;
 
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
             });
-
             var heading = jQuery('<div/>', {
                 'class': this.class_ + '-heading panel-heading'
             }).appendTo(this.el);
@@ -11544,8 +11699,7 @@ function eval_pyson(value){
                 var widget = this.fields[key];
                 widget.set_readonly(readonly);
             }
-            if (!this.no_command)
-                this.wid_text.prop('disabled', readonly);
+            this.wid_text.prop('disabled', readonly);
         },
         _set_button_sensitive: function() {
             var create = this.attributes.create;
@@ -11556,12 +11710,10 @@ function eval_pyson(value){
             if (delete_ === undefined) {
                 delete_ = true;
             }
-            if (!this.no_command){
-                this.but_add.prop('disabled', this._readonly || !create);
-                for (var key in this.fields) {
-                    var button = this.fields[key].button;
-                    button.prop('disabled', this._readonly || !delete_);
-                }
+            this.but_add.prop('disabled', this._readonly || !create);
+            for (var key in this.fields) {
+                var button = this.fields[key].button;
+                button.prop('disabled', this._readonly || !delete_);
             }
         },
         add_line: function(key) {
@@ -11586,21 +11738,10 @@ function eval_pyson(value){
             field.labelled.attr('aria-labelledby', label.attr('id'));
             label.attr('for', field.labelled.attr('id'));
 
-            if (!this.no_command){
-                field.button = jQuery('<button/>', {
-                    'class': 'btn btn-default',
-                    'type': 'button',
-                    'arial-label': Sao.i18n.gettext('Remove')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-minus'
-                })).appendTo(jQuery('<div/>', {
-                    'class': 'input-group-btn'
-                }).appendTo(field.group));
+            field.button.click(function() {
+                this.remove(key, true);
+            }.bind(this));
 
-                field.button.click(function() {
-                    this.remove(key, true);
-                }.bind(this));
-            }
             row.appendTo(this.container);
         },
         add_keys: function(keys) {
@@ -11632,6 +11773,7 @@ function eval_pyson(value){
         },
         display: function(record, field) {
             Sao.View.Form.Dict._super.display.call(this, record, field);
+
             if (!field) {
                 return;
             }
@@ -11720,14 +11862,23 @@ function eval_pyson(value){
             });
             var group = jQuery('<div/>', {
                 'class': 'input-group input-group-sm'
-            }).appendTo(this.el).css('width', '100%');
+            }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(group);
+            this.button = jQuery('<button/>', {
+                'class': 'btn btn-default',
+                'type': 'button',
+                'arial-label': Sao.i18n.gettext('Remove')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-minus'
+            })).appendTo(jQuery('<div/>', {
+                'class': 'input-group-btn'
+            }).appendTo(group));
+
             this.el.change(
                     this.parent_widget.focus_out.bind(this.parent_widget));
-            this.group = group;
         },
         get_value: function() {
             return this.input.val();
@@ -11762,7 +11913,7 @@ function eval_pyson(value){
         create_widget: function() {
             Sao.View.Form.Dict.Selection._super.create_widget.call(this);
             var select = jQuery('<select/>', {
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             });
             select.change(
                     this.parent_widget.focus_out.bind(this.parent_widget));
@@ -11840,9 +11991,6 @@ function eval_pyson(value){
         get_value: function() {
             var value = this.input.data('DateTimePicker').date();
             if (value) {
-                // [Bug Sao] - DateTimePicker.date() return dateTime
-                // TODO: report to tryton
-                value.startOf('day');
                 value.isDate = true;
             }
             return value;
@@ -11975,26 +12123,18 @@ function eval_pyson(value){
     };
 
     Sao.View.Tree = Sao.class_(Sao.View, {
-        init: function(screen, xml, children_field, children_definitions) {
+        init: function(screen, xml, children_field) {
             Sao.View.Tree._super.init.call(this, screen, xml);
             this.view_type = 'tree';
             this.selection_mode = (screen.attributes.selection_mode ||
-                Sao.common.SELECTION_SINGLE);
+                Sao.common.SELECTION_MULTIPLE);
             this.el = jQuery('<div/>', {
                 'class': 'treeview responsive'
             });
             this.expanded = {};
             this.children_field = children_field;
-            this.children_definitions = children_definitions;
-            // [Coog specific]
-            //      > attribute always_expand (expand tree view)
-            this.always_expand = this.attributes.always_expand || null;
-            // [Bug Sao] set search windows readonly
-            if (screen.attributes.editable !== undefined){
-                this.editable = screen.attributes.editable;
-            } else{
-                this.editable = Boolean(this.attributes.editable);
-            }
+            this.editable = (Boolean(this.attributes.editable) &&
+                !screen.attributes.readonly);
 
             // Columns
             this.columns = [];
@@ -12003,26 +12143,28 @@ function eval_pyson(value){
             // Table of records
             this.rows = [];
             this.table = jQuery('<table/>', {
-                'class': 'tree table table-hover table-striped'
+                'class': 'tree table table-hover table-striped table-condensed'
             });
+            if (this.editable) {
+                this.table.addClass('table-bordered');
+            }
             this.el.append(this.table);
             this.thead = jQuery('<thead/>').appendTo(this.table);
             var tr = jQuery('<tr/>');
-            if (this.selection_mode != Sao.common.SELECTION_NONE) {
-                var th = jQuery('<th/>', {
-                    'class': 'selection'
-                });
-                this.selection = jQuery('<input/>', {
-                    'type': 'checkbox',
-                    'class': 'selection'
-                });
-                this.selection.change(this.selection_changed.bind(this));
-                th.append(this.selection);
-                tr.append(th);
-            }
+            var th = jQuery('<th/>', {
+                'class': 'selection'
+            });
+            this.selection = jQuery('<input/>', {
+                'type': 'checkbox',
+            });
+            this.selection.change(this.selection_changed.bind(this));
+            th.append(this.selection);
+            tr.append(th);
             this.thead.append(tr);
             this.columns.forEach(function(column) {
-                th = jQuery('<th/>');
+                th = jQuery('<th/>', {
+                    'class': column.attributes.widget,
+                });
                 var label = jQuery('<label/>')
                     .text(column.attributes.string);
                 if (this.editable) {
@@ -12217,6 +12359,12 @@ function eval_pyson(value){
                 }
             }
             expanded = expanded || [];
+
+            if (this.selection_mode == Sao.common.SELECTION_MULTIPLE) {
+                this.selection.show();
+            } else {
+                this.selection.hide();
+            }
 
             var row_records = function() {
                 return this.rows.map(function(row) {
@@ -12460,8 +12608,8 @@ function eval_pyson(value){
             return row;
         },
         n_children: function(row) {
-            if (!row || !this.children_field || row.is_leaf()) {
-                    return this.rows.length;
+            if (!row || !this.children_field) {
+                return this.rows.length;
             }
             return row.record._values[this.children_field].length;
         },
@@ -12500,16 +12648,10 @@ function eval_pyson(value){
                 column = row.next_column(null, new_);
                 if (column !== null) {
                     td = row._get_column_td(column);
-                    if (this.editable) {
+                    if (this.editable && new_) {
                         td.triggerHandler('click');
-                        if (new_) {
-                            td.triggerHandler('click');
-                        } else {
-                            td.find(':input,[tabindex=0]').focus();
-                        }
-                    } else {
-                        td.find(':input,[tabindex=0]').focus();
                     }
+                    td.find(':input,[tabindex=0]').focus();
                 }
             }
         }
@@ -12540,7 +12682,6 @@ function eval_pyson(value){
             this.record = record;
             this.parent_ = parent;
             this.children_field = tree.children_field;
-            this.children_definitions = tree.children_definitions;
             this.expander = null;
             var path = [];
             if (parent) {
@@ -12583,18 +12724,17 @@ function eval_pyson(value){
             }
 
             var td;
-            if (this.tree.selection_mode != Sao.common.SELECTION_NONE) {
-                td = jQuery('<td/>', {
-                    'class': 'selection'
-                });
-                this.el.append(td);
-                this.selection = jQuery('<input/>', {
-                    'type': 'checkbox',
-                    'class': 'selection'
-                });
-                this.selection.change(this.selection_changed.bind(this));
-                td.append(this.selection);
-            }
+            this.tree.el.uniqueId();
+            td = jQuery('<td/>', {
+                'class': 'selection',
+            });
+            this.el.append(td);
+            this.selection = jQuery('<input/>', {
+                'type': 'checkbox',
+                'name': 'tree-selection-' + this.tree.el.attr('id'),
+            });
+            this.selection.change(this.selection_changed.bind(this));
+            td.append(this.selection);
 
             var depth = this.path.split('.').length;
             for (var i = 0; i < this.tree.columns.length; i++) {
@@ -12602,7 +12742,7 @@ function eval_pyson(value){
                 td = jQuery('<td/>', {
                     // TODO RTL
                     'data-title': column.attributes.string + Sao.i18n.gettext(': ')
-                }).append(jQuery('<div/>', { // For responsive min-height
+                }).append(jQuery('<span/>', { // For responsive min-height
                     'aria-hidden': true
                 }));
                 td.css('overflow', 'hidden');
@@ -12673,43 +12813,45 @@ function eval_pyson(value){
             }
             var row_id_path = this.get_id_path();
             if (this.is_expanded() ||
-                    Sao.common.contains(expanded, row_id_path) ||
-                    (this.tree.always_expand && !this.is_leaf())) {
+                    Sao.common.contains(expanded, row_id_path)) {
                 this.tree.expanded[this.path] = this;
                 this.expand_children(selected, expanded);
             }
         },
         _get_column_td: function(column_index, row) {
             row = row || this.el;
-            var child_offset = 0;
-            if (this.tree.selection_mode != Sao.common.SELECTION_NONE) {
-                child_offset += 1;
-            }
-            return jQuery(row.children()[column_index + child_offset]);
-        },
-        is_leaf: function(){
-            return !this.record.model.fields.hasOwnProperty(this.children_field);
+            return jQuery(row.children()[column_index + 1]);
         },
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
-            // [Bug Sao] hide expander when elem is leaf
             var update_expander = function() {
-                if (this.is_leaf() || jQuery.isEmptyObject(
-                        this.record.field_get(this.children_field))){
+                if (!this.record.field_get_client(
+                    this.children_field).length) {
                     this.expander.css('visibility', 'hidden');
                 }
             };
             var thead_visible = this.tree.thead.is(':visible');
 
+            switch(this.tree.selection_mode) {
+                case Sao.common.SELECTION_NONE:
+                    this.selection.hide();
+                    break;
+                case Sao.common.SELECTION_SINGLE:
+                    this.selection.attr('type', 'radio');
+                    this.selection.show();
+                    break;
+                case Sao.common.SELECTION_MULTIPLE:
+                    this.selection.attr('type', 'checkbox');
+                    this.selection.show();
+                    break;
+            }
+
+
             for (var i = 0; i < this.tree.columns.length; i++) {
                 if ((i === 0) && this.children_field) {
-                    if (!this.is_leaf())
-                        this.record.load(this.children_field).done(
-                            update_expander.bind(this));
-                    else
-                        this.record.load('*').done(
-                            update_expander.bind(this));
+                    this.record.load(this.children_field).done(
+                        update_expander.bind(this));
                 }
                 var column = this.tree.columns[i];
                 var td = this._get_column_td(i);
@@ -12825,8 +12967,6 @@ function eval_pyson(value){
                 };
                 var children = this.record.field_get_client(
                         this.children_field);
-                if (children.model.name != this.record.model.name)
-                    children.model.add_fields(this.children_definitions[children.model.name]);
                 children.forEach(add_row.bind(this));
                 redraw_async(new_rows, selected, expanded);
             };
@@ -12852,23 +12992,16 @@ function eval_pyson(value){
             }
             this.tree.switch_(this.path);
         },
-        set_multi_level_selection: function(value){
-            this.set_selection(value);
-            this.rows.forEach(function(row){
-                row.set_multi_level_selection(value);
-            });
-        },
         select_row: function(event_) {
             if (this.tree.selection_mode == Sao.common.SELECTION_NONE) {
                 this.tree.select_changed(this.record);
                 this.switch_row();
             } else {
-                if (!event_.ctrlKey &&
+                if (!event_.ctrlKey ||
                         this.tree.selection_mode ==
                         Sao.common.SELECTION_SINGLE) {
                     this.tree.rows.forEach(function(row) {
-                        // [Bug Sao] call set_selection on child rows as well
-                        row.set_multi_level_selection(false);
+                        row.set_selection(false);
                     }.bind(this));
                 }
                 this.set_selection(!this.is_selected());
@@ -12892,7 +13025,6 @@ function eval_pyson(value){
                 return;
             }
             this.selection.prop('checked', value);
-            this.el.toggleClass('row-active', value);
             if (!value) {
                 this.tree.selection.prop('checked', false);
             }
@@ -12938,9 +13070,9 @@ function eval_pyson(value){
             var column, column_index, state_attrs;
 
             sign = sign || 1;
-            if ((path === null || path === undefined) && (sign > 0)) {
+            if ((path === null) && (sign > 0)) {
                 path = -1;
-            } else if (path === null || path === undefined) {
+            } else if (path === null) {
                 path = 0;
             }
             column_index = 0;
@@ -12953,6 +13085,9 @@ function eval_pyson(value){
                     column_index += this.tree.columns.length;
                 }
                 column = this.tree.columns[column_index];
+                if (!column.field) {
+                    continue;
+                }
                 state_attrs = column.field.get_state_attrs(this.record);
                 invisible = state_attrs.invisible;
                 if (column.header.is(':hidden')) {
@@ -13074,7 +13209,7 @@ function eval_pyson(value){
                     widget.display(this.record, field);
                     this.get_static_el().hide();
                     this.get_editable_el().show();
-                    widget.el.focus();
+                    widget.focus();
                 } else if (!selected) {
                     this.set_selection(true);
                     this.selection_changed();
@@ -13328,9 +13463,8 @@ function eval_pyson(value){
             this.header = null;
         },
         get_cell: function() {
-            // [Bug Sao] indentations in rich text
             var cell = jQuery('<div/>', {
-                'class': this.class_ + ' pre',
+                'class': this.class_,
                 'tabindex': 0
             });
             return cell;
@@ -13518,6 +13652,15 @@ function eval_pyson(value){
 
     Sao.View.Tree.BinaryColumn = Sao.class_(Sao.View.Tree.CharColumn, {
         class_: 'column-binary',
+        init: function(model, attributes) {
+            Sao.View.Tree.BinaryColumn._super.init.call(this, model, attributes);
+            this.filename = attributes.filename || null;
+        },
+        get_cell: function() {
+            var cell = Sao.View.Tree.BinaryColumn._super.get_cell.call(this);
+            jQuery('<span/>').appendTo(cell);
+            return cell;
+        },
         update_text: function(cell, record) {
             var size;
             if (this.field.get_size) {
@@ -13525,8 +13668,46 @@ function eval_pyson(value){
             } else {
                 size = this.field.get(record).length;
             }
-            cell.text(Sao.common.humanize(size));
-        }
+            var text = size? Sao.common.humanize(size) : '';
+            cell.children('span').text(text);
+            var button = cell.children('button');
+            if (!button.length) {
+                button = jQuery('<button/>', {
+                    'class': 'btn btn-default btn-sm',
+                    'type': 'button',
+                }).append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-save',
+                })).appendTo(cell)
+                    .click(record, function(event) {
+                        // Prevent editable tree to start edition
+                        event.stopPropagation();
+                        this.save_as(event.data);
+                    }.bind(this));
+            }
+            if (!size) {
+                button.hide();
+            } else {
+                button.show();
+            }
+        },
+        save_as: function(record) {
+            var filename;
+            var mimetype = 'application/octet-binary';
+            var filename_field = record.model.fields[this.filename];
+            if (filename_field) {
+                filename = filename_field.get_client(record);
+                mimetype = Sao.common.guess_mimetype(filename);
+            }
+            var prm;
+            if (this.field.get_data) {
+                prm = this.field.get_data(record);
+            } else {
+                prm = jQuery.when(this.field.get(record));
+            }
+            prm.done(function(data) {
+                Sao.common.download_file(data, filename);
+            }.bind(this));
+        },
     });
 
     Sao.View.Tree.ImageColumn = Sao.class_(Sao.View.Tree.CharColumn, {
@@ -14242,6 +14423,7 @@ function eval_pyson(value){
                 events: this.get_events.bind(this),
                 locale: lang,
                 buttonIcons: false,
+                themeSystem: 'bootstrap3',
                 eventRender: this.event_render.bind(this),
                 eventResize: this.event_resize.bind(this),
                 eventDrop: this.event_drop.bind(this),
@@ -14326,7 +14508,8 @@ function eval_pyson(value){
             this.start = Sao.DateTime(start.utc());
             this.end = Sao.DateTime(end.utc());
             var prm = jQuery.when();
-            if (this.screen.current_view.view_type != 'form') {
+            if (this.screen.current_view &&
+                (this.screen.current_view.view_type != 'form')) {
                 var search_string = this.screen.screen_container.get_text();
                 prm = this.screen.search_filter(search_string);
             }
@@ -14564,7 +14747,6 @@ function eval_pyson(value){
                     decoder.decode( action.pyson_context || '{}'));
                 ctx = jQuery.extend(ctx, params.context);
                 ctx = jQuery.extend(ctx, context);
-                ctx = jQuery.extend(ctx, data.extra_context || {});
 
                 ctx.context = ctx;
                 decoder = new Sao.PYSON.Decoder(ctx);
@@ -14582,7 +14764,11 @@ function eval_pyson(value){
                 params.res_id = action.res_id || data.res_id;
                 params.context_model = action.context_model;
                 params.context_domain = action.context_domain;
-                params.limit = action.limit;
+                if (action.limit !== null) {
+                    params.limit = action.limit;
+                } else {
+                    params.limit = Sao.config.limit;
+                }
                 params.icon = action['icon.rec_name'] || '';
 
                 if ((action.keyword || '') === 'form_relate') {
@@ -14597,8 +14783,6 @@ function eval_pyson(value){
                 params.action = action.wiz_name;
                 params.data = data;
                 params.context = context;
-                params.context = jQuery.extend(
-                    params.context, data.extra_context || {});
                 params.window = action.window;
                 name_prm = jQuery.when(action.name);
                 if ((action.keyword || 'form_action') === 'form_action') {
@@ -15152,6 +15336,7 @@ function eval_pyson(value){
     Sao.common.ModelAccess = Sao.class_(Object, {
         init: function() {
             this.batchnum = 100;
+            this._models = [];
             this._access = {};
         },
         load_models: function(refresh) {
@@ -15159,29 +15344,28 @@ function eval_pyson(value){
             if (!refresh) {
                 this._access = {};
             }
-            Sao.rpc({
+            this._models = Sao.rpc({
                 'method': 'model.ir.model.list_models',
                 'params': [{}]
-            }, Sao.Session.current_session).then(function(models) {
-                var deferreds = [];
-                var update_access = function(access) {
-                    this._access = jQuery.extend(this._access, access);
-                };
-                for (var i = 0; i < models.length; i += this.batchnum) {
-                    var to_load = models.slice(i, i + this.batchnum);
-                    deferreds.push(Sao.rpc({
-                        'method': 'model.ir.model.access.get_access',
-                        'params': [to_load, {}]
-                    }, Sao.Session.current_session)
-                        .then(update_access.bind(this)));
-                }
-                jQuery.when.apply(jQuery, deferreds).then(
-                    prm.resolve, prm.reject);
-            }.bind(this));
-            return prm;
+            }, Sao.Session.current_session, false);
         },
         get: function(model) {
-            return this._access[model] || {};
+            if (this._access[model] !== undefined) {
+                return this._access[model];
+            }
+            var idx = this._models.indexOf(model);
+            if (idx < 0) {
+                this.load_models(false);
+            }
+            var to_load = this._models.slice(
+                Math.max(0, idx - Math.floor(this.batchnum / 2)),
+                idx + Math.floor(this.batchnum / 2));
+            var access = Sao.rpc({
+                'method': 'model.ir.model.access.get_access',
+                'params': [to_load, {}]
+            }, Sao.Session.current_session, false);
+            this._access = jQuery.extend(this._access, access);
+            return this._access[model];
         }
     });
     Sao.common.MODELACCESS = new Sao.common.ModelAccess();
@@ -15206,6 +15390,9 @@ function eval_pyson(value){
     Sao.common.MODELHISTORY = new Sao.common.ModelHistory();
 
     Sao.common.ViewSearch = Sao.class_(Object, {
+        init: function() {
+            this.encoder = new Sao.PYSON.Encoder();
+        },
         load_searches: function() {
             this.searches = {};
             return Sao.rpc({
@@ -15224,7 +15411,7 @@ function eval_pyson(value){
                 'params': [[{
                     'model': model,
                     'name': name,
-                    'domain': new Sao.PYSON.Encoder().encode(domain)
+                    'domain': this.encoder.encode(domain)
                 }], {}]
             }, Sao.Session.current_session).then(function(ids) {
                 var id = ids[0];
@@ -15402,7 +15589,7 @@ function eval_pyson(value){
                     if (this.nullable_widget) {
                         selection.push([null, '']);
                     }
-                    this._last_domain = domain;
+                    this._last_domain = [domain, context];
                     this._domain_cache[jdomain] = selection;
                     this.selection = jQuery.extend([], selection);
                     if (callback) {
@@ -16046,7 +16233,7 @@ function eval_pyson(value){
                 var results = [];
                 var test_value = value !== null ? value : '';
                 if (value instanceof Array) {
-                    test_value = value[value.length - 1];
+                    test_value = value[value.length - 1] || '';
                 }
                 test_value = test_value.replace(/^%*|%*$/g, '');
                 var i, len, svalue, test;
@@ -16500,8 +16687,7 @@ function eval_pyson(value){
                 },
                 'float': function() {
                     var result = Number(value);
-                    if (isNaN(result) || value === '' ||
-                        value === null || value === undefined) {
+                    if (isNaN(result) || value === '' || value === null) {
                         return null;
                     } else {
                         return result;
@@ -16517,8 +16703,8 @@ function eval_pyson(value){
                 },
                 'numeric': function() {
                     var result = new Sao.Decimal(value);
-                    if (isNaN(result.valueOf()) || value === '' ||
-                        value === null || value === undefined) {
+                    if (isNaN(result.valueOf()) ||
+                            value === '' || value === null) {
                         return null;
                     } else {
                         return result;
@@ -16671,7 +16857,7 @@ function eval_pyson(value){
                     return Sao.common.timedelta.format(value, converter);
                 }.bind(this),
                 'many2one': function() {
-                    if (value === null || value === undefined) {
+                    if (value === null) {
                         return '';
                     } else {
                         return value;
@@ -16686,7 +16872,7 @@ function eval_pyson(value){
                 var func = converts[field.type];
                 if (func) {
                     return this.quote(func(value));
-                } else if (value === null || value === undefined) {
+                } else if (value === null) {
                     return '';
                 } else {
                     return this.quote(value);
@@ -17361,7 +17547,7 @@ function eval_pyson(value){
                 dialog.footer.find('button.btn-primary').first().click();
                 evt.preventDefault();
             }.bind(this));
-            this.running = prm;
+            this.running = true;
             dialog.modal.modal('show');
             dialog.modal.on('shown.bs.modal', function() {
                 dialog.modal.find('input,select')
@@ -18233,7 +18419,7 @@ function eval_pyson(value){
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('New')
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-plus'
+                    'class': 'glyphicon glyphicon-edit'
                 })).appendTo(buttons);
                 this.but_new.click(this.new_.bind(this));
                 this.but_new.prop('disabled', !access.create || readonly);
@@ -18286,7 +18472,7 @@ function eval_pyson(value){
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('Switch')
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-resize-full'
+                    'class': 'glyphicon glyphicon-list-alt'
                 })).appendTo(buttons);
                 this.but_switch.click(this.switch_.bind(this));
             }
@@ -18543,6 +18729,8 @@ function eval_pyson(value){
             this.model_name = model;
             this.domain = kwargs.domain || [];
             this.context = kwargs.context || {};
+            this.view_ids = kwargs.view_ids;
+            this.views_preload = views_preload;
             this.sel_multi = kwargs.sel_multi;
             this.callback = callback;
             this.title = kwargs.title || '';
@@ -18586,10 +18774,17 @@ function eval_pyson(value){
                 view_ids: kwargs.view_ids,
                 views_preload: views_preload,
                 row_activate: this.activate.bind(this),
-                editable: false
+                readonly: true,
             });
             this.screen.load_next_view().done(function() {
                 this.screen.switch_view().done(function() {
+                    if (!this.sel_multi) {
+                        this.screen.current_view.selection_mode = (
+                            Sao.common.SELECTION_SINGLE);
+                    } else {
+                        this.screen.current_view.selection_mode = (
+                            Sao.common.SELECTION_MULTIPLE);
+                    }
                     dialog.body.append(this.screen.screen_container.el);
                     this.el.modal('show');
                     this.screen.display();
@@ -18614,10 +18809,17 @@ function eval_pyson(value){
                 this.screen.search_filter();
                 return;
             } else if (response_id == 'RESPONSE_ACCEPT') {
+                var view_ids = jQuery.extend([], this.view_ids);
+                if (!jQuery.isEmptyObject(view_ids)) {
+                    // Remove the first tree view as mode is form only
+                    view_ids.shift();
+                }
                 var screen = new Sao.Screen(this.model_name, {
                     domain: this.domain,
                     context: this.context,
-                    mode: ['form']
+                    mode: ['form'],
+                    view_ids: view_ids,
+                    views_preload: this.views_preload,
                 });
 
                 var callback = function(result) {
@@ -18785,7 +18987,7 @@ function eval_pyson(value){
                 this.select.append(jQuery('<option/>', {
                     value: revision.valueOf(),
                     text: Sao.common.format_datetime(
-                        date_format, time_format, revision) + ' ' + this.title
+                        date_format, time_format, revision) + ' ' + name,
                 }));
             }.bind(this));
             this.el.modal('show');
@@ -18983,13 +19185,18 @@ function eval_pyson(value){
                 'for': 'input-delimiter'
             });
 
+            var separator = ',';
+            if (navigator.platform == 'Win32' ||
+                navigator.platform == 'Windows') {
+                separator = ';';
+            }
             this.el_csv_delimiter = jQuery('<input/>', {
                 'type': 'text',
                 'class': 'form-control',
                 'id': 'input-delimiter',
                 'size': '1',
                 'maxlength': '1',
-                'value': ','
+                'value': separator
             });
 
             jQuery('<div/>', {
@@ -19356,21 +19563,7 @@ function eval_pyson(value){
                         .always(prm.reject);
                 },
                 complete: function(results) {
-                    function encode_utf8(s) {
-                        return unescape(encodeURIComponent(s));
-                    }
-                    var data = [];
-                    results.data.pop('');
-                    results.data.forEach(function(line, i) {
-                        if(i < skip) {
-                            return;
-                        }
-                        var arr = [];
-                        line.forEach(function(x){
-                            arr.push(encode_utf8(x));
-                        });
-                        data.push(arr);
-                    });
+                    var data = results.data.slice(skip, results.data.length - 1);
                     Sao.rpc({
                         'method': 'model.' + this.screen.model_name +
                         '.import_data',
@@ -19511,6 +19704,17 @@ function eval_pyson(value){
                         name: name+'.translated',
                         field: field,
                         string: Sao.i18n.gettext('%1 (string)', string)
+                    });
+                } else if (field.type == 'reference') {
+                    items.push({
+                        name: name + '.translated',
+                        field: field,
+                        string: Sao.i18n.gettext("%1 (model name)", string),
+                    });
+                    items.push({
+                        name: name + '/rec_name',
+                        field: field,
+                        string: Sao.i18n.gettext("%1 (record name)", string),
                     });
                 }
 
@@ -19941,9 +20145,8 @@ function eval_pyson(value){
             // TODO toolbar
             this.widget.append(this.screen.screen_container.el);
 
-            this.screen.new_(false).then(function(){
-                return this.screen.current_record.set_default(defaults);
-            }.bind(this));
+            this.screen.new_(false);
+            this.screen.current_record.set_default(defaults);
             this.screen.set_cursor();
         }
     });

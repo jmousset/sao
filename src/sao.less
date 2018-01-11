@@ -16,12 +16,6 @@
 }
 
 .tab-form, .tab-board {
-    & nav.toolbar {
-        margin-bottom: 1px;
-        & ul.nav > li > a {
-            padding-right: 10px;
-        }
-    }
     & nav.toolbar.affix {
         top: @navbar-height + 1px;
         z-index: @zindex-navbar - 1;
@@ -243,7 +237,7 @@ input.column-boolean {
     .center-block();
 }
 
-.form-boolean, .editabletree-boolean, .dict-boolean {
+.form-boolean, .editabletree-boolean {
     & input[type=checkbox] {
         width: initial;
     }
@@ -377,39 +371,4 @@ img.global-search-icon {
 img.favorite-icon {
     width: 1em;
     height: 1em;
-}
-
-.pre {
-    white-space: pre;
-}
-
-.scrollable {
-    overflow-x: auto;
-}
-
-.modal-body {
-    overflow: visible;
-}
-
-.modal-body.scrollable-modal {
-    .screen-container .content-box .treeview {
-        overflow: visible;
-    }
-    overflow: auto;
-}
-
-.main-navbar-header > div {
-    float: left;
-    padding: 15px 15px 15px 0;
-}
-
-.main-navbar-body {
-    span.glyphicon {
-        font-size: 16px;
-    }
-    span.counter {
-        position: relative;
-        top: -2px;
-        display: none;
-    }
 }

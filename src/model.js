@@ -222,18 +222,10 @@
             }
             return record;
         };
-        // [Bug Sao]
-        // TODO: report to tryton
-        //      limit calls to changed()
-        array.remove = function(record, remove, modified, force_remove, apply_changes) {
+        array.remove = function(record, remove, modified, force_remove) {
             if (modified === undefined) {
                 modified = true;
             }
-
-            if (apply_changes === undefined) {
-                apply_changes = true;
-            }
-
             var idx = this.indexOf(record);
             if (record.id >= 0) {
                 if (remove) {
@@ -511,8 +503,6 @@
             this.state_attrs = {};
             this.autocompletion = {};
             this.exception = false;
-            // JMO: report https://github.com/coopengo/tryton/pull/13
-            this.fields_to_load = {};
         },
         has_changed: function() {
             return !jQuery.isEmptyObject(this._changed);
@@ -619,18 +609,9 @@
             } else {
                 fnames = Object.keys(this.model.fields);
             }
-
-            // JMO: report https://github.com/coopengo/tryton/pull/13
-            if (Object.keys(this.fields_to_load).length > 0) {
-              fnames = fnames.filter(function(e, i, a) {
-                return (e in this.fields_to_load);
-              }.bind(this));
-            }
-
             fnames = fnames.filter(function(e, i, a) {
                 return !(e in this._loaded);
             }.bind(this));
-
             var fnames_to_fetch = fnames.slice();
             var rec_named_fields = ['many2one', 'one2one', 'reference'];
             for (var i in fnames) {
@@ -884,22 +865,13 @@
             return jQuery.when();
         },
         set_default: function(values, validate) {
-            if (validate === null || validate === undefined) {
+            if (validate === undefined) {
                 validate = true;
             }
             var promises = [];
             var fieldnames = [];
-            var exclude_fields = [];
-            this.group.screens.forEach(function(screen){
-                if (screen.exclude_field){
-                    exclude_fields.push(screen.exclude_field);
-                }
-            });
             for (var fname in values) {
                 if (!values.hasOwnProperty(fname)) {
-                    continue;
-                }
-                if (exclude_fields.indexOf(fname) >= 0){
                     continue;
                 }
                 var value = values[fname];
@@ -1815,19 +1787,12 @@
         get_client: function(record) {
             var rec_name = record._values[this.name + '.rec_name'];
             if (rec_name === undefined) {
-                var prm = this.set(record, this.get(record));
-                if (prm !== null){
-                    return prm.then(function(){
-                        return record._values[this.name + '.rec_name'] || '';
-                    }.bind(this));
-                } else {
-                    return record._values[this.name + '.rec_name'] || '';
-                }
+                this.set(record, this.get(record));
+                rec_name = record._values[this.name + '.rec_name'] || '';
             }
             return rec_name;
         },
         set: function(record, value) {
-            var prm = null;
             var rec_name = record._values[this.name + '.rec_name'] || '';
             var store_rec_name = function(rec_name) {
                 record._values[this.name + '.rec_name'] = rec_name[0].rec_name;
@@ -1835,7 +1800,7 @@
             if (!rec_name && (value >= 0) && (value !== null)) {
                 var model_name = record.model.fields[this.name].description
                     .relation;
-                prm = Sao.rpc({
+                Sao.rpc({
                     'method': 'model.' + model_name + '.read',
                     'params': [[value], ['rec_name'], record.get_context()]
                 }, record.model.session).done(store_rec_name.bind(this)).done(
@@ -1849,7 +1814,6 @@
                 store_rec_name.call(this, [{'rec_name': rec_name}]);
             }
             record._values[this.name] = value;
-            return prm;
         },
         set_client: function(record, value, force_change) {
             var rec_name;
@@ -1964,7 +1928,7 @@
                         if (default_) {
                             // Don't validate as parent will validate
                             promises.push(new_record.set_default(vals, false));
-                            group.add(new_record, -1, false);
+                            group.add(new_record);
                         } else {
                             promises.push(new_record.set(vals));
                             group.push(new_record);
@@ -2146,7 +2110,7 @@
                 }.bind(this));
             }
             to_remove.forEach(function(record2) {
-                group.remove(record2, false, true, false, false);
+                group.remove(record2, false, true, false);
             }.bind(this));
 
             if (value.add || value.update) {
@@ -2266,12 +2230,8 @@
             for (var i = 0, len = (record._values[this.name] || []).length;
                     i < len; i++) {
                 var record2 = record._values[this.name][i];
-                // [Bug Sao]
-                // TODO: report to tryton
-                //      empty list equal false in python but true in js
                 if (!record2.get_loaded() && (record2.id >= 0) &&
-                    (!pre_validate || (pre_validate instanceof Array &&
-                        pre_validate.length === 0))){
+                        !pre_validate) {
                     continue;
                 }
                 if (!record2.validate(null, softvalidation, ldomain, true)) {

@@ -1765,8 +1765,7 @@
                 },
                 'float': function() {
                     var result = Number(value);
-                    if (isNaN(result) || value === '' ||
-                        value === null || value === undefined) {
+                    if (isNaN(result) || value === '' || value === null) {
                         return null;
                     } else {
                         return result;
@@ -1782,8 +1781,8 @@
                 },
                 'numeric': function() {
                     var result = new Sao.Decimal(value);
-                    if (isNaN(result.valueOf()) || value === '' ||
-                        value === null || value === undefined) {
+                    if (isNaN(result.valueOf()) ||
+                            value === '' || value === null) {
                         return null;
                     } else {
                         return result;
@@ -1936,7 +1935,7 @@
                     return Sao.common.timedelta.format(value, converter);
                 }.bind(this),
                 'many2one': function() {
-                    if (value === null || value === undefined) {
+                    if (value === null) {
                         return '';
                     } else {
                         return value;
@@ -1951,7 +1950,7 @@
                 var func = converts[field.type];
                 if (func) {
                     return this.quote(func(value));
-                } else if (value === null || value === undefined) {
+                } else if (value === null) {
                     return '';
                 } else {
                     return this.quote(value);
@@ -2626,7 +2625,7 @@
                 dialog.footer.find('button.btn-primary').first().click();
                 evt.preventDefault();
             }.bind(this));
-            this.running = prm;
+            this.running = true;
             dialog.modal.modal('show');
             dialog.modal.on('shown.bs.modal', function() {
                 dialog.modal.find('input,select')

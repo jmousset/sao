@@ -151,9 +151,8 @@
             // TODO toolbar
             this.widget.append(this.screen.screen_container.el);
 
-            this.screen.new_(false).then(function(){
-                return this.screen.current_record.set_default(defaults);
-            }.bind(this));
+            this.screen.new_(false);
+            this.screen.current_record.set_default(defaults);
             this.screen.set_cursor();
         }
     });

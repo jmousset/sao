@@ -308,7 +308,6 @@ function eval_pyson(value){
                     var name = e[0];
                     promesses.push(record.load(name));
                 });
-                record.fields_to_load = {};
             }
             var display = function(record, field) {
                 return function(widget) {
@@ -520,12 +519,6 @@ function eval_pyson(value){
                 widget.el.data('toggle', 'tooltip');
                 widget.el.attr('title', attributes.help);
                 widget.el.tooltip();
-            }
-            // dirty fix for span rendering
-            //      > bugs.tryton.org/issue5419
-            if (this.col == 6 && !(colspan == 1 || colspan == 6)) {
-                cell.removeClass('xexpand');
-                cell.removeClass('xfill');
             }
         },
         resize: function() {
@@ -1001,10 +994,8 @@ function eval_pyson(value){
             this.visible = !invisible;
             if (invisible) {
                 this.el.hide();
-                this.el.css('width', '0px');
             } else {
                 this.el.show();
-                this.el.css('width', '100%');
             }
         }
     });
@@ -1674,32 +1665,16 @@ function eval_pyson(value){
         get_format: function(record, field) {
             return field.date_format(record);
         },
-      get_picker: function() {
-        // [Bug Sao] - remove once record.destroy() is implemented.
-        // When Screen.remove() is called, record.destroy() should be
-        // called as well but is not implemented yet.
-        // Therefore display() of all elements child of the
-        // removed screen are called.
-        if (!this.date.data('DateTimePicker')) {
-            this.date.datetimepicker();
-            this.date.css('width', this._width);
-            this.date.on('dp.change', this.focus_out.bind(this));
-        }
-        return this.date.data('DateTimePicker');
-      },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
-                // [Bug Sao] - DateTimePicker.date() return dateTime
-                // TODO: report to tryton
-                value.startOf('day');
                 value.isDate = true;
             }
             return value;
         },
         display: function(record, field) {
             if (record && field) {
-                this.get_picker().format(
+                this.date.data('DateTimePicker').format(
                     Sao.common.moment_format(this.get_format(record, field)));
             }
             Sao.View.Form.Date._super.display.call(this, record, field);
@@ -1709,7 +1684,7 @@ function eval_pyson(value){
             } else {
                 value = null;
             }
-            this.get_picker().date(value);
+            this.date.data('DateTimePicker').date(value);
         },
         focus: function() {
             this.input.focus();
@@ -1730,7 +1705,7 @@ function eval_pyson(value){
             return field.date_format(record) + ' ' + field.time_format(record);
         },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
                 value.isDateTime = true;
             }
@@ -1745,7 +1720,7 @@ function eval_pyson(value){
             return field.time_format(record);
         },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
                 value.isTime = true;
             }
@@ -1853,11 +1828,9 @@ function eval_pyson(value){
             });
         },
         display_update_selection: function(record, field) {
-            var dfrd = jQuery.Deferred();
             this.update_selection(record, field, function() {
                 if (!field) {
                     this.select.val('');
-                    dfrd.resolve();
                     return;
                 }
                 var value = field.get(record);
@@ -1871,7 +1844,7 @@ function eval_pyson(value){
                 if (!found) {
                     prm = Sao.common.selection_mixin.get_inactive_selection
                         .call(this, value);
-                    prm = prm.done(function(inactive) {
+                    prm.done(function(inactive) {
                         this.select.append(jQuery('<option/>', {
                             value: JSON.stringify(inactive[0]),
                             text: inactive[1],
@@ -1883,14 +1856,12 @@ function eval_pyson(value){
                 }
                 prm.done(function() {
                     this.select.val(JSON.stringify(value));
-                    dfrd.resolve();
                 }.bind(this));
             }.bind(this));
-            return (dfrd.promise());
         },
         display: function(record, field) {
             Sao.View.Form.Selection._super.display.call(this, record, field);
-            return this.display_update_selection(record, field);
+            this.display_update_selection(record, field);
         },
         focus: function() {
             this.select.focus();
@@ -1915,9 +1886,6 @@ function eval_pyson(value){
             this.el = jQuery('<div/>', {
                 'class': this.class_
             });
-            this.group = jQuery('<div/>', {
-                'class': 'input-group input-group-sm'
-            }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'checkbox',
                 'class': 'form-control input-sm mousetrap'
@@ -2015,7 +1983,7 @@ function eval_pyson(value){
                 this.get_toolbar().appendTo(this.el);
             }
             this.input = this.labelled = jQuery('<div/>', {
-                'class': 'richtext pre mousetrap',
+                'class': 'richtext mousetrap',
                 'contenteditable': true
             }).appendTo(jQuery('<div/>', {
                 'class': 'panel-body'
@@ -2135,7 +2103,6 @@ function eval_pyson(value){
                             document.execCommand(command, false, jQuery(this).val());
                         }).val(color);
             });
-            this.toolbar = toolbar;
             return toolbar;
         },
         focus_out: function() {
@@ -2160,24 +2127,20 @@ function eval_pyson(value){
         },
         set_value: function(record, field) {
             // TODO order attributes
-            // [Bug Sao]
-            //    > don't edit the content when widget is readonly
-            if (!this.input.prop('contenteditable')){
-                this.input.find('div').each(function(i, el) {
-                    el = jQuery(el);
-                    // Not all browsers respect the styleWithCSS
-                    if (el.css('text-align')) {
-                        // Remove browser specific prefix
-                        var align = el.css('text-align').split('-').pop();
-                        el.attr('align', align);
-                        el.css('text-align', '');
-                    }
-                    // Some browsers set start as default align
-                    if (el.attr('align') == 'start') {
-                        el.attr('align', 'left');
-                    }
-                });
-            }
+            this.input.find('div').each(function(i, el) {
+                el = jQuery(el);
+                // Not all browsers respect the styleWithCSS
+                if (el.css('text-align')) {
+                    // Remove browser specific prefix
+                    var align = el.css('text-align').split('-').pop();
+                    el.attr('align', align);
+                    el.css('text-align', '');
+                }
+                // Some browsers set start as default align
+                if (el.attr('align') == 'start') {
+                    el.attr('align', 'left');
+                }
+            });
             var value = this.input.html() || '';
             field.set_client(record, value);
         },
@@ -2185,7 +2148,6 @@ function eval_pyson(value){
             this.input.prop('contenteditable', !readonly);
             if (this.toolbar) {
                 this.toolbar.find('button,select').prop('disabled', readonly);
-                this.toolbar.toggle(!readonly);
             }
         }
     });
@@ -2260,10 +2222,7 @@ function eval_pyson(value){
             if (jQuery.isEmptyObject(value)) {
                 value = '';
             }
-            jQuery.when(value).then(function(text){
-                if (text && typeof text == 'string')
-                    this.entry.val(text);
-            }.bind(this));
+            this.entry.val(value);
         },
         get_text: function() {
             var record = this.record();
@@ -2656,7 +2615,7 @@ function eval_pyson(value){
             return this.select.val();
         },
         has_target: function(value) {
-            if (value === null || value === undefined) {
+            if (value === null) {
                 return false;
             }
             var model = value.split(',')[0];
@@ -2846,7 +2805,7 @@ function eval_pyson(value){
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext('New')
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-pencil'
+                'class': 'glyphicon glyphicon-edit'
             })).appendTo(buttons);
             this.but_new.click(this.new_.bind(this));
 
@@ -3093,7 +3052,6 @@ function eval_pyson(value){
                     this.screen.domain = domain;
                 }
                 this.screen.size_limit = size_limit;
-                this.screen.attributes.readonly = this._readonly;
                 this.screen.display();
             }.bind(this));
         },
@@ -4066,16 +4024,15 @@ function eval_pyson(value){
         init: function(field_name, model, attributes) {
             Sao.View.Form.Dict._super.init.call(
                     this, field_name, model, attributes);
+
             this.schema_model = new Sao.Model(attributes.schema_model);
             this.keys = {};
             this.fields = {};
             this.rows = {};
-            this.no_command = attributes.no_command || false;
 
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
             });
-
             var heading = jQuery('<div/>', {
                 'class': this.class_ + '-heading panel-heading'
             }).appendTo(this.el);
@@ -4202,8 +4159,7 @@ function eval_pyson(value){
                 var widget = this.fields[key];
                 widget.set_readonly(readonly);
             }
-            if (!this.no_command)
-                this.wid_text.prop('disabled', readonly);
+            this.wid_text.prop('disabled', readonly);
         },
         _set_button_sensitive: function() {
             var create = this.attributes.create;
@@ -4214,12 +4170,10 @@ function eval_pyson(value){
             if (delete_ === undefined) {
                 delete_ = true;
             }
-            if (!this.no_command){
-                this.but_add.prop('disabled', this._readonly || !create);
-                for (var key in this.fields) {
-                    var button = this.fields[key].button;
-                    button.prop('disabled', this._readonly || !delete_);
-                }
+            this.but_add.prop('disabled', this._readonly || !create);
+            for (var key in this.fields) {
+                var button = this.fields[key].button;
+                button.prop('disabled', this._readonly || !delete_);
             }
         },
         add_line: function(key) {
@@ -4244,21 +4198,10 @@ function eval_pyson(value){
             field.labelled.attr('aria-labelledby', label.attr('id'));
             label.attr('for', field.labelled.attr('id'));
 
-            if (!this.no_command){
-                field.button = jQuery('<button/>', {
-                    'class': 'btn btn-default',
-                    'type': 'button',
-                    'arial-label': Sao.i18n.gettext('Remove')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-minus'
-                })).appendTo(jQuery('<div/>', {
-                    'class': 'input-group-btn'
-                }).appendTo(field.group));
+            field.button.click(function() {
+                this.remove(key, true);
+            }.bind(this));
 
-                field.button.click(function() {
-                    this.remove(key, true);
-                }.bind(this));
-            }
             row.appendTo(this.container);
         },
         add_keys: function(keys) {
@@ -4290,6 +4233,7 @@ function eval_pyson(value){
         },
         display: function(record, field) {
             Sao.View.Form.Dict._super.display.call(this, record, field);
+
             if (!field) {
                 return;
             }
@@ -4378,14 +4322,23 @@ function eval_pyson(value){
             });
             var group = jQuery('<div/>', {
                 'class': 'input-group input-group-sm'
-            }).appendTo(this.el).css('width', '100%');
+            }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
                 'class': 'form-control input-sm mousetrap'
             }).appendTo(group);
+            this.button = jQuery('<button/>', {
+                'class': 'btn btn-default',
+                'type': 'button',
+                'arial-label': Sao.i18n.gettext('Remove')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-minus'
+            })).appendTo(jQuery('<div/>', {
+                'class': 'input-group-btn'
+            }).appendTo(group));
+
             this.el.change(
                     this.parent_widget.focus_out.bind(this.parent_widget));
-            this.group = group;
         },
         get_value: function() {
             return this.input.val();
@@ -4498,9 +4451,6 @@ function eval_pyson(value){
         get_value: function() {
             var value = this.input.data('DateTimePicker').date();
             if (value) {
-                // [Bug Sao] - DateTimePicker.date() return dateTime
-                // TODO: report to tryton
-                value.startOf('day');
                 value.isDate = true;
             }
             return value;

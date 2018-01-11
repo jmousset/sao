@@ -50,7 +50,7 @@
     };
 
     Sao.View.Tree = Sao.class_(Sao.View, {
-        init: function(screen, xml, children_field, children_definitions) {
+        init: function(screen, xml, children_field) {
             Sao.View.Tree._super.init.call(this, screen, xml);
             this.view_type = 'tree';
             this.selection_mode = (screen.attributes.selection_mode ||
@@ -60,16 +60,8 @@
             });
             this.expanded = {};
             this.children_field = children_field;
-            this.children_definitions = children_definitions;
-            // [Coog specific]
-            //      > attribute always_expand (expand tree view)
-            this.always_expand = this.attributes.always_expand || null;
-            // [Bug Sao] set search windows readonly
-            if (screen.attributes.editable !== undefined){
-                this.editable = screen.attributes.editable;
-            } else{
-                this.editable = Boolean(this.attributes.editable);
-            }
+            this.editable = (Boolean(this.attributes.editable) &&
+                !screen.attributes.readonly);
 
             // Columns
             this.columns = [];
@@ -543,8 +535,8 @@
             return row;
         },
         n_children: function(row) {
-            if (!row || !this.children_field || row.is_leaf()) {
-                    return this.rows.length;
+            if (!row || !this.children_field) {
+                return this.rows.length;
             }
             return row.record._values[this.children_field].length;
         },
@@ -617,7 +609,6 @@
             this.record = record;
             this.parent_ = parent;
             this.children_field = tree.children_field;
-            this.children_definitions = tree.children_definitions;
             this.expander = null;
             var path = [];
             if (parent) {
@@ -749,8 +740,7 @@
             }
             var row_id_path = this.get_id_path();
             if (this.is_expanded() ||
-                    Sao.common.contains(expanded, row_id_path) ||
-                    (this.tree.always_expand && !this.is_leaf())) {
+                    Sao.common.contains(expanded, row_id_path)) {
                 this.tree.expanded[this.path] = this;
                 this.expand_children(selected, expanded);
             }
@@ -759,16 +749,12 @@
             row = row || this.el;
             return jQuery(row.children()[column_index + 1]);
         },
-        is_leaf: function(){
-            return !this.record.model.fields.hasOwnProperty(this.children_field);
-        },
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
-            // [Bug Sao] hide expander when elem is leaf
             var update_expander = function() {
-                if (this.is_leaf() || jQuery.isEmptyObject(
-                        this.record.field_get(this.children_field))){
+                if (!this.record.field_get_client(
+                    this.children_field).length) {
                     this.expander.css('visibility', 'hidden');
                 }
             };
@@ -791,12 +777,8 @@
 
             for (var i = 0; i < this.tree.columns.length; i++) {
                 if ((i === 0) && this.children_field) {
-                    if (!this.is_leaf())
-                        this.record.load(this.children_field).done(
-                            update_expander.bind(this));
-                    else
-                        this.record.load('*').done(
-                            update_expander.bind(this));
+                    this.record.load(this.children_field).done(
+                        update_expander.bind(this));
                 }
                 var column = this.tree.columns[i];
                 var td = this._get_column_td(i);
@@ -912,8 +894,6 @@
                 };
                 var children = this.record.field_get_client(
                         this.children_field);
-                if (children.model.name != this.record.model.name)
-                    children.model.add_fields(this.children_definitions[children.model.name]);
                 children.forEach(add_row.bind(this));
                 redraw_async(new_rows, selected, expanded);
             };
@@ -939,12 +919,6 @@
             }
             this.tree.switch_(this.path);
         },
-        set_multi_level_selection: function(value){
-            this.set_selection(value);
-            this.rows.forEach(function(row){
-                row.set_multi_level_selection(value);
-            });
-        },
         select_row: function(event_) {
             if (this.tree.selection_mode == Sao.common.SELECTION_NONE) {
                 this.tree.select_changed(this.record);
@@ -954,8 +928,7 @@
                         this.tree.selection_mode ==
                         Sao.common.SELECTION_SINGLE) {
                     this.tree.rows.forEach(function(row) {
-                        // [Bug Sao] call set_selection on child rows as well
-                        row.set_multi_level_selection(false);
+                        row.set_selection(false);
                     }.bind(this));
                 }
                 this.set_selection(!this.is_selected());
@@ -979,7 +952,6 @@
                 return;
             }
             this.selection.prop('checked', value);
-            this.el.toggleClass('row-active', value);
             if (!value) {
                 this.tree.selection.prop('checked', false);
             }
@@ -1025,9 +997,9 @@
             var column, column_index, state_attrs;
 
             sign = sign || 1;
-            if ((path === null || path === undefined) && (sign > 0)) {
+            if ((path === null) && (sign > 0)) {
                 path = -1;
-            } else if (path === null || path === undefined) {
+            } else if (path === null) {
                 path = 0;
             }
             column_index = 0;
@@ -1418,9 +1390,8 @@
             this.header = null;
         },
         get_cell: function() {
-            // [Bug Sao] indentations in rich text
             var cell = jQuery('<div/>', {
-                'class': this.class_ + ' pre',
+                'class': this.class_,
                 'tabindex': 0
             });
             return cell;
