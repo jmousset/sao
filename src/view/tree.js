@@ -539,8 +539,8 @@
             return row;
         },
         n_children: function(row) {
-            if (!row || !this.children_field) {
-                return this.rows.length;
+            if (!row || !this.children_field || row.is_leaf()) {
+                    return this.rows.length;
             }
             return row.record._values[this.children_field].length;
         },
@@ -764,9 +764,10 @@
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
+            // [Coog Specific] [Bug Sao?] hide expander when elem is leaf
             var update_expander = function() {
-                if (!this.record.field_get_client(
-                    this.children_field).length) {
+                if (this.is_leaf() || jQuery.isEmptyObject(
+                        this.record.field_get(this.children_field))){
                     this.expander.css('visibility', 'hidden');
                 }
             };
@@ -789,8 +790,12 @@
 
             for (var i = 0; i < this.tree.columns.length; i++) {
                 if ((i === 0) && this.children_field) {
-                    this.record.load(this.children_field).done(
-                        update_expander.bind(this));
+                    if (!this.is_leaf())
+                        this.record.load(this.children_field).done(
+                            update_expander.bind(this));
+                    else
+                        this.record.load('*').done(
+                            update_expander.bind(this));
                 }
                 var column = this.tree.columns[i];
                 var td = this._get_column_td(i);
@@ -931,6 +936,13 @@
             }
             this.tree.switch_(this.path);
         },
+        // [Coog specific] [Bug Sao] call set_selection on child rows as well
+        set_multi_level_selection: function(value){
+            this.set_selection(value);
+            this.rows.forEach(function(row){
+                row.set_multi_level_selection(value);
+            });
+        },
         select_row: function(event_) {
             if (this.tree.selection_mode == Sao.common.SELECTION_NONE) {
                 this.tree.select_changed(this.record);
@@ -940,7 +952,8 @@
                         this.tree.selection_mode ==
                         Sao.common.SELECTION_SINGLE) {
                     this.tree.rows.forEach(function(row) {
-                        row.set_selection(false);
+                        // [Coog specific] [Bug Sao] call set_selection on child rows as well
+                        row.set_multi_level_selection(false);
                     }.bind(this));
                 }
                 this.set_selection(!this.is_selected());
