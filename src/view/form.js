@@ -294,6 +294,7 @@ function eval_pyson(value){
                 // Force to set fields in record
                 // Get first the lazy one to reduce number of requests
 
+                // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 var fields = [];
                 for (name in this._field_keys) {
@@ -303,11 +304,15 @@ function eval_pyson(value){
                 fields.sort(function(a, b) {
                     return a[1].localeCompare(b[1]);
                 });
+                // [Coog specific]
+                // JMO: report https://github.com/coopengo/tryton/pull/13
                 record.fields_to_load = this._field_keys;
                 fields.forEach(function(e) {
                     var name = e[0];
                     promesses.push(record.load(name));
                 });
+                // [Coog specific]
+                // JMO: report https://github.com/coopengo/tryton/pull/13
                 record.fields_to_load = {};
             }
             var display = function(record, field) {
@@ -1001,6 +1006,7 @@ function eval_pyson(value){
         }
     });
 
+    // [Coog specific]
     function TreeElement(){
         this.init = function(parent, element, good_text, lvl){
             if (!element || !element.description)
@@ -2858,6 +2864,8 @@ function eval_pyson(value){
                 limit: null,
                 pre_validate: attributes.pre_validate
             });
+            // [Coog specific]
+            //      > JMO: I have no idea why this is here, might be for multi_mixed_view
             if (attributes.group)
                 this.screen.parent = this;
             this.screen.pre_validate = attributes.pre_validate == 1;
@@ -3069,6 +3077,8 @@ function eval_pyson(value){
             if (!access.write || !access.read) {
                 return;
             }
+            // [Coog specific]
+            // > JMO : no idea why this is commented
             // this.view.set_value();
             var domain = this.field().get_domain(this.record());
             var context = this.field().get_context(this.record());
@@ -3262,6 +3272,8 @@ function eval_pyson(value){
         },
         validate: function() {
             var prm = jQuery.Deferred();
+            // [Coog specific]
+            // > JMO : no idea why this is commented
             // this.view.set_value();
             var record = this.screen.current_record;
             if (record) {
@@ -3289,6 +3301,8 @@ function eval_pyson(value){
             return prm;
         },
         set_value: function(record, field) {
+            // [Coog specific]
+            // > JMO : no idea why
             if (this.screen.current_view.view_type == 'form' &&
                 this.attributes.group &&
                 this.screen.model.name != record.model.name)
@@ -3363,6 +3377,7 @@ function eval_pyson(value){
             })).appendTo(buttons);
             this.but_remove.click(this.remove.bind(this));
 
+            // [Coog specific]
             if (attributes.expand_toolbar)
                 this.menu.hide();
 

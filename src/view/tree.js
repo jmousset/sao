@@ -542,6 +542,8 @@
             return row;
         },
         n_children: function(row) {
+            // [Coog specific]
+            //      > used for multi_mixed_view
             if (!row || !this.children_field || row.is_leaf()) {
                     return this.rows.length;
             }
@@ -749,6 +751,7 @@
             }
             var row_id_path = this.get_id_path();
             if (this.is_expanded() ||
+                    // [Coog specific] multi_mixed_view
                     Sao.common.contains(expanded, row_id_path) ||
                     (this.tree.always_expand && !this.is_leaf())) {
                 this.tree.expanded[this.path] = this;
@@ -769,8 +772,8 @@
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
-            // [Coog Specific]  hide expander when elem is leaf
             var update_expander = function() {
+                // [Coog Specific]  needed for multi_mixed_view
                 if ((this.children_field === 'multi_mixed_view' &&
                       this.is_leaf())  || !this.record.field_get_client(
                     this.children_field).length) {
@@ -796,6 +799,7 @@
 
             for (var i = 0; i < this.tree.columns.length; i++) {
                 if ((i === 0) && this.children_field) {
+                    // [Coog Specific]  needed for multi_mixed_view
                     if (!this.is_leaf())
                         this.record.load(this.children_field).done(
                             update_expander.bind(this));
@@ -917,6 +921,7 @@
                 };
                 var children = this.record.field_get_client(
                         this.children_field);
+                // [Coog Specific]  needed for multi_mixed_view
                 if (children.model.name != this.record.model.name)
                     children.model.add_fields(this.children_definitions[children.model.name]);
                 children.forEach(add_row.bind(this));

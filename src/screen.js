@@ -742,7 +742,7 @@
             view_widget.view_id = view_id;
             this.views.push(view_widget);
 
-            // JMO: report https://github.com/coopengo/tryton/pull/13
+            // [Coog specific] JMO: report https://github.com/coopengo/tryton/pull/13
             var fkeys = {};
             for  (var k in fields) {fkeys[k] = '';}
             view_widget._field_keys = fkeys;
@@ -751,6 +751,7 @@
         number_of_views: function() {
             return this.views.length + this.view_to_load.length;
         },
+        // [Coog specific] JMO: report https://github.com/coopengo/tryton/pull/13
         switch_view: function(view_type, view_id) {
             if (this.current_view) {
                 this.current_view.set_value();
@@ -951,6 +952,7 @@
             this.set_group(group);
         },
         set_current_record: function(record) {
+            // [Coog specific] multi_mixed_view
             var changed = this.current_record !== record;
             this.current_record = record;
             // TODO position
@@ -986,6 +988,7 @@
                         ~['tree', 'graph', 'calendar'].indexOf(
                             this.current_view.view_type));
                 deferreds.push(search_prm);
+                // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 //for (var i = 0; i < this.views.length; i++) {
                 //    if (this.views[i]) {
@@ -1512,6 +1515,7 @@
         button: function(attributes) {
             var ids;
             var process_action = function(action) {
+                // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 var action_id;
                 if (action && typeof action != 'string' &&
@@ -1652,6 +1656,7 @@
                 var view_type = action.split(' ')[1];
                 this.switch_view(view_type);
             } else if (action.startsWith('toggle')) {
+              // [Coog specific]
               // JMO: report https://github.com/coopengo/tryton/pull/13
               var split_action = action.split(':');
               var view_id = split_action[1];

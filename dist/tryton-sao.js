@@ -6448,7 +6448,7 @@ var Sao = {};
             view_widget.view_id = view_id;
             this.views.push(view_widget);
 
-            // JMO: report https://github.com/coopengo/tryton/pull/13
+            // [Coog specific] JMO: report https://github.com/coopengo/tryton/pull/13
             var fkeys = {};
             for  (var k in fields) {fkeys[k] = '';}
             view_widget._field_keys = fkeys;
@@ -6457,6 +6457,7 @@ var Sao = {};
         number_of_views: function() {
             return this.views.length + this.view_to_load.length;
         },
+        // [Coog specific] JMO: report https://github.com/coopengo/tryton/pull/13
         switch_view: function(view_type, view_id) {
             if (this.current_view) {
                 this.current_view.set_value();
@@ -6657,6 +6658,7 @@ var Sao = {};
             this.set_group(group);
         },
         set_current_record: function(record) {
+            // [Coog specific] multi_mixed_view
             var changed = this.current_record !== record;
             this.current_record = record;
             // TODO position
@@ -6692,6 +6694,7 @@ var Sao = {};
                         ~['tree', 'graph', 'calendar'].indexOf(
                             this.current_view.view_type));
                 deferreds.push(search_prm);
+                // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 //for (var i = 0; i < this.views.length; i++) {
                 //    if (this.views[i]) {
@@ -7218,6 +7221,7 @@ var Sao = {};
         button: function(attributes) {
             var ids;
             var process_action = function(action) {
+                // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 var action_id;
                 if (action && typeof action != 'string' &&
@@ -7358,6 +7362,7 @@ var Sao = {};
                 var view_type = action.split(' ')[1];
                 this.switch_view(view_type);
             } else if (action.startsWith('toggle')) {
+              // [Coog specific]
               // JMO: report https://github.com/coopengo/tryton/pull/13
               var split_action = action.split(':');
               var view_id = split_action[1];
@@ -7905,7 +7910,8 @@ function eval_pyson(value){
             if (record) {
                 // Force to set fields in record
                 // Get first the lazy one to reduce number of requests
-
+              
+                // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 var fields = [];
                 for (name in this._field_keys) {
@@ -7915,11 +7921,15 @@ function eval_pyson(value){
                 fields.sort(function(a, b) {
                     return a[1].localeCompare(b[1]);
                 });
+                // [Coog specific]
+                // JMO: report https://github.com/coopengo/tryton/pull/13
                 record.fields_to_load = this._field_keys;
                 fields.forEach(function(e) {
                     var name = e[0];
                     promesses.push(record.load(name));
                 });
+                // [Coog specific]
+                // JMO: report https://github.com/coopengo/tryton/pull/13
                 record.fields_to_load = {};
             }
             var display = function(record, field) {
@@ -8613,6 +8623,7 @@ function eval_pyson(value){
         }
     });
 
+    // [Coog specific]
     function TreeElement(){
         this.init = function(parent, element, good_text, lvl){
             if (!element || !element.description)
@@ -10470,6 +10481,8 @@ function eval_pyson(value){
                 limit: null,
                 pre_validate: attributes.pre_validate
             });
+            // [Coog specific]
+            //      > JMO: I have no idea why this is here, might be for multi_mixed_view
             if (attributes.group)
                 this.screen.parent = this;
             this.screen.pre_validate = attributes.pre_validate == 1;
@@ -10681,6 +10694,8 @@ function eval_pyson(value){
             if (!access.write || !access.read) {
                 return;
             }
+            // [Coog specific]
+            // > JMO : no idea why this is commented
             // this.view.set_value();
             var domain = this.field().get_domain(this.record());
             var context = this.field().get_context(this.record());
@@ -10874,6 +10889,8 @@ function eval_pyson(value){
         },
         validate: function() {
             var prm = jQuery.Deferred();
+            // [Coog specific]
+            // > JMO : no idea why this is commented
             // this.view.set_value();
             var record = this.screen.current_record;
             if (record) {
@@ -10901,6 +10918,8 @@ function eval_pyson(value){
             return prm;
         },
         set_value: function(record, field) {
+            // [Coog specific]
+            // > JMO : no idea why
             if (this.screen.current_view.view_type == 'form' &&
                 this.attributes.group &&
                 this.screen.model.name != record.model.name)
@@ -10975,6 +10994,7 @@ function eval_pyson(value){
             })).appendTo(buttons);
             this.but_remove.click(this.remove.bind(this));
 
+            // [Coog specific]
             if (attributes.expand_toolbar)
                 this.menu.hide();
 
@@ -12688,6 +12708,8 @@ function eval_pyson(value){
             return row;
         },
         n_children: function(row) {
+            // [Coog specific]
+            //      > used for multi_mixed_view
             if (!row || !this.children_field || row.is_leaf()) {
                     return this.rows.length;
             }
@@ -12895,6 +12917,7 @@ function eval_pyson(value){
             }
             var row_id_path = this.get_id_path();
             if (this.is_expanded() ||
+                    // [Coog specific] multi_mixed_view
                     Sao.common.contains(expanded, row_id_path) ||
                     (this.tree.always_expand && !this.is_leaf())) {
                 this.tree.expanded[this.path] = this;
@@ -12915,8 +12938,8 @@ function eval_pyson(value){
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
-            // [Coog Specific]  hide expander when elem is leaf
             var update_expander = function() {
+                // [Coog Specific]  needed for multi_mixed_view
                 if ((this.children_field === 'multi_mixed_view' &&
                       this.is_leaf())  || !this.record.field_get_client(
                     this.children_field).length) {
@@ -12942,6 +12965,7 @@ function eval_pyson(value){
 
             for (var i = 0; i < this.tree.columns.length; i++) {
                 if ((i === 0) && this.children_field) {
+                    // [Coog Specific]  needed for multi_mixed_view
                     if (!this.is_leaf())
                         this.record.load(this.children_field).done(
                             update_expander.bind(this));
@@ -13063,6 +13087,7 @@ function eval_pyson(value){
                 };
                 var children = this.record.field_get_client(
                         this.children_field);
+                // [Coog Specific]  needed for multi_mixed_view
                 if (children.model.name != this.record.model.name)
                     children.model.add_fields(this.children_definitions[children.model.name]);
                 children.forEach(add_row.bind(this));
