@@ -426,7 +426,8 @@ var Sao = {};
             'view_ids': view_ids,
             'domain': domain,
             'context': action_ctx,
-            'selection_mode': Sao.common.SELECTION_NONE,
+            // [Coog Specific] dbclick on menu entries
+            'selection_mode': Sao.common.SELECTION_SINGLE,
             'limit': null
         });
         Sao.Tab.tabs.splice(Sao.Tab.tabs.indexOf(form), 1);
