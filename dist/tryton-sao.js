@@ -12915,10 +12915,11 @@ function eval_pyson(value){
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
-            // [Coog Specific] [Bug Sao?] hide expander when elem is leaf
+            // [Coog Specific]  hide expander when elem is leaf
             var update_expander = function() {
-                if (this.is_leaf() || jQuery.isEmptyObject(
-                        this.record.field_get(this.children_field))){
+                if ((this.children_field === 'multi_mixed_view' &&
+                      this.is_leaf())  || !this.record.field_get_client(
+                    this.children_field).length) {
                     this.expander.css('visibility', 'hidden');
                 }
             };
