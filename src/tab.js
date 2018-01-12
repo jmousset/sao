@@ -16,7 +16,7 @@
             return [
                 {
                     id: 'switch_',
-                    icon: 'glyphicon-list-alt',
+                    icon: 'glyphicon-resize-full',
                     label: Sao.i18n.gettext('Switch'),
                     tooltip: Sao.i18n.gettext('Switch view'),
                 }, {
@@ -35,17 +35,17 @@
                     label: Sao.i18n.gettext('Search'),
                 }, null, {
                     id: 'new_',
-                    icon: 'glyphicon-edit',
+                    icon: 'glyphicon-plus',
                     label: Sao.i18n.gettext('New'),
                     tooltip: Sao.i18n.gettext('Create a new record'),
                 }, {
                     id: 'save',
-                    icon: 'glyphicon-save',
+                    icon: 'glyphicon-floppy-disk',
                     label: Sao.i18n.gettext('Save'),
                     tooltip: Sao.i18n.gettext('Save this record'),
                 }, {
                     id: 'reload',
-                    icon: 'glyphicon-refresh',
+                    icon: 'glyphicon-repeat',
                     label: Sao.i18n.gettext('Reload/Undo'),
                     tooltip: Sao.i18n.gettext('Reload'),
                 }, {
