@@ -2865,7 +2865,7 @@ function eval_pyson(value){
                 pre_validate: attributes.pre_validate
             });
             // [Coog specific]
-            //      > JMO: I have no idea why this is here, might be for multi_mixed_view
+            // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
             if (attributes.group)
                 this.screen.parent = this;
             this.screen.pre_validate = attributes.pre_validate == 1;
@@ -2877,7 +2877,8 @@ function eval_pyson(value){
 
             this.but_switch.prop('disabled', this.screen.number_of_views() <= 0);
         },
-        // [Coog specific] multi_mixed_view
+        // [Coog specific]
+        // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
         group_sync: function(screen, current_record){
             if (this.attributes.mode == 'form')
                 return;
@@ -3032,7 +3033,8 @@ function eval_pyson(value){
 
                 var new_group = record.field_get_client(this.field_name);
 
-                // [Coog specific] multi_mixed_view
+                // [Coog specific]
+                // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
                 if (this.attributes.group && this.attributes.mode == 'form'){
                     if (!this.screen.current_record)
                         this.set_invisible(true);
@@ -3078,7 +3080,7 @@ function eval_pyson(value){
                 return;
             }
             // [Coog specific]
-            // > JMO : no idea why this is commented
+            // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
             // this.view.set_value();
             var domain = this.field().get_domain(this.record());
             var context = this.field().get_context(this.record());
@@ -3273,7 +3275,7 @@ function eval_pyson(value){
         validate: function() {
             var prm = jQuery.Deferred();
             // [Coog specific]
-            // > JMO : no idea why this is commented
+            // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
             // this.view.set_value();
             var record = this.screen.current_record;
             if (record) {
@@ -3302,7 +3304,7 @@ function eval_pyson(value){
         },
         set_value: function(record, field) {
             // [Coog specific]
-            // > JMO : no idea why
+            // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
             if (this.screen.current_view.view_type == 'form' &&
                 this.attributes.group &&
                 this.screen.model.name != record.model.name)
