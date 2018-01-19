@@ -13,17 +13,18 @@
         add_fields: function(descriptions) {
             var added = [];
             for (var name in descriptions) {
-                if (descriptions.hasOwnProperty(name) &&
-                    (!(name in this.fields))) {
-                        var desc = descriptions[name];
-                        var Field = Sao.field.get(desc.type);
-                        this.fields[name] = new Field(desc);
-                        added.push(name);
-                    }
+                var desc = descriptions[name];
+                if (!(name in this.fields)) {
+                    var Field = Sao.field.get(desc.type);
+                    this.fields[name] = new Field(desc);
+                    added.push(name);
+                } else {
+                    jQuery.extend(this.fields[name].description, desc);
+                }
             }
             return added;
         },
-        execute: function(method, params, context) {
+        execute: function(method, params, context, async) {
             if (context === undefined) {
                 context = {};
             }
@@ -31,7 +32,7 @@
                 'method': 'model.' + this.name + '.' + method,
                 'params': params.concat(context)
             };
-            return Sao.rpc(args, this.session);
+            return Sao.rpc(args, this.session, async);
         },
         find: function(condition, offset, limit, order, context) {
             if (!offset) offset = 0;
@@ -152,6 +153,9 @@
             }
             this.record_deleted = record_deleted;
             if (new_records.length && modified) {
+                new_records.forEach(function(record) {
+                    record._changed.id = true;
+                });
                 var root_group = this.root_group();
                 this.changed().then(function() {
                     root_group.screens.forEach(function(screen) {
@@ -218,18 +222,10 @@
             }
             return record;
         };
-        // [Bug Sao]
-        // TODO: report to tryton
-        //      limit calls to changed()
-        array.remove = function(record, remove, modified, force_remove, apply_changes) {
+        array.remove = function(record, remove, modified, force_remove) {
             if (modified === undefined) {
                 modified = true;
             }
-
-            if (apply_changes === undefined) {
-                apply_changes = true;
-            }
-
             var idx = this.indexOf(record);
             if (record.id >= 0) {
                 if (remove) {
@@ -256,11 +252,6 @@
                 this._remove(record);
             }
             record.group.changed();
-            if (apply_changes){
-                record.group.root_group().screens.forEach(function(screen) {
-                    screen.display();
-                });
-            }
         };
         array._remove = function(record) {
             var idx = this.indexOf(record);
@@ -631,7 +622,6 @@
             fnames = fnames.filter(function(e, i, a) {
                 return !(e in this._loaded);
             }.bind(this));
-
             var fnames_to_fetch = fnames.slice();
             var rec_named_fields = ['many2one', 'one2one', 'reference'];
             for (var i in fnames) {
@@ -885,22 +875,13 @@
             return jQuery.when();
         },
         set_default: function(values, validate) {
-            if (validate === null || validate === undefined) {
+            if (validate === undefined) {
                 validate = true;
             }
             var promises = [];
             var fieldnames = [];
-            var exclude_fields = [];
-            this.group.screens.forEach(function(screen){
-                if (screen.exclude_field){
-                    exclude_fields.push(screen.exclude_field);
-                }
-            });
             for (var fname in values) {
                 if (!values.hasOwnProperty(fname)) {
-                    continue;
-                }
-                if (exclude_fields.indexOf(fname) >= 0){
                     continue;
                 }
                 var value = values[fname];
@@ -1509,10 +1490,13 @@
             }
             return record.state_attrs[this.name];
         },
+        _is_empty: function(record) {
+            return !this.get_eval(record);
+        },
         check_required: function(record) {
             var state_attrs = this.get_state_attrs(record);
             if (state_attrs.required == 1) {
-                if (!this.get(record) && (state_attrs.readonly != 1)) {
+                if (this._is_empty(record) && (state_attrs.readonly != 1)) {
                     return false;
                 }
             }
@@ -1813,19 +1797,12 @@
         get_client: function(record) {
             var rec_name = record._values[this.name + '.rec_name'];
             if (rec_name === undefined) {
-                var prm = this.set(record, this.get(record));
-                if (prm !== null){
-                    return prm.then(function(){
-                        return record._values[this.name + '.rec_name'] || '';
-                    }.bind(this));
-                } else {
-                    return record._values[this.name + '.rec_name'] || '';
-                }
+                this.set(record, this.get(record));
+                rec_name = record._values[this.name + '.rec_name'] || '';
             }
             return rec_name;
         },
         set: function(record, value) {
-            var prm = null;
             var rec_name = record._values[this.name + '.rec_name'] || '';
             var store_rec_name = function(rec_name) {
                 record._values[this.name + '.rec_name'] = rec_name[0].rec_name;
@@ -1833,7 +1810,7 @@
             if (!rec_name && (value >= 0) && (value !== null)) {
                 var model_name = record.model.fields[this.name].description
                     .relation;
-                prm = Sao.rpc({
+                Sao.rpc({
                     'method': 'model.' + model_name + '.read',
                     'params': [[value], ['rec_name'], record.get_context()]
                 }, record.model.session).done(store_rec_name.bind(this)).done(
@@ -1847,7 +1824,6 @@
                 store_rec_name.call(this, [{'rec_name': rec_name}]);
             }
             record._values[this.name] = value;
-            return prm;
         },
         set_client: function(record, value, force_change) {
             var rec_name;
@@ -1905,7 +1881,7 @@
             Sao.field.One2Many._super.init.call(this, description);
         },
         _default: null,
-        _set_value: function(record, value, default_) {
+        _set_value: function(record, value, default_, modified) {
             this._set_default_value(record);
             var group = record._values[this.name];
             var prm = jQuery.when();
@@ -1955,14 +1931,14 @@
                             group.remove(old_record, true);
                         }
                     }
-                    group.load(value);
+                    group.load(value, modified);
                 } else {
                     value.forEach(function(vals) {
                         var new_record = group.new_(false);
                         if (default_) {
                             // Don't validate as parent will validate
                             promises.push(new_record.set_default(vals, false));
-                            group.add(new_record, -1, false);
+                            group.add(new_record);
                         } else {
                             promises.push(new_record.set(vals));
                             group.push(new_record);
@@ -2011,14 +1987,15 @@
                 }
                 var values;
                 if (record2.id >= 0) {
-                    values = record2.get();
-                    delete values[parent_name];
-                    if (record2.has_changed() &&
-                            !jQuery.isEmptyObject(values)) {
-                        to_write.push([record2.id]);
-                        to_write.push(values);
+                    if (record2.has_changed()) {
+                        values = record2.get();
+                        delete values[parent_name];
+                        if (!jQuery.isEmptyObject(values)) {
+                            to_write.push([record2.id]);
+                            to_write.push(values);
+                        }
+                        to_add.push(record2.id);
                     }
-                    to_add.push(record2.id);
                 } else {
                     values = record2.get();
                     delete values[parent_name];
@@ -2057,8 +2034,10 @@
             }
 
             var previous_ids = this.get_eval(record);
-            this._set_value(record, value);
-            if (!Sao.common.compare(previous_ids.sort(), value.sort())) {
+            var modified = !Sao.common.compare(
+                previous_ids.sort(), value.sort());
+            this._set_value(record, value, false, modified);
+            if (modified) {
                 record._changed[this.name] = true;
                 this.changed(record).done(function() {
                     record.validate(null, true).then(function() {
@@ -2089,7 +2068,7 @@
             record._changed[this.name] = true;
             this._set_default_value(record);
             if (value instanceof Array) {
-                this._set_value(record, value);
+                this._set_value(record, value, false, true);
                 return;
             }
             var prm = jQuery.when();
@@ -2141,7 +2120,7 @@
                 }.bind(this));
             }
             to_remove.forEach(function(record2) {
-                group.remove(record2, false, true, false, false);
+                group.remove(record2, false, true, false);
             }.bind(this));
 
             if (value.add || value.update) {
@@ -2188,17 +2167,16 @@
             record._values[this.name] = group;
         },
         get_timestamp: function(record) {
-            var group = record._values[this.name];
-            if (group === undefined) {
-                return {};
-            }
-
             var timestamps = {};
+            var group = record._values[this.name] || [];
+            var records = group.filter(function(record) {
+                return record.has_changed();
+            });
             var record2;
-            for (var i = 0, len = group.length; i < len; i++) {
-                record2 = group[i];
-                jQuery.extend(timestamps, record2.get_timestamp());
-            }
+            jQuery.extend(records, group.record_removed, group.record_deleted)
+            .forEach(function(record) {
+                jQuery.extend(timestamps, record.get_timestamp());
+            });
             return timestamps;
         },
         get_eval: function(record) {
@@ -2262,12 +2240,8 @@
             for (var i = 0, len = (record._values[this.name] || []).length;
                     i < len; i++) {
                 var record2 = record._values[this.name][i];
-                // [Bug Sao]
-                // TODO: report to tryton
-                //      empty list equal false in python but true in js
                 if (!record2.get_loaded() && (record2.id >= 0) &&
-                    (!pre_validate || (pre_validate instanceof Array &&
-                        pre_validate.length === 0))){
+                        !pre_validate) {
                     continue;
                 }
                 if (!record2.validate(null, softvalidation, ldomain, true)) {
@@ -2413,7 +2387,15 @@
             return inversion.concat([inversion.localize_domain(
                         inversion.filter_leaf(screen_domain, this.name, model),
                         true), attr_domain]);
-        }
+        },
+        _is_empty: function(record) {
+            var result = Sao.field.Reference._super._is_empty.call(
+                this, record);
+            if (!result && record._values[this.name][1] < 0) {
+                result = true;
+            }
+            return result;
+        },
     });
 
     Sao.field.Binary = Sao.class_(Sao.field.Field, {

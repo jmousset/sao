@@ -80,6 +80,17 @@ var Sao = {};
         })()
     });
 
+    window.onbeforeunload = function(e) {
+        if (Sao.main_menu_screen) {
+            Sao.main_menu_screen.save_tree_state(true);
+        }
+        if (Sao.Tab.tabs.length) {
+            var dialog = Sao.i18n.gettext("Are your sure to leave?");
+            e.returnValue = dialog;
+            return dialog;
+        }
+    };
+
     Sao.class_ = function(Parent, props) {
         var ClassConstructor = function() {
             if (!(this instanceof ClassConstructor))
@@ -122,11 +133,8 @@ var Sao = {};
 
     Sao.DateTime = function(year, month, day, hour, minute, second,
             millisecond, utc) {
-        // [Bug Sao] - handle all values to null
-        // TODO: report to tryton
         var datetime;
-        if ((month === undefined || month === null) &&
-            (year !== undefined && year !== null)) {
+        if (month === undefined) {
             datetime = moment(year);
             year = undefined;
         }
@@ -139,7 +147,7 @@ var Sao = {};
         datetime.year(year);
         datetime.month(month);
         datetime.date(day);
-        if (month !== undefined && month !== null) {
+        if (month !== undefined) {
             datetime.hour(hour || 0);
             datetime.minute(minute || 0);
             datetime.second(second || 0);
@@ -189,7 +197,7 @@ var Sao = {};
     Sao.config.display_size = 20;
     Sao.config.roundup = {};
     Sao.config.roundup.url = 'http://bugs.tryton.org/roundup/';
-    Sao.config.title = 'Coog';
+    Sao.config.title = 'Tryton';
 
     Sao.i18n = i18n();
     Sao.i18n.setlang = function(lang) {
@@ -239,11 +247,7 @@ var Sao = {};
                     (preferences.actions || []).forEach(function(action_id) {
                         Sao.Action.execute(action_id, {}, null, {});
                     });
-                    var title = Sao.config.title;
-                    if (!jQuery.isEmptyObject(preferences.status_bar)) {
-                        title += ' - ' + preferences.status_bar;
-                    }
-                    document.title = title;
+                    Sao.set_title(preferences.status_bar);
                     var new_lang = preferences.language != Sao.i18n.getLocale();
                     var prm = jQuery.Deferred();
                     Sao.i18n.setlang(preferences.language).always(function() {
@@ -256,6 +260,27 @@ var Sao = {};
                 });
             });
         });
+    };
+
+    Sao.set_title = function(value) {
+        var title = [Sao.config.title];
+        var session = Sao.Session.current_session;
+        var login_info = '';
+        if (session) {
+            if (session.login) {
+                login_info = session.login + '@' + document.location.host;
+            }
+            if (session.database) {
+                login_info += '/' + session.database;
+            }
+            title = title.concat(login_info);
+        } else {
+            title = title.concat(document.location.host);
+        }
+        if (value) {
+            title = title.concat(value);
+        }
+        document.title = title.join(' - ');
     };
 
     Sao.login = function() {
@@ -276,8 +301,8 @@ var Sao = {};
             jQuery('#user-logout').children().remove();
             jQuery('#user-favorites').children().remove();
             jQuery('#menu').children().remove();
-            document.title = Sao.config.title;
             session.do_logout().always(Sao.login);
+            Sao.set_title();
         });
     };
 
@@ -401,12 +426,15 @@ var Sao = {};
             'view_ids': view_ids,
             'domain': domain,
             'context': action_ctx,
-            'selection_mode': Sao.common.SELECTION_SINGLE
+            // [Coog Specific] dbclick on menu entries
+            'selection_mode': Sao.common.SELECTION_SINGLE,
+            'limit': null
         });
         Sao.Tab.tabs.splice(Sao.Tab.tabs.indexOf(form), 1);
         form.view_prm.done(function() {
             Sao.main_menu_screen = form.screen;
             var view = form.screen.current_view;
+            view.table.removeClass('table table-bordered table-striped');
             view.table.find('thead').hide();
             jQuery('#menu').children().remove();
 
@@ -500,6 +528,14 @@ var Sao = {};
             this.footer = jQuery('<div/>', {
                 'class': 'modal-footer'
             }).appendTo(this.content);
+
+            this.modal.on('shown.bs.modal', function() {
+                var currently_focused = jQuery(document.activeElement);
+                var has_focus = currently_focused.closest(this.el) > 0;
+                if (!has_focus) {
+                    jQuery(this).find(':input:visible:first').focus();
+                }
+            });
         },
         add_title: function(title) {
             this.header.append(jQuery('<h4/>', {
@@ -514,7 +550,8 @@ var Sao = {};
                 'class': 'global-search-container'
             });
             this.search_entry = jQuery('<input>', {
-                'class': 'form-control',
+                'id': 'global-search-entry',
+                'class': 'form-control mousetrap',
                 'placeholder': Sao.i18n.gettext('Search...')
             });
             this.el.append(this.search_entry);
@@ -576,6 +613,168 @@ var Sao = {};
         }
     });
 
+    function shortcuts_defs() {
+        // Shortcuts available on Tab on this format:
+        // {shortcut, label, id of tab button or callback method}
+        return [
+            {
+                shortcut: 'ctrl+a',
+                label: Sao.i18n.gettext('New'),
+                id: 'new_',
+            }, {
+                shortcut: 'ctrl+s',
+                label: Sao.i18n.gettext('Save'),
+                id: 'save',
+            }, {
+                shortcut: 'ctrl+l',
+                label: Sao.i18n.gettext('Switch'),
+                id: 'switch_',
+            }, {
+                shortcut: 'ctrl+r',
+                label: Sao.i18n.gettext('Reload/Undo'),
+                id: 'reload',
+            }, {
+                shortcut: 'ctrl+shift+d',
+                label: Sao.i18n.gettext('Duplicate'),
+                id: 'copy',
+            }, {
+                shortcut: 'ctrl+d',
+                label: Sao.i18n.gettext('Delete'),
+                id: 'delete_',
+            }, {
+                shortcut: 'ctrl+up',
+                label: Sao.i18n.gettext('Previous'),
+                id: 'previous',
+            }, {
+                shortcut: 'ctrl+down',
+                label: Sao.i18n.gettext('Next'),
+                id: 'next',
+            }, {
+                shortcut: 'ctrl+f',
+                label: Sao.i18n.gettext('Search'),
+                id: 'search',
+            }, {
+                shortcut: 'ctrl+x',
+                label: Sao.i18n.gettext('Close Tab'),
+                id: 'close',
+            }, {
+                shortcut: 'ctrl+shift+t',
+                label: Sao.i18n.gettext('Attachment'),
+                id: 'attach',
+            }, {
+                shortcut: 'ctrl+shift+o',
+                label: Sao.i18n.gettext('Note'),
+                id: 'note',
+            }, {
+                shortcut: 'ctrl+e',
+                label: Sao.i18n.gettext('Action'),
+                id: 'action',
+            }, {
+                shortcut: 'ctrl+shift+r',
+                label: Sao.i18n.gettext('Relate'),
+                id: 'relate',
+            }, {
+                shortcut: 'ctrl+p',
+                label: Sao.i18n.gettext('Print'),
+                id: 'print',
+            }, {
+                shortcut: 'ctrl+left',
+                label: Sao.i18n.gettext('Previous tab'),
+                callback: function() {
+                    Sao.Tab.previous_tab();
+                },
+            }, {
+                shortcut: 'ctrl+right',
+                label: Sao.i18n.gettext('Next tab'),
+                callback: function() {
+                    Sao.Tab.next_tab();
+                },
+            }, {
+                shortcut: 'ctrl+k',
+                label: Sao.i18n.gettext('Global search'),
+                callback: function() {
+                    jQuery('#global-search-entry').focus();
+                },
+            }, {
+                shortcut: 'ctrl+h',
+                label: Sao.i18n.gettext('Show this help'),
+                callback: function() {
+                    shortcuts_dialog();
+                },
+            },
+        ];
+    }
+
+    jQuery(document).ready(function() {
+        set_shortcuts();
+    });
+
+    function set_shortcuts() {
+        if (typeof Mousetrap != 'undefined') {
+            shortcuts_defs().forEach(function(definition) {
+                Mousetrap.bind(definition.shortcut, function() {
+                    if (definition.id){
+                        var current_tab = Sao.Tab.tabs.get_current();
+                        if (current_tab) {
+                            var focused = $(':focus');
+                            focused.blur();
+                            current_tab.el.find('a[id="' + definition.id + '"]').click();
+                            focused.focus();
+                        }
+                    } else if (definition.callback) {
+                        jQuery.when().then(definition.callback);
+                    }
+                    return false;
+                });
+            });
+        }
+    }
+
+    function shortcuts_dialog() {
+        var dialog = new Sao.Dialog(Sao.i18n.gettext('Keyboard shortcuts'),
+            'shortcut-dialog', 'm');
+        jQuery('<button>', {
+            'class': 'close',
+            'data-dismiss': 'modal',
+            'aria-label': Sao.i18n.gettext("Close"),
+        }).append(jQuery('<span>', {
+            'aria-hidden': true,
+        }).append('&times;')).prependTo(dialog.header);
+        var row = jQuery('<div/>', {
+            'class': 'row'
+        }).appendTo(dialog.body);
+        var global_shortcuts_dl = jQuery('<dl/>', {
+            'class': 'dl-horizontal col-md-6'
+        }).append(jQuery('<h5/>')
+                  .append(Sao.i18n.gettext('Global shortcuts')))
+            .appendTo(row);
+        var tab_shortcuts_dl = jQuery('<dl/>', {
+            'class': 'dl-horizontal col-md-6'
+        }).append(jQuery('<h5/>')
+            .append(Sao.i18n.gettext('Tab shortcuts')))
+        .appendTo(row);
+
+        shortcuts_defs().forEach(function(definition) {
+            var dt = jQuery('<dt/>').append(definition.label);
+            var dd = jQuery('<dd/>').append(jQuery('<kbd>')
+                .append(definition.shortcut));
+            var dest_dl;
+            if (definition.id) {
+                dest_dl = tab_shortcuts_dl;
+            } else {
+                dest_dl = global_shortcuts_dl;
+            }
+            dt.appendTo(dest_dl);
+            dd.appendTo(dest_dl);
+        });
+        dialog.modal.on('hidden.bs.modal', function() {
+            jQuery(this).remove();
+        });
+
+        dialog.modal.modal('show');
+        return false;
+    }
+
     // Fix stacked modal
     jQuery(document)
         .on('show.bs.modal', '.modal', function(event) {
@@ -594,12 +793,6 @@ var Sao = {};
             var $modal = jQuery(this);
             modalZIndex++;
             $modal.css('zIndex', modalZIndex);
-            var visible_height = jQuery(window).height() * 0.8;
-            var modal_body = $modal.find('.modal-body');
-            if (modal_body.height() > visible_height) {
-                modal_body.addClass('scrollable-modal');
-                modal_body.css('max-height', visible_height);
-            }
             $modal.next('.modal-backdrop.in').addClass('hidden')
             .css('zIndex', modalZIndex - 1);
         });

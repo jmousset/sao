@@ -160,7 +160,7 @@
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('New')
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-plus'
+                    'class': 'glyphicon glyphicon-edit'
                 })).appendTo(buttons);
                 this.but_new.click(this.new_.bind(this));
                 this.but_new.prop('disabled', !access.create || readonly);
@@ -213,7 +213,7 @@
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('Switch')
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-resize-full'
+                    'class': 'glyphicon glyphicon-list-alt'
                 })).appendTo(buttons);
                 this.but_switch.click(this.switch_.bind(this));
             }
@@ -470,6 +470,8 @@
             this.model_name = model;
             this.domain = kwargs.domain || [];
             this.context = kwargs.context || {};
+            this.view_ids = kwargs.view_ids;
+            this.views_preload = views_preload;
             this.sel_multi = kwargs.sel_multi;
             this.callback = callback;
             this.title = kwargs.title || '';
@@ -513,10 +515,17 @@
                 view_ids: kwargs.view_ids,
                 views_preload: views_preload,
                 row_activate: this.activate.bind(this),
-                editable: false
+                readonly: true,
             });
             this.screen.load_next_view().done(function() {
                 this.screen.switch_view().done(function() {
+                    if (!this.sel_multi) {
+                        this.screen.current_view.selection_mode = (
+                            Sao.common.SELECTION_SINGLE);
+                    } else {
+                        this.screen.current_view.selection_mode = (
+                            Sao.common.SELECTION_MULTIPLE);
+                    }
                     dialog.body.append(this.screen.screen_container.el);
                     this.el.modal('show');
                     this.screen.display();
@@ -541,10 +550,17 @@
                 this.screen.search_filter();
                 return;
             } else if (response_id == 'RESPONSE_ACCEPT') {
+                var view_ids = jQuery.extend([], this.view_ids);
+                if (!jQuery.isEmptyObject(view_ids)) {
+                    // Remove the first tree view as mode is form only
+                    view_ids.shift();
+                }
                 var screen = new Sao.Screen(this.model_name, {
                     domain: this.domain,
                     context: this.context,
-                    mode: ['form']
+                    mode: ['form'],
+                    view_ids: view_ids,
+                    views_preload: this.views_preload,
                 });
 
                 var callback = function(result) {
@@ -910,13 +926,18 @@
                 'for': 'input-delimiter'
             });
 
+            var separator = ',';
+            if (navigator.platform == 'Win32' ||
+                navigator.platform == 'Windows') {
+                separator = ';';
+            }
             this.el_csv_delimiter = jQuery('<input/>', {
                 'type': 'text',
                 'class': 'form-control',
                 'id': 'input-delimiter',
                 'size': '1',
                 'maxlength': '1',
-                'value': ','
+                'value': separator
             });
 
             jQuery('<div/>', {
@@ -1424,6 +1445,17 @@
                         name: name+'.translated',
                         field: field,
                         string: Sao.i18n.gettext('%1 (string)', string)
+                    });
+                } else if (field.type == 'reference') {
+                    items.push({
+                        name: name + '.translated',
+                        field: field,
+                        string: Sao.i18n.gettext("%1 (model name)", string),
+                    });
+                    items.push({
+                        name: name + '/rec_name',
+                        field: field,
+                        string: Sao.i18n.gettext("%1 (record name)", string),
                     });
                 }
 

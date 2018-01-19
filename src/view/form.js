@@ -289,11 +289,12 @@ function eval_pyson(value){
             var record = this.screen.current_record;
             var field;
             var name;
-            var promesses = {};
+            var promesses = [];
             if (record) {
                 // Force to set fields in record
                 // Get first the lazy one to reduce number of requests
 
+                // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
                 var fields = [];
                 for (name in this._field_keys) {
@@ -303,49 +304,39 @@ function eval_pyson(value){
                 fields.sort(function(a, b) {
                     return a[1].localeCompare(b[1]);
                 });
+                // [Coog specific]
+                // JMO: report https://github.com/coopengo/tryton/pull/13
                 record.fields_to_load = this._field_keys;
                 fields.forEach(function(e) {
                     var name = e[0];
-                    promesses[name] = record.load(name);
+                    promesses.push(record.load(name));
                 });
+                // [Coog specific]
+                // JMO: report https://github.com/coopengo/tryton/pull/13
                 record.fields_to_load = {};
             }
-            var set_state = function(record, field, name) {
-                var prm = jQuery.when();
-                if (name in promesses) {
-                    prm = promesses[name];
-                }
-                promesses[name] = prm.done(function() {
-                    field.set_state(record);
-                });
-            };
-            var display = function(record, field, name) {
+            var display = function(record, field) {
                 return function(widget) {
-                    var prm = jQuery.when();
-                    if (name in promesses) {
-                        prm = promesses[name];
-                    }
-                    promesses[name] = prm.then(function() {
-                        return widget.display(record, field);
-                    });
+                    widget.display(record, field);
                 };
             };
-            for (name in this.widgets) {
-                var widgets = this.widgets[name];
-                field = null;
-                if (record) {
-                    field = record.model.fields[name];
-                }
-                if (field) {
-                    set_state(record, field, name);
-                }
-                widgets.forEach(display(record, field, name));
-            }
-            return jQuery.when.apply(jQuery,
-                    jQuery.map(promesses, function(p) {
-                        return p;
-                    })
-                ).done(function() {
+            return jQuery.when.apply(jQuery,promesses)
+                .done(function() {
+                    var record = this.screen.current_record;
+                    for (name in this.widgets) {
+                        var widgets = this.widgets[name];
+                        field = null;
+                        if (record) {
+                            field = record.model.fields[name];
+                        }
+                        if (field) {
+                            field.set_state(record);
+                        }
+                        widgets.forEach(display(record, field));
+                    }
+                }.bind(this))
+                .done(function() {
+                    var record = this.screen.current_record;
                     var j;
                     for (j in this.state_widgets) {
                         var state_widget = this.state_widgets[j];
@@ -399,7 +390,7 @@ function eval_pyson(value){
                 if (reset_view) {
                     for (i = 0; i < this.notebooks.length; i++) {
                         notebook = this.notebooks[i];
-                        notebook.set_current_page(0);
+                        notebook.set_current_page();
                     }
                 }
                 if (this.attributes.cursor in this.widgets) {
@@ -453,8 +444,8 @@ function eval_pyson(value){
                         }
                     }
                 }
-                // Only input & textarea can grab the focus
-                jQuery(focus_el).find('input,select,textarea').focus();
+                jQuery(focus_el).find('input,select,textarea')
+                    .addBack(focus_el).focus();
             }
         }
     });
@@ -534,12 +525,6 @@ function eval_pyson(value){
                 widget.el.data('toggle', 'tooltip');
                 widget.el.attr('title', attributes.help);
                 widget.el.tooltip();
-            }
-            // dirty fix for span rendering
-            //      > bugs.tryton.org/issue5419
-            if (this.col == 6 && !(colspan == 1 || colspan == 6)) {
-                cell.removeClass('xexpand');
-                cell.removeClass('xfill');
             }
         },
         resize: function() {
@@ -629,10 +614,18 @@ function eval_pyson(value){
                     } else {
                         cell.css('width', '');
                     }
+                    // show/hide when container is horizontal or vertical
+                    // to not show padding
                     if (cell.children().css('display') == 'none') {
                         cell.css('visibility', 'collapse');
+                        if (col <= 1) {
+                            cell.hide();
+                        }
                     } else {
                         cell.css('visibility', 'visible');
+                        if (col <= 1) {
+                            cell.show();
+                        }
                     }
                     i += colspan;
                 });
@@ -776,8 +769,13 @@ function eval_pyson(value){
             return page;
         },
         set_current_page: function(page_index) {
-            var tab = this.nav.find(
-                    'li[role="presentation"]:eq(' + page_index + ') a');
+            var selector;
+            if (page_index === undefined) {
+                selector = ':visible:first';
+            } else {
+                selector = ':eq(' + page_index + '):visible';
+            }
+            var tab = this.nav.find('li' + selector + ' a');
             tab.tab('show');
         },
         get_n_pages: function() {
@@ -792,6 +790,12 @@ function eval_pyson(value){
         init: function(el, attributes) {
             Sao.View.Form.Page._super.init.call(this, attributes);
             this.el = el;
+        },
+        hide: function() {
+            Sao.View.Form.Page._super.hide.call(this);
+            if (this.el.hasClass('active')) {
+                this.el.next(':visible').find('a').tab('show');
+            }
         }
     });
 
@@ -799,9 +803,12 @@ function eval_pyson(value){
         class_: 'form-group_',
         init: function(attributes) {
             Sao.View.Form.Group._super.init.call(this, attributes);
-            this.el = jQuery('<div/>', {
+            this.el = jQuery('<fieldset/>', {
                 'class': this.class_
             });
+            if (attributes.string) {
+                this.el.append(jQuery('<legend/>').text(attributes.string));
+            }
         },
         add: function(widget) {
             this.el.append(widget.el);
@@ -936,7 +943,17 @@ function eval_pyson(value){
                 readonly = true;
             }
             this.set_readonly(readonly);
+            if (readonly) {
+                this.el.addClass('readonly');
+            } else {
+                this.el.removeClass('readonly');
+            }
             this.set_required(required);
+            if (!readonly && required) {
+                this.el.addClass('required');
+            } else {
+                this.el.removeClass('required');
+            }
             var invalid = state_attrs.invalid;
             if (!readonly && invalid) {
                 this.el.addClass('has-error');
@@ -983,14 +1000,13 @@ function eval_pyson(value){
             this.visible = !invisible;
             if (invisible) {
                 this.el.hide();
-                this.el.css('width', '0px');
             } else {
                 this.el.show();
-                this.el.css('width', '100%');
             }
         }
     });
 
+    // [Coog specific]
     function TreeElement(){
         this.init = function(parent, element, good_text, lvl){
             if (!element || !element.description)
@@ -1503,7 +1519,7 @@ function eval_pyson(value){
             }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(this.group);
             if (!jQuery.isEmptyObject(attributes.autocomplete)) {
                 this.datalist = jQuery('<datalist/>').appendTo(this.el);
@@ -1637,7 +1653,7 @@ function eval_pyson(value){
             }).appendTo(this.el);
             this.input = jQuery('<input/>', {
                 'type': 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(this.date);
             jQuery('<span/>', {
                 'class': 'input-group-btn'
@@ -1656,32 +1672,16 @@ function eval_pyson(value){
         get_format: function(record, field) {
             return field.date_format(record);
         },
-      get_picker: function() {
-        // [Bug Sao] - remove once record.destroy() is implemented.
-        // When Screen.remove() is called, record.destroy() should be
-        // called as well but is not implemented yet.
-        // Therefore display() of all elements child of the
-        // removed screen are called.
-        if (!this.date.data('DateTimePicker')) {
-            this.date.datetimepicker();
-            this.date.css('width', this._width);
-            this.date.on('dp.change', this.focus_out.bind(this));
-        }
-        return this.date.data('DateTimePicker');
-      },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
-                // [Bug Sao] - DateTimePicker.date() return dateTime
-                // TODO: report to tryton
-                value.startOf('day');
                 value.isDate = true;
             }
             return value;
         },
         display: function(record, field) {
             if (record && field) {
-                this.get_picker().format(
+                this.date.data('DateTimePicker').format(
                     Sao.common.moment_format(this.get_format(record, field)));
             }
             Sao.View.Form.Date._super.display.call(this, record, field);
@@ -1691,7 +1691,7 @@ function eval_pyson(value){
             } else {
                 value = null;
             }
-            this.get_picker().date(value);
+            this.date.data('DateTimePicker').date(value);
         },
         focus: function() {
             this.input.focus();
@@ -1712,7 +1712,7 @@ function eval_pyson(value){
             return field.date_format(record) + ' ' + field.time_format(record);
         },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
                 value.isDateTime = true;
             }
@@ -1727,7 +1727,7 @@ function eval_pyson(value){
             return field.time_format(record);
         },
         get_value: function(record, field) {
-            var value = this.get_picker().date();
+            var value = this.date.data('DateTimePicker').date();
             if (value) {
                 value.isTime = true;
             }
@@ -1745,7 +1745,7 @@ function eval_pyson(value){
             });
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(this.el);
             this.el.change(this.focus_out.bind(this));
         },
@@ -1804,7 +1804,7 @@ function eval_pyson(value){
                 'class': this.class_
             });
             this.select = this.labelled = jQuery('<select/>', {
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             });
             this.el.append(this.select);
             this.select.change(this.focus_out.bind(this));
@@ -1835,11 +1835,9 @@ function eval_pyson(value){
             });
         },
         display_update_selection: function(record, field) {
-            var dfrd = jQuery.Deferred();
             this.update_selection(record, field, function() {
                 if (!field) {
                     this.select.val('');
-                    dfrd.resolve();
                     return;
                 }
                 var value = field.get(record);
@@ -1853,7 +1851,7 @@ function eval_pyson(value){
                 if (!found) {
                     prm = Sao.common.selection_mixin.get_inactive_selection
                         .call(this, value);
-                    prm = prm.done(function(inactive) {
+                    prm.done(function(inactive) {
                         this.select.append(jQuery('<option/>', {
                             value: JSON.stringify(inactive[0]),
                             text: inactive[1],
@@ -1865,14 +1863,12 @@ function eval_pyson(value){
                 }
                 prm.done(function() {
                     this.select.val(JSON.stringify(value));
-                    dfrd.resolve();
                 }.bind(this));
             }.bind(this));
-            return (dfrd.promise());
         },
         display: function(record, field) {
             Sao.View.Form.Selection._super.display.call(this, record, field);
-            return this.display_update_selection(record, field);
+            this.display_update_selection(record, field);
         },
         focus: function() {
             this.select.focus();
@@ -1897,13 +1893,10 @@ function eval_pyson(value){
             this.el = jQuery('<div/>', {
                 'class': this.class_
             });
-            this.group = jQuery('<div/>', {
-                'class': 'input-group input-group-sm'
-            }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'checkbox',
-                'class': 'form-control input-sm'
-            }).appendTo(this.group);
+                'class': 'form-control input-sm mousetrap'
+            }).appendTo(this.el);
             this.input.change(this.focus_out.bind(this));
             this.input.click(function() {
                 // Dont trigger click if field is readonly as readonly has no
@@ -1941,7 +1934,7 @@ function eval_pyson(value){
                 'class': this.class_
             });
             this.input = this.labelled = jQuery('<textarea/>', {
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(this.el);
             this.input.change(this.focus_out.bind(this));
             if (this.attributes.translate) {
@@ -1997,7 +1990,7 @@ function eval_pyson(value){
                 this.get_toolbar().appendTo(this.el);
             }
             this.input = this.labelled = jQuery('<div/>', {
-                'class': 'richtext pre',
+                'class': 'richtext mousetrap',
                 'contenteditable': true
             }).appendTo(jQuery('<div/>', {
                 'class': 'panel-body'
@@ -2117,7 +2110,6 @@ function eval_pyson(value){
                             document.execCommand(command, false, jQuery(this).val());
                         }).val(color);
             });
-            this.toolbar = toolbar;
             return toolbar;
         },
         focus_out: function() {
@@ -2142,24 +2134,20 @@ function eval_pyson(value){
         },
         set_value: function(record, field) {
             // TODO order attributes
-            // [Bug Sao]
-            //    > don't edit the content when widget is readonly
-            if (!this.input.prop('contenteditable')){
-                this.input.find('div').each(function(i, el) {
-                    el = jQuery(el);
-                    // Not all browsers respect the styleWithCSS
-                    if (el.css('text-align')) {
-                        // Remove browser specific prefix
-                        var align = el.css('text-align').split('-').pop();
-                        el.attr('align', align);
-                        el.css('text-align', '');
-                    }
-                    // Some browsers set start as default align
-                    if (el.attr('align') == 'start') {
-                        el.attr('align', 'left');
-                    }
-                });
-            }
+            this.input.find('div').each(function(i, el) {
+                el = jQuery(el);
+                // Not all browsers respect the styleWithCSS
+                if (el.css('text-align')) {
+                    // Remove browser specific prefix
+                    var align = el.css('text-align').split('-').pop();
+                    el.attr('align', align);
+                    el.css('text-align', '');
+                }
+                // Some browsers set start as default align
+                if (el.attr('align') == 'start') {
+                    el.attr('align', 'left');
+                }
+            });
             var value = this.input.html() || '';
             field.set_client(record, value);
         },
@@ -2167,7 +2155,6 @@ function eval_pyson(value){
             this.input.prop('contenteditable', !readonly);
             if (this.toolbar) {
                 this.toolbar.find('button,select').prop('disabled', readonly);
-                this.toolbar.toggle(!readonly);
             }
         }
     });
@@ -2185,7 +2172,7 @@ function eval_pyson(value){
             }).appendTo(this.el);
             this.entry = this.labelled = jQuery('<input/>', {
                 'type': 'input',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(group);
             // Use keydown to not receive focus-in TAB
             this.entry.on('keydown', this.key_press.bind(this));
@@ -2224,11 +2211,16 @@ function eval_pyson(value){
         get_screen: function() {
             var domain = this.field().get_domain(this.record());
             var context = this.field().get_context(this.record());
+            var view_ids = (this.attributes.view_ids || '').split(',');
+            if (!jQuery.isEmptyObject(view_ids)) {
+                // Remove the first tree view as mode is form only
+                view_ids.shift();
+            }
             return new Sao.Screen(this.get_model(), {
                 'context': context,
                 'domain': domain,
                 'mode': ['form'],
-                'view_ids': (this.attributes.view_ids || '').split(','),
+                'view_ids': view_ids,
                 'views_preload': this.attributes.views,
                 'readonly': this._readonly
             });
@@ -2237,10 +2229,7 @@ function eval_pyson(value){
             if (jQuery.isEmptyObject(value)) {
                 value = '';
             }
-            jQuery.when(value).then(function(text){
-                if (text && typeof text == 'string')
-                    this.entry.val(text);
-            }.bind(this));
+            this.entry.val(value);
         },
         get_text: function() {
             var record = this.record();
@@ -2633,7 +2622,7 @@ function eval_pyson(value){
             return this.select.val();
         },
         has_target: function(value) {
-            if (value === null || value === undefined) {
+            if (value === null) {
                 return false;
             }
             var model = value.split(',')[0];
@@ -2763,6 +2752,38 @@ function eval_pyson(value){
                 'class': 'input-group-btn'
             }).appendTo(group);
 
+            this.but_switch = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm',
+                'type': 'button',
+                'aria-label': Sao.i18n.gettext('Switch')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-list-alt'
+            })).appendTo(buttons);
+            this.but_switch.click(this.switch_.bind(this));
+
+            this.but_previous = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm',
+                'type': 'button',
+                'aria-label': Sao.i18n.gettext('Previous')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-chevron-left'
+            })).appendTo(buttons);
+            this.but_previous.click(this.previous.bind(this));
+
+            this.label = jQuery('<span/>', {
+                'class': 'btn'
+            }).appendTo(buttons);
+            this.label.text('(0, 0)');
+
+            this.but_next = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm',
+                'type': 'button',
+                'aria-label': Sao.i18n.gettext('Next')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-chevron-right'
+            })).appendTo(buttons);
+            this.but_next.click(this.next.bind(this));
+
             if (attributes.add_remove) {
                 this.wid_text.show();
                 // TODO add completion
@@ -2791,7 +2812,7 @@ function eval_pyson(value){
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext('New')
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-pencil'
+                'class': 'glyphicon glyphicon-edit'
             })).appendTo(buttons);
             this.but_new.click(this.new_.bind(this));
 
@@ -2822,37 +2843,6 @@ function eval_pyson(value){
             })).appendTo(buttons);
             this.but_undel.click(this.undelete.bind(this));
 
-            this.but_previous = jQuery('<button/>', {
-                'class': 'btn btn-default btn-sm',
-                'type': 'button',
-                'aria-label': Sao.i18n.gettext('Previous')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-chevron-left'
-            })).appendTo(buttons);
-            this.but_previous.click(this.previous.bind(this));
-
-            this.label = jQuery('<span/>', {
-                'class': 'btn'
-            }).appendTo(buttons);
-            this.label.text('(0, 0)');
-
-            this.but_next = jQuery('<button/>', {
-                'class': 'btn btn-default btn-sm',
-                'type': 'button',
-                'aria-label': Sao.i18n.gettext('Next')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-chevron-right'
-            })).appendTo(buttons);
-            this.but_next.click(this.next.bind(this));
-
-            this.but_switch = jQuery('<button/>', {
-                'class': 'btn btn-default btn-sm',
-                'type': 'button',
-                'aria-label': Sao.i18n.gettext('Switch')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-resize-full'
-            })).appendTo(buttons);
-            this.but_switch.click(this.switch_.bind(this));
 
             // [Coog specific]
             //      > attribute expand_toolbar (hide toolbar)
@@ -2874,6 +2864,8 @@ function eval_pyson(value){
                 limit: null,
                 pre_validate: attributes.pre_validate
             });
+            // [Coog specific]
+            // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
             if (attributes.group)
                 this.screen.parent = this;
             this.screen.pre_validate = attributes.pre_validate == 1;
@@ -2885,7 +2877,8 @@ function eval_pyson(value){
 
             this.but_switch.prop('disabled', this.screen.number_of_views() <= 0);
         },
-        // [Coog specific] multi_mixed_view
+        // [Coog specific]
+        // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
         group_sync: function(screen, current_record){
             if (this.attributes.mode == 'form')
                 return;
@@ -3040,7 +3033,8 @@ function eval_pyson(value){
 
                 var new_group = record.field_get_client(this.field_name);
 
-                // [Coog specific] multi_mixed_view
+                // [Coog specific]
+                // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
                 if (this.attributes.group && this.attributes.mode == 'form'){
                     if (!this.screen.current_record)
                         this.set_invisible(true);
@@ -3069,7 +3063,6 @@ function eval_pyson(value){
                     this.screen.domain = domain;
                 }
                 this.screen.size_limit = size_limit;
-                this.screen.attributes.readonly = this._readonly;
                 this.screen.display();
             }.bind(this));
         },
@@ -3086,6 +3079,8 @@ function eval_pyson(value){
             if (!access.write || !access.read) {
                 return;
             }
+            // [Coog specific]
+            // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
             // this.view.set_value();
             var domain = this.field().get_domain(this.record());
             var context = this.field().get_context(this.record());
@@ -3279,6 +3274,8 @@ function eval_pyson(value){
         },
         validate: function() {
             var prm = jQuery.Deferred();
+            // [Coog specific]
+            // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
             // this.view.set_value();
             var record = this.screen.current_record;
             if (record) {
@@ -3306,6 +3303,8 @@ function eval_pyson(value){
             return prm;
         },
         set_value: function(record, field) {
+            // [Coog specific]
+            // > multi_mixed_view see tryton/8fa02ed59d03aa52600fb8332973f6a88d46d8c0
             if (this.screen.current_view.view_type == 'form' &&
                 this.attributes.group &&
                 this.screen.model.name != record.model.name)
@@ -3352,7 +3351,7 @@ function eval_pyson(value){
             }).appendTo(toolbar);
             this.entry = jQuery('<input/>', {
                 type: 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(group);
             // Use keydown to not receive focus-in TAB
             this.entry.on('keydown', this.key_press.bind(this));
@@ -3380,6 +3379,7 @@ function eval_pyson(value){
             })).appendTo(buttons);
             this.but_remove.click(this.remove.bind(this));
 
+            // [Coog specific]
             if (attributes.expand_toolbar)
                 this.menu.hide();
 
@@ -3581,6 +3581,14 @@ function eval_pyson(value){
                 'role': 'group'
             });
 
+            this.but_save_as = jQuery('<button/>', {
+                'class': 'btn btn-default',
+                'type': 'button'
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-save'
+            })).appendTo(group);
+            this.but_save_as.click(this.save_as.bind(this));
+
             this.but_select = jQuery('<button/>', {
                 'class': 'btn btn-default',
                 'type': 'button'
@@ -3588,24 +3596,6 @@ function eval_pyson(value){
                 'class': 'glyphicon glyphicon-search'
             })).appendTo(group);
             this.but_select.click(this.select.bind(this));
-
-            if (this.filename) {
-                this.but_open = jQuery('<button/>', {
-                    'class': 'btn btn-default',
-                    'type': 'button'
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-folder-open'
-                })).appendTo(group);
-                this.but_open.click(this.open.bind(this));
-            }
-
-            this.but_save_as = jQuery('<button/>', {
-                'class': 'btn btn-default',
-                'type': 'button'
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-floppy-disk'
-            })).appendTo(group);
-            this.but_save_as.click(this.save_as.bind(this));
 
             this.but_clear = jQuery('<button/>', {
                 'class': 'btn btn-default',
@@ -3621,6 +3611,17 @@ function eval_pyson(value){
             var record = this.record();
             if (record) {
                 return record.model.fields[this.filename];
+            }
+        },
+        update_buttons: function(value) {
+            if (value) {
+                this.but_save_as.show();
+                this.but_select.hide();
+                this.but_clear.show();
+            } else {
+                this.but_save_as.hide();
+                this.but_select.show();
+                this.but_clear.hide();
             }
         },
         select: function() {
@@ -3707,7 +3708,7 @@ function eval_pyson(value){
             }.bind(this));
         },
         clear: function() {
-	    var filename_field = this.filename_field();
+            var filename_field = this.filename_field();
             if (filename_field) {
                 filename_field.set_client(this.record(), null);
             }
@@ -3725,39 +3726,48 @@ function eval_pyson(value){
             this.el = jQuery('<div/>', {
                 'class': this.class_
             });
-
-            if (this.filename && attributes.filename_visible) {
-                this.text = jQuery('<input/>', {
-                    type: 'input',
-                    'class': 'form-control input-sm'
-                }).appendTo(this.el);
-                this.text.change(this.focus_out.bind(this));
-                // Use keydown to not receive focus-in TAB
-                this.text.on('keydown', this.key_press.bind(this));
-            }
-
             var group = jQuery('<div/>', {
                 'class': 'input-group input-group-sm'
             }).appendTo(this.el);
+
             this.size = jQuery('<input/>', {
                 type: 'input',
                 'class': 'form-control input-sm',
                 'readonly': true
             }).appendTo(group);
 
+            if (this.filename && attributes.filename_visible) {
+                this.text = jQuery('<input/>', {
+                    type: 'input',
+                    'class': 'form-control input-sm'
+                }).prependTo(group);
+                this.text.change(this.focus_out.bind(this));
+                // Use keydown to not receive focus-in TAB
+                this.text.on('keydown', this.key_press.bind(this));
+                this.text.css('width', '50%');
+                this.size.css('width', '50%');
+
+                this.but_open = jQuery('<button/>', {
+                    'class': 'btn btn-default',
+                    'type': 'button'
+                }).append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-folder-open'
+                })).appendTo(jQuery('<span/>', {
+                    'class': 'input-group-btn',
+                }).prependTo(group));
+                this.but_open.click(this.open.bind(this));
+            }
+
             this.toolbar('input-group-btn').appendTo(group);
         },
         display: function(record, field) {
             Sao.View.Form.Binary._super.display.call(this, record, field);
             if (!field) {
-                this.size.val('');
-                if (this.filename) {
-                    this.but_open.button('disable');
-                }
                 if (this.text) {
                     this.text.val('');
                 }
-                this.but_save_as.button('disable');
+                this.size.val('');
+                this.but_save_as.hide();
                 return;
             }
             var size;
@@ -3766,21 +3776,17 @@ function eval_pyson(value){
             } else {
                 size = field.get(record).length;
             }
-            var button_sensitive;
-            if (size) {
-                button_sensitive = 'enable';
-            } else {
-                button_sensitive = 'disable';
-            }
-
-            if (this.filename) {
-                if (this.text) {
-                    this.text.val(this.filename_field().get(record) || '');
-                }
-                this.but_open.button(button_sensitive);
-            }
             this.size.val(Sao.common.humanize(size));
-            this.but_save_as.button(button_sensitive);
+
+            if (this.text) {
+                this.text.val(this.filename_field().get(record) || '');
+                if (size) {
+                    this.but_open.parent().show();
+                } else {
+                    this.but_open.parent().hide();
+                }
+            }
+            this.update_buttons(Boolean(size));
         },
         key_press: function(evt) {
             var editable = !this.wid_text.prop('readonly');
@@ -3799,14 +3805,8 @@ function eval_pyson(value){
             }
         },
         set_readonly: function(readonly) {
-            if (readonly) {
-                this.but_select.hide();
-                this.but_clear.hide();
-
-            } else {
-                this.but_select.show();
-                this.but_clear.show();
-            }
+            this.but_select.prop('disabled', readonly);
+            this.but_clear.prop('disabled', readonly);
             if (this.wid_text) {
                 this.wid_text.prop('readonly', readonly);
             }
@@ -3884,12 +3884,8 @@ function eval_pyson(value){
             this.update_img();
         },
         set_readonly: function(readonly) {
-            [this.but_select, this.but_open, this.but_save_as, this.but_clear]
-                .forEach(function(button) {
-                    if (button) {
-                        button.prop('disable', readonly);
-                    }
-                });
+            this.but_select.prop('disable', readonly);
+            this.but_clear.prop('disable', readonly);
         },
         clear: function() {
             Sao.View.Form.Image._super.clear.call(this);
@@ -3920,6 +3916,7 @@ function eval_pyson(value){
                     url = window.URL.createObjectURL(blob);
                 }
                 this.image.attr('src', url);
+                this.update_buttons(Boolean(data));
             }.bind(this));
         },
         display: function(record, field) {
@@ -4045,16 +4042,15 @@ function eval_pyson(value){
         init: function(field_name, model, attributes) {
             Sao.View.Form.Dict._super.init.call(
                     this, field_name, model, attributes);
+
             this.schema_model = new Sao.Model(attributes.schema_model);
             this.keys = {};
             this.fields = {};
             this.rows = {};
-            this.no_command = attributes.no_command || false;
 
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
             });
-
             var heading = jQuery('<div/>', {
                 'class': this.class_ + '-heading panel-heading'
             }).appendTo(this.el);
@@ -4181,8 +4177,7 @@ function eval_pyson(value){
                 var widget = this.fields[key];
                 widget.set_readonly(readonly);
             }
-            if (!this.no_command)
-                this.wid_text.prop('disabled', readonly);
+            this.wid_text.prop('disabled', readonly);
         },
         _set_button_sensitive: function() {
             var create = this.attributes.create;
@@ -4193,12 +4188,10 @@ function eval_pyson(value){
             if (delete_ === undefined) {
                 delete_ = true;
             }
-            if (!this.no_command){
-                this.but_add.prop('disabled', this._readonly || !create);
-                for (var key in this.fields) {
-                    var button = this.fields[key].button;
-                    button.prop('disabled', this._readonly || !delete_);
-                }
+            this.but_add.prop('disabled', this._readonly || !create);
+            for (var key in this.fields) {
+                var button = this.fields[key].button;
+                button.prop('disabled', this._readonly || !delete_);
             }
         },
         add_line: function(key) {
@@ -4223,21 +4216,10 @@ function eval_pyson(value){
             field.labelled.attr('aria-labelledby', label.attr('id'));
             label.attr('for', field.labelled.attr('id'));
 
-            if (!this.no_command){
-                field.button = jQuery('<button/>', {
-                    'class': 'btn btn-default',
-                    'type': 'button',
-                    'arial-label': Sao.i18n.gettext('Remove')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-minus'
-                })).appendTo(jQuery('<div/>', {
-                    'class': 'input-group-btn'
-                }).appendTo(field.group));
+            field.button.click(function() {
+                this.remove(key, true);
+            }.bind(this));
 
-                field.button.click(function() {
-                    this.remove(key, true);
-                }.bind(this));
-            }
             row.appendTo(this.container);
         },
         add_keys: function(keys) {
@@ -4269,6 +4251,7 @@ function eval_pyson(value){
         },
         display: function(record, field) {
             Sao.View.Form.Dict._super.display.call(this, record, field);
+
             if (!field) {
                 return;
             }
@@ -4357,14 +4340,23 @@ function eval_pyson(value){
             });
             var group = jQuery('<div/>', {
                 'class': 'input-group input-group-sm'
-            }).appendTo(this.el).css('width', '100%');
+            }).appendTo(this.el);
             this.input = this.labelled = jQuery('<input/>', {
                 'type': 'text',
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             }).appendTo(group);
+            this.button = jQuery('<button/>', {
+                'class': 'btn btn-default',
+                'type': 'button',
+                'arial-label': Sao.i18n.gettext('Remove')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-minus'
+            })).appendTo(jQuery('<div/>', {
+                'class': 'input-group-btn'
+            }).appendTo(group));
+
             this.el.change(
                     this.parent_widget.focus_out.bind(this.parent_widget));
-            this.group = group;
         },
         get_value: function() {
             return this.input.val();
@@ -4399,7 +4391,7 @@ function eval_pyson(value){
         create_widget: function() {
             Sao.View.Form.Dict.Selection._super.create_widget.call(this);
             var select = jQuery('<select/>', {
-                'class': 'form-control input-sm'
+                'class': 'form-control input-sm mousetrap'
             });
             select.change(
                     this.parent_widget.focus_out.bind(this.parent_widget));
@@ -4477,9 +4469,6 @@ function eval_pyson(value){
         get_value: function() {
             var value = this.input.data('DateTimePicker').date();
             if (value) {
-                // [Bug Sao] - DateTimePicker.date() return dateTime
-                // TODO: report to tryton
-                value.startOf('day');
                 value.isDate = true;
             }
             return value;

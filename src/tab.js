@@ -7,9 +7,101 @@
         init: function() {
             Sao.Tab.tabs.push(this);
             this.buttons = {};
+            this.menu_buttons = {};
             this.id = 'tab-' + Sao.Tab.counter++;
             this.name = '';
             this.name_el = jQuery('<span/>');
+        },
+        menu_def: function() {
+            return [
+                {
+                    id: 'switch_',
+                    icon: 'glyphicon-resize-full',
+                    label: Sao.i18n.gettext('Switch'),
+                    tooltip: Sao.i18n.gettext('Switch view'),
+                }, {
+                    id: 'previous',
+                    icon: 'glyphicon-chevron-left',
+                    label: Sao.i18n.gettext('Previous'),
+                    tooltip: Sao.i18n.gettext('Previous Record')
+                }, {
+                    id: 'next',
+                    icon: 'glyphicon-chevron-right',
+                    label: Sao.i18n.gettext('Next'),
+                    tooltip: Sao.i18n.gettext('Next Record'),
+                }, {
+                    id: 'search',
+                    icon: 'glyphicon-search',
+                    label: Sao.i18n.gettext('Search'),
+                }, null, {
+                    id: 'new_',
+                    icon: 'glyphicon-plus',
+                    label: Sao.i18n.gettext('New'),
+                    tooltip: Sao.i18n.gettext('Create a new record'),
+                }, {
+                    id: 'save',
+                    icon: 'glyphicon-floppy-disk',
+                    label: Sao.i18n.gettext('Save'),
+                    tooltip: Sao.i18n.gettext('Save this record'),
+                }, {
+                    id: 'reload',
+                    icon: 'glyphicon-repeat',
+                    label: Sao.i18n.gettext('Reload/Undo'),
+                    tooltip: Sao.i18n.gettext('Reload'),
+                }, {
+                    id: 'copy',
+                    icon: 'glyphicon-duplicate',
+                    label: Sao.i18n.gettext('Duplicate'),
+                }, {
+                    id: 'delete_',
+                    icon: 'glyphicon-trash',
+                    label: Sao.i18n.gettext('Delete'),
+                }, null, {
+                    id: 'logs',
+                    icon: 'glyphicon-time',
+                    label: Sao.i18n.gettext('View Logs...'),
+                }, {
+                    id: (this.screen &&
+                        Sao.common.MODELHISTORY.contains(this.screen.model_name)) ?
+                        'revision': null,
+                    icon: 'glyphicon-time',
+                    label: Sao.i18n.gettext('Show revisions...'),
+                }, null, {
+                    id: 'attach',
+                    icon: 'glyphicon-paperclip',
+                    label: Sao.i18n.gettext('Attachment'),
+                    tooltip: Sao.i18n.gettext('Add an attachment to the record'),
+                }, {
+                    id: 'note',
+                    icon: 'glyphicon-comment',
+                    label: Sao.i18n.gettext('Note'),
+                    tooltip: Sao.i18n.gettext('Add a note to the record'),
+                }, {
+                    id: 'action',
+                    icon: 'glyphicon-cog',
+                    label: Sao.i18n.gettext('Action'),
+                }, null, {
+                    id: 'relate',
+                    icon: 'glyphicon-share-alt',
+                    label: Sao.i18n.gettext('Relate'),
+                }, {
+                    id: 'print',
+                    icon: 'glyphicon-print',
+                    label: Sao.i18n.gettext('Print'),
+                }, null, {
+                    id: 'export',
+                    icon: 'glyphicon-export',
+                    label: Sao.i18n.gettext('Export'),
+                }, {
+                    id: 'import',
+                    icon: 'glyphicon-import',
+                    label: Sao.i18n.gettext('Import'),
+                }, null, {
+                    id: 'close',
+                    icon: 'glyphicon-remove',
+                    label: Sao.i18n.gettext('Close Tab'),
+                },
+            ];
         },
         create_tabcontent: function() {
             this.el = jQuery('<div/>', {
@@ -26,28 +118,39 @@
             }
         },
         set_menu: function(menu) {
-            this.menu_def().forEach(function(definition) {
-                var icon = definition[0];
-                var name = definition[1];
-                var func = definition[2];
-                var item = jQuery('<li/>', {
-                    'role': 'presentation'
-                }).appendTo(menu);
-                var link = jQuery('<a/>', {
-                    'role': 'menuitem',
-                    'href': '#',
-                    'tabindex': -1
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon ' + icon,
-                    'aria-hidden': 'true'
-                })).append(' ' + name).appendTo(item);
-                if (func) {
+            var previous;
+            this.menu_def().forEach(function(item) {
+                var menuitem;
+                if (item) {
+                    if (!this[item.id]) {
+                        return;
+                    }
+                    menuitem = jQuery('<li/>', {
+                        'role': 'presentation'
+                    });
+                    var link = jQuery('<a/>', {
+                        'id': item.id,
+                        'role': 'menuitem',
+                        'href': '#',
+                        'tabindex': -1
+                    }).append(jQuery('<span/>', {
+                        'class': 'glyphicon ' + item.icon,
+                        'aria-hidden': 'true'
+                    })).append(' ' + item.label).appendTo(menuitem);
+                    this.menu_buttons[item.id] = menuitem;
                     link.click(function() {
-                        this[func]();
+                        this[item.id]();
                     }.bind(this));
+                } else if (!item && previous) {
+                    menuitem = jQuery('<li/>', {
+                        'role': 'separator',
+                        'class': 'divider',
+                    });
                 } else {
-                    item.addClass('disabled');
+                    return;
                 }
+                previous = menuitem;
+                menuitem.appendTo(menu);
             }.bind(this));
         },
         create_toolbar: function() {
@@ -90,9 +193,12 @@
             this.set_menu(toolbar.find('ul[role*="menu"]'));
 
             var group;
-            var add_button = function(tool) {
-                if (!tool) {
+            var add_button = function(item) {
+                if (!item || !item.tooltip) {
                     group = null;
+                    return;
+                }
+                if (!item.id || !this[item.id]) {
                     return;
                 }
                 if (!group) {
@@ -101,27 +207,23 @@
                         'role': 'group'
                     }).appendTo(toolbar.find('.btn-toolbar'));
                 }
-                this.buttons[tool[0]] = jQuery('<button/>', {
+                this.buttons[item.id] = jQuery('<button/>', {
                     'type': 'button',
                     'class': 'btn btn-default navbar-btn',
-                    'title': tool[2],
-                    'id': tool[0]
+                    'title': item.label,
+                    'id': item.id
                 })
                 .append(jQuery('<span/>', {
-                    'class': 'glyphicon ' + tool[1],
+                    'class': 'glyphicon ' + item.icon,
                     'aria-hidden': 'true'
                 }))
                 .appendTo(group)
                 .data('toggle', 'tooltip')
                 .data('placement', 'bottom')
                 .tooltip();
-                if (tool[3]) {
-                    this.buttons[tool[0]].click(this[tool[3]].bind(this));
-                } else {
-                    item.addClass('disabled');
-                }
+                this.buttons[item.id].click(this[item.id].bind(this));
             };
-            this.toolbar_def().forEach(add_button.bind(this));
+            this.menu_def().forEach(add_button.bind(this));
             toolbar.find('.btn-toolbar > .btn-group').last().addClass(
                     'hidden-xs');
             var tabs = jQuery('#tabs');
@@ -289,6 +391,26 @@
         tabs.trigger('ready');
     };
 
+    Sao.Tab.previous_tab = function() {
+        Sao.Tab.move('prevAll');
+    };
+
+    Sao.Tab.next_tab = function() {
+        Sao.Tab.move('nextAll');
+    };
+
+    Sao.Tab.move = function(direction) {
+        var current_tab = this.tabs.get_current();
+        var tabs = jQuery('#tabs');
+        var tablist = jQuery('#tablist');
+        var tab = tablist.find('#nav-' + current_tab.id);
+        var next = tab[direction]('li').first();
+        if (next) {
+            next.find('a').tab('show');
+            tabs.trigger('ready');
+        }
+    };
+
     Sao.Tab.Form = Sao.class_(Sao.Tab, {
         class_: 'tab-form',
         init: function(model_name, attributes) {
@@ -325,56 +447,6 @@
                 }
                 this.update_revision();
             }.bind(this));
-        },
-        toolbar_def: function() {
-            return [
-                ['new', 'glyphicon-plus',
-                Sao.i18n.gettext('Create a new record'), 'new_'],
-                ['save', 'glyphicon-floppy-disk',
-                Sao.i18n.gettext('Save this record'), 'save'],
-                ['switch', 'glyphicon-resize-full',
-                Sao.i18n.gettext('Switch view'), 'switch_'],
-                ['reload', 'glyphicon-repeat',
-                Sao.i18n.gettext('Reload'), 'reload'],
-                null,
-                ['previous', 'glyphicon-chevron-left',
-                Sao.i18n.gettext('Previous Record'), 'previous'],
-                ['next', 'glyphicon-chevron-right',
-                Sao.i18n.gettext('Next Record'), 'next'],
-                null,
-                ['attach', 'glyphicon-paperclip',
-                Sao.i18n.gettext('Add an attachment to the record'), 'attach'],
-                ['note', 'glyphicon-comment',
-                Sao.i18n.gettext('Add a note to the record'), 'note']
-            ];
-        },
-        menu_def: function() {
-            return [
-                ['glyphicon-plus', Sao.i18n.gettext('New'), 'new_'],
-                ['glyphicon-floppy-disk', Sao.i18n.gettext('Save'), 'save'],
-                ['glyphicon-resize-full', Sao.i18n.gettext('Switch'), 'switch_'],
-                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'),
-                    'reload'],
-                ['glyphicon-duplicate', Sao.i18n.gettext('Duplicate'), 'copy'],
-                ['glyphicon-trash', Sao.i18n.gettext('Delete'), 'delete_'],
-                ['glyphicon-chevron-left', Sao.i18n.gettext('Previous'),
-                    'previous'],
-                ['glyphicon-chevron-right', Sao.i18n.gettext('Next'), 'next'],
-                ['glyphicon-search', Sao.i18n.gettext('Search'), 'search'],
-                ['glyphicon-time', Sao.i18n.gettext('View Logs...'), 'logs'],
-                ['glyphicon-time', Sao.i18n.gettext('Show revisions...'),
-                    Sao.common.MODELHISTORY.contains(this.screen.model_name) ?
-                        'revision' : null],
-                ['glyphicon-remove', Sao.i18n.gettext('Close Tab'), 'close'],
-                ['glyphicon-paperclip', Sao.i18n.gettext('Attachment'),
-                    'attach'],
-                ['glyphicon-comment', Sao.i18n.gettext('Note'), 'note'],
-                ['glyphicon-cog', Sao.i18n.gettext('Action'), 'action'],
-                ['glyphicon-share-alt', Sao.i18n.gettext('Relate'), 'relate'],
-                ['glyphicon-print', Sao.i18n.gettext('Print'), 'print'],
-                ['glyphicon-export', Sao.i18n.gettext('Export'), 'export'],
-                ['glyphicon-import', Sao.i18n.gettext('Import'), 'import']
-            ];
         },
         create_toolbar: function() {
             var toolbar = Sao.Tab.Form._super.create_toolbar.call(this);
@@ -606,7 +678,6 @@
                             this.info_bar.message(
                                     Sao.i18n.gettext('Records removed.'),
                                     'info');
-                            Sao.Tab.tabs.close_current();
                             this.screen.count_tab_domain();
                         }.bind(this), function() {
                             this.info_bar.message(
@@ -741,21 +812,32 @@
         set_buttons_sensitive: function(revision) {
             if (!revision) {
                 var access = Sao.common.MODELACCESS.get(this.screen.model_name);
-                [['new', access.create],
-                ['save', access.create || access.write]
+                [['new_', access.create],
+                ['save', access.create || access.write],
+                ['delete_', access.delete],
+                ['copy', access.create],
+                ['import', access.create],
                 ].forEach(function(e) {
                     var button = e[0];
                     var access = e[1];
-                    if (access) {
-                        this.buttons[button].parent().removeClass('disabled');
-                    } else {
-                        this.buttons[button].parent().addClass('disabled');
+                    if (this.buttons[button]) {
+                        this.buttons[button].toggleClass('disabled', !access);
+                    }
+                    if (this.menu_buttons[name]) {
+                        this.menu_buttons[name]
+                            .toggleClass('disabled', !access);
                     }
                 }.bind(this));
             } else {
-                ['new', 'save'].forEach(function(button) {
-                    this.buttons[button].parent().addClass('disabled');
-                }.bind(this));
+                ['new_', 'save', 'delete_', 'copy', 'import'].forEach(
+                    function(name) {
+                        if (this.buttons[name]) {
+                            this.buttons[name].addClass('disabled');
+                        }
+                        if (this.menu_buttons[name]) {
+                            this.menu_buttons[name].addClass('disabled');
+                        }
+                    }.bind(this));
             }
         },
         attach: function() {
@@ -785,8 +867,8 @@
             }
             badge.text(count);
             var record_id = this.screen.get_id();
-            this.buttons.attach.prop('disabled', record_id < 0 ||
-                record_id === null || record_id === undefined);
+            this.buttons.attach.prop('disabled',
+                record_id < 0 || record_id === null);
         },
         note: function() {
             var record = this.screen.current_record;
@@ -815,8 +897,8 @@
             }
             badge.text(unread);
             var record_id = this.screen.get_id();
-            this.buttons.note.prop('disabled', record_id < 0 ||
-                record_id === null || record_id === undefined);
+            this.buttons.note.prop('disabled',
+                    record_id < 0 || record_id === null);
         },
         record_message: function() {
             this.info_bar.message();
@@ -880,17 +962,6 @@
             this.create_tabcontent();
             this.set_name(this.name);
             this.title.html(this.name_el.text());
-        },
-        toolbar_def: function() {
-            return [
-                ['reload', 'glyphicon-refresh',
-                Sao.i18n.gettext('Reload'), 'reload']
-            ];
-        },
-        menu_def: function() {
-            return [
-                ['glyphicon-repeat', Sao.i18n.gettext('Reload/Undo'), 'reload']
-            ];
         },
         reload: function() {
             this.board.reload();

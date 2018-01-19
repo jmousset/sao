@@ -1,17 +1,15 @@
+#tablist > li > a {
+  border: 0;
+}
 #tablist > li > a > span {
-  display: inline-block;
   max-width: 9em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tab-form nav.toolbar,
-.tab-board nav.toolbar {
-  margin-bottom: 1px;
-}
-.tab-form nav.toolbar ul.nav > li > a,
-.tab-board nav.toolbar ul.nav > li > a {
-  padding-right: 10px;
+#menu,
+#tabs {
+  padding-top: 5px;
 }
 .tab-form nav.toolbar.affix,
 .tab-board nav.toolbar.affix {
@@ -40,14 +38,24 @@ input[type='color'] .btn-xs {
 button img.icon {
   height: 1.42857143em;
 }
+.filter-box {
+  margin: 5px 5px;
+}
 .treeview {
   overflow-x: auto;
 }
 .treeview > table.tree {
   width: 100%;
 }
-.treeview > table.tree > thead > tr > th.selection {
+.treeview > table.tree th.selection,
+.treeview > table.tree td.selection {
   width: 30px;
+}
+.treeview > table.tree th.selection > input,
+.treeview > table.tree td.selection > input {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 .treeview > table.tree > thead > tr > th {
   overflow: hidden;
@@ -57,6 +65,27 @@ button img.icon {
 }
 .treeview > table.tree > thead > tr > th > label.sortable {
   cursor: pointer;
+}
+.treeview > table.tree > thead > tr > th.char,
+.treeview > table.tree > thead > tr > th.text,
+.treeview > table.tree > thead > tr > th.many2one,
+.treeview > table.tree > thead > tr > th.one2one,
+.treeview > table.tree > thead > tr > th.date,
+.treeview > table.tree > thead > tr > th.time,
+.treeview > table.tree > thead > tr > th.selection,
+.treeview > table.tree > thead > tr > th.reference,
+.treeview > table.tree > thead > tr > th.url,
+.treeview > table.tree > thead > tr > th.email,
+.treeview > table.tree > thead > tr > th.callto,
+.treeview > table.tree > thead > tr > th.sip {
+  text-align: left;
+}
+.treeview > table.tree > thead > tr > th.timedelta,
+.treeview > table.tree > thead > tr > th.float,
+.treeview > table.tree > thead > tr > th.numeric,
+.treeview > table.tree > thead > tr > th.integer,
+.treeview > table.tree > thead > tr > th.biginteger {
+  text-align: right;
 }
 .treeview > table.tree > tbody > tr > td {
   cursor: pointer;
@@ -110,10 +139,10 @@ button img.icon {
 .form {
   width: 100%;
 }
-.form > table.form-container {
+.form table.form-container {
   width: 100%;
 }
-.form > table.form-container > tbody > tr > td {
+.form table.form-container > tbody > tr > td {
   padding: 1px;
 }
 .form td.form-label {
@@ -131,6 +160,9 @@ button img.icon {
 .form .form-sip a > img {
   width: 1em;
   height: 1em;
+}
+.form .form-many2one > .input-group {
+  width: 100%;
 }
 .form td.form-one2many,
 .form td.form-many2many {
@@ -181,8 +213,15 @@ button img.icon {
 .form label.editable {
   font-style: italic;
 }
+.form .nav-tabs {
+  margin-bottom: 15px;
+}
 .form .panel-heading {
   padding: 1px 1px;
+}
+.form fieldset.form-group_ > legend {
+  font-size: 14px;
+  margin-bottom: 5px;
 }
 .form-binary,
 .editabletree-binary {
@@ -204,15 +243,17 @@ button img.icon {
 .column-timedelta {
   text-align: right;
 }
-input.column-boolean,
-input.selection {
+.column-many2many,
+.column-one2many {
+  text-align: center;
+}
+input.column-boolean {
   display: block;
   margin-left: auto;
   margin-right: auto;
 }
 .form-boolean input[type=checkbox],
-.editabletree-boolean input[type=checkbox],
-.dict-boolean input[type=checkbox] {
+.editabletree-boolean input[type=checkbox] {
   width: initial;
 }
 .dict-label {
@@ -253,7 +294,6 @@ input.selection {
   }
   table.responsive {
     /* Hide table headers (but not display: none; for accessiblity) */
-    /* Force height to empty content */
   }
   table.responsive > thead > tr {
     position: absolute;
@@ -263,9 +303,12 @@ input.selection {
   table.responsive > thead > tr,
   table.responsive > tbody > tr > td {
     text-align: left !important;
+    /* Force height to empty content */
   }
-  table.responsive td > div:empty {
+  table.responsive > thead > tr > span:empty,
+  table.responsive > tbody > tr > td > span:empty {
     min-height: 20px;
+    display: block;
   }
   table.responsive-noheader > tbody > tr > td {
     width: 100% !important;
@@ -320,31 +363,4 @@ img.global-search-icon {
 img.favorite-icon {
   width: 1em;
   height: 1em;
-}
-.pre {
-  white-space: pre;
-}
-.scrollable {
-  overflow-x: auto;
-}
-.modal-body {
-  overflow: visible;
-}
-.modal-body.scrollable-modal {
-  overflow: auto;
-}
-.modal-body.scrollable-modal .screen-container .content-box .treeview {
-  overflow: visible;
-}
-.main-navbar-header > div {
-  float: left;
-  padding: 15px 15px 15px 0;
-}
-.main-navbar-body span.glyphicon {
-  font-size: 16px;
-}
-.main-navbar-body span.counter {
-  position: relative;
-  top: -2px;
-  display: none;
 }
