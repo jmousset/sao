@@ -136,6 +136,7 @@ module.exports = function(grunt) {
           { src: 'bower_components/c3/c3.min.css', dest: 'dist/css/c3.min.css' },
           { src: 'bower_components/fullcalendar/dist/fullcalendar.min.css', dest: 'dist/css/fullcalendar.min.css' },
           { expand: true, flatten: true, src: 'bower_components/bootstrap/dist/fonts/*', dest: 'dist/fonts/' },
+          { expand: true, src: 'images', dest: 'dist/images' },
         ]
       }
     },
