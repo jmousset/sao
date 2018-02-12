@@ -155,19 +155,6 @@ module.exports = function(grunt) {
     }
   });
 
-  // Load the plugin that provides the "uglify" task.
-  grunt.loadNpmTasks('grunt-contrib-concat');
-  grunt.loadNpmTasks('grunt-xgettext');
-  grunt.loadNpmTasks('grunt-shell');
-  grunt.loadNpmTasks('grunt-contrib-jshint');
-  grunt.loadNpmTasks('grunt-contrib-uglify');
-  grunt.loadNpmTasks('grunt-contrib-less');
-  grunt.loadNpmTasks('grunt-contrib-watch');
-  grunt.loadNpmTasks('grunt-po2json');
-  grunt.loadNpmTasks('grunt-contrib-copy');
-  grunt.loadNpmTasks('grunt-contrib-qunit');
-
-  // Default task(s).
   grunt.registerTask('default', 'Build for production.', function() {
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-jshint');
@@ -201,5 +188,9 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-qunit');
     grunt.task.run(['concat', 'jshint', 'less:dev', 'qunit']);
     });
+  grunt.registerTask('copy', 'Copy resources to dist', function() {
+    grunt.loadNpmTasks('grunt-contrib-copy');
+    grunt.task.run(['copy']);
+  });
 
 };
