@@ -774,8 +774,7 @@
             expanded = expanded || [];
             var update_expander = function() {
                 // [Coog Specific]  needed for multi_mixed_view
-                if ((this.children_field === 'multi_mixed_view' &&
-                      this.is_leaf())  || !this.record.field_get_client(
+                if (this.is_leaf()  || !this.record.field_get_client(
                     this.children_field).length) {
                     this.expander.css('visibility', 'hidden');
                 }
