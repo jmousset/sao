@@ -989,6 +989,7 @@
                 return;
             }
             this.selection.prop('checked', value);
+            this.el.toggleClass('row-active', value); /* JMO : needed for visible selection in tree views */
             if (!value) {
                 this.tree.selection.prop('checked', false);
             }
