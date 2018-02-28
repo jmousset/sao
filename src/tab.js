@@ -565,6 +565,67 @@
                         .appendTo(menu);
                     });
                 });
+
+                var quick_actions = toolbars.quick_actions;
+                if (quick_actions.length) {
+                    var qa_buttons = jQuery('<div/>', {
+                        'class': 'btn-group',
+                        'role': 'group'
+                    });
+                    quick_actions.forEach(function(quick_action) {
+                        var qa_button = jQuery('<button/>', {
+                            'type': 'button',
+                            'class': 'btn btn-default navbar-btn',
+                            'title': quick_action.name,
+                            'id': 'quick_action-' + quick_action.id
+                        }).click(function() {
+                            screen.save_current().then(function() {
+                                var exec_action = jQuery.extend(
+                                    {}, quick_action);
+                                var record_id = null;
+                                if (screen.current_record) {
+                                    record_id = screen.current_record.id;
+                                }
+                                var record_ids = screen.current_view
+                                .selected_records().map(function(record) {
+                                    return record.id;
+                                });
+                                exec_action = Sao.Action.evaluate(exec_action,
+                                    'quick_action', screen.current_record);
+                                var data = {
+                                    model: screen.model_name,
+                                    id: record_id,
+                                    ids: record_ids
+                                };
+                                Sao.Action.exec_action(exec_action, data,
+                                    screen.context);
+                            });
+                        });
+                        var icon = quick_action['icon.rec_name'];
+                        if ((icon === null) || (icon === undefined) ||
+                            (icon === "")) {
+                            qa_button.append(jQuery('<span/>', {
+                                'class': 'glyphicon glyphicon-cog',
+                                'aria-hidden': 'true'
+                            }));
+                        } else {
+                            var img = jQuery('<img/>', {
+                                'class': 'toolbar-menu',
+                                'aria-hidden': true
+                            });
+                            qa_button.append(img);
+                            Sao.common.ICONFACTORY.register_icon(icon)
+                                .done(function(url) {
+                                    img.attr('src', url);
+                                });
+                        }
+
+                        qa_button.data('toggle', 'tooltip')
+                            .data('placement', 'bottom');
+                        qa_buttons.append(qa_button);
+                    });
+                    qa_buttons.appendTo(toolbar.find('.btn-toolbar'));
+                }
             });
             return toolbar;
         },
