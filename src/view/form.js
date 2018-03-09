@@ -4133,7 +4133,7 @@ function eval_pyson(value){
 
             // [Coog specific]
             //      > attribute no_command (hide input line)
-            if (!this.no_command){
+            if (!attributes.no_command){
                 var group = jQuery('<div/>', {
                     'class': 'input-group input-group-sm'
                 }).appendTo(jQuery('<div>', {
@@ -4237,7 +4237,9 @@ function eval_pyson(value){
                 var widget = this.fields[key];
                 widget.set_readonly(readonly);
             }
-            this.wid_text.prop('disabled', readonly);
+            if (!this.attributes.no_command) {
+                this.wid_text.prop('disabled', readonly);
+            }
         },
         _set_button_sensitive: function() {
             var create = this.attributes.create;
@@ -4248,7 +4250,9 @@ function eval_pyson(value){
             if (delete_ === undefined) {
                 delete_ = true;
             }
-            this.but_add.prop('disabled', this._readonly || !create);
+            if (!this.attributes.no_command) {
+                this.but_add.prop('disabled', this._readonly || !create);
+            }
             for (var key in this.fields) {
                 var button = this.fields[key].button;
                 button.prop('disabled', this._readonly || !delete_);
@@ -4276,9 +4280,13 @@ function eval_pyson(value){
             field.labelled.attr('aria-labelledby', label.attr('id'));
             label.attr('for', field.labelled.attr('id'));
 
-            field.button.click(function() {
-                this.remove(key, true);
-            }.bind(this));
+            if (!this.attributes.no_command) {
+                field.button.click(function() {
+                    this.remove(key, true);
+                }.bind(this));
+            } else {
+                field.button.remove();
+            }
 
             row.appendTo(this.container);
         },
