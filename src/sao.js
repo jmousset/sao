@@ -534,7 +534,9 @@ var Sao = {};
                 var currently_focused = jQuery(document.activeElement);
                 var has_focus = currently_focused.closest(this.el) > 0;
                 if (!has_focus) {
-                    jQuery(this).find(':input:visible:first').focus();
+                    jQuery(this).find(':input:visible' +
+                        ':not([readonly]):not([tabindex^="-"]):first')
+                   .focus();
                 }
             });
         },
