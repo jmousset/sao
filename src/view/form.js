@@ -2214,7 +2214,7 @@ function eval_pyson(value){
         set_readonly: function(readonly) {
             this.input.prop('contenteditable', !readonly);
             if (this.toolbar && readonly) {
-               this.toolbar.hide();
+                this.toolbar.hide();
             }
         }
     });
