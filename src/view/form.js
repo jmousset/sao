@@ -1650,23 +1650,6 @@ function eval_pyson(value){
         }
     });
 
-    Sao.View.Form.DATE_OPERATORS = [
-        ['S', moment.duration(-1, 'seconds')],
-        ['s', moment.duration(1, 'seconds')],
-        ['I', moment.duration(-1, 'minutes')],
-        ['i', moment.duration(1, 'minutes')],
-        ['H', moment.duration(-1, 'hours')],
-        ['h', moment.duration(1, 'hours')],
-        ['D', moment.duration(-1, 'days')],
-        ['d', moment.duration(1, 'days')],
-        ['W', moment.duration(-1, 'weeks')],
-        ['w', moment.duration(1, 'weeks')],
-        ['M', moment.duration(-1, 'months')],
-        ['m', moment.duration(1, 'months')],
-        ['Y', moment.duration(-1, 'years')],
-        ['y', moment.duration(1, 'years')]
-    ];
-
     Sao.View.Form.Date = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-date',
         _width: '12em',
@@ -1692,43 +1675,30 @@ function eval_pyson(value){
             }).append(jQuery('<span/>', {
                 'class': 'glyphicon glyphicon-calendar'
             }))).appendTo(this.date);
-            var noop = function () {};
             this.date.datetimepicker({
                 'locale': moment.locale(),
-                'keyBinds': {
-                    up: noop,
-                    down: noop,
-                    'control up': noop,
-                    'control down': noop,
-                    left: noop,
-                    right: noop,
-                    pageUp: noop,
-                    pageDown: noop,
-                    enter: noop,
-                    'control space': noop,
-                    t: noop,
-                }
+                'keyBinds': null,
             });
             this.date.css('width', this._width);
             this.date.on('dp.change', this.focus_out.bind(this));
-            if (typeof Mousetrap != 'undefined') {
-                var mousetrap = new Mousetrap(this.el[0]);
+            var mousetrap = new Mousetrap(this.el[0]);
 
-                mousetrap.bind(['enter', '='], function(e, combo) {
+            mousetrap.bind(['enter', '='], function(e, combo) {
+                if (e.which != Sao.common.RETURN_KEYCODE) {
                     e.preventDefault();
-                    this.date.data('DateTimePicker').date(moment());
-                }.bind(this));
+                }
+                this.date.data('DateTimePicker').date(moment());
+            }.bind(this));
 
-                Sao.View.Form.DATE_OPERATORS.forEach(function(operator) {
-                    mousetrap.bind(operator[0], function(e, combo) {
-                        e.preventDefault();
-                        var dp = this.date.data('DateTimePicker');
-                        var date = dp.date();
-                        date.add(operator[1]);
-                        dp.date(date);
-                    }.bind(this));
+            Sao.common.DATE_OPERATORS.forEach(function(operator) {
+                mousetrap.bind(operator[0], function(e, combo) {
+                    e.preventDefault();
+                    var dp = this.date.data('DateTimePicker');
+                    var date = dp.date();
+                    date.add(operator[1]);
+                    dp.date(date);
                 }.bind(this));
-            }
+            }.bind(this));
         },
         get_format: function(record, field) {
             return field.date_format(record);
