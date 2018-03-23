@@ -20,6 +20,22 @@
         top: @navbar-height + 1px;
         z-index: @zindex-navbar - 1;
     }
+    & .navbar-text {
+        & .badge {
+            max-width: 5em;
+            min-width: 5em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    & .navbar-btn {
+        .badge {
+            /* remove padding to not increase size of navbar-btn */
+            margin-top: -3px;
+            margin-bottom: -3px;
+        }
+    }
 }
 
 @media screen and (max-width: @screen-xs-max) {
@@ -208,6 +224,13 @@ button {
         & .form-one2many-toolbar, .form-many2many-toolbar {
             display: inline-table;
             float: right;
+
+            & .badge {
+                max-width: 5em;
+                min-width: 5em;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
         }
     }
     & .form-richtext {

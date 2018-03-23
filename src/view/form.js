@@ -2761,6 +2761,8 @@ function eval_pyson(value){
 
             this._readonly = true;
             this._required = false;
+            this._position = 0;
+            this._length = 0;
 
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
@@ -2824,9 +2826,10 @@ function eval_pyson(value){
             this.but_previous.click(this.previous.bind(this));
 
             this.label = jQuery('<span/>', {
-                'class': 'btn'
-            }).appendTo(buttons);
-            this.label.text('(0, 0)');
+                'class': 'badge',
+            }).appendTo(jQuery('<span/>', {
+                'class': 'btn hidden-xs',
+            }).appendTo(buttons));
 
             this.but_next = jQuery('<button/>', {
                 'class': 'btn btn-default btn-sm',
@@ -2939,6 +2942,8 @@ function eval_pyson(value){
             if (attributes.group)
                 this.screen.parent = this;
             this.screen.pre_validate = attributes.pre_validate == 1;
+
+            this.screen.message_callback = this.record_label.bind(this);
             this.prm = this.screen.switch_view(modes[0]).done(function() {
                 this.content.append(this.screen.screen_container.el);
             }.bind(this));
@@ -3070,18 +3075,20 @@ function eval_pyson(value){
             if (delete_ === undefined) {
                 delete_ = true;
             }
-            // TODO position
             this.but_del.prop('disabled', this._readonly || !delete_ ||
-                    !access['delete']);
-            this.but_undel.prop('disabled', this._readonly || size_limit);
-            this.but_open.prop('disabled', !access.read);
-            // TODO but_next, but_previous
+                !access['delete'] || !this._position);
+            this.but_undel.prop('disabled', this._readonly || size_limit ||
+                 !this._position);
+            this.but_open.prop('disabled', !access.read || !this._position);
+            this.but_next.prop('disabled', (this.position > 0) && (
+                this._position >= this._length));
+            this.but_previous.prop('disabled', this._position <= 1);
             if (this.attributes.add_remove) {
                 this.wid_text.prop('disabled', this._readonly);
                 this.but_add.prop('disabled', this._readonly || size_limit ||
                         !access.write || !access.read);
                 this.but_remove.prop('disabled', this._readonly ||
-                        !access.write || !access.read);
+                        !this.position || !access.write || !access.read);
             }
         },
         display: function(record, field) {
@@ -3342,6 +3349,13 @@ function eval_pyson(value){
                 }
             }.bind(this));
         },
+        record_label: function(data) {
+            this._position = data[0];
+            this._length = data[1];
+            var message = data[0] + ' / ' + data[1];
+            this.label.text(message).attr('title', message);
+            this._set_button_sensitive();
+        },
         validate: function() {
             var prm = jQuery.Deferred();
             // [Coog specific]
@@ -3391,6 +3405,7 @@ function eval_pyson(value){
 
             this._readonly = true;
             this._required = false;
+            this._position = 0;
 
             this.el = jQuery('<div/>', {
                 'class': this.class_ + ' panel panel-default'
@@ -3471,6 +3486,7 @@ function eval_pyson(value){
                 row_activate: this.activate.bind(this),
                 limit: null
             });
+            this.screen.message_callback = this.record_label.bind(this);
             this.prm = this.screen.switch_view('tree').done(function() {
                 this.content.append(this.screen.screen_container.el);
             }.bind(this));
@@ -3502,8 +3518,12 @@ function eval_pyson(value){
 
             this.entry.prop('disabled', this._readonly);
             this.but_add.prop('disabled', this._readonly || size_limit);
-            // TODO position
-            this.but_remove.prop('disabled', this._readonly);
+            this.but_remove.prop('disabled', this._readonly ||
+                this._position === 0);
+        },
+        record_label: function(data) {
+            this._position = data[0];
+            this._set_button_sensitive();
         },
         display: function(record, field) {
             Sao.View.Form.Many2Many._super.display.call(this, record, field);
