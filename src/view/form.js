@@ -2306,8 +2306,10 @@ function eval_pyson(value){
             var primary, secondary;
             value = field.get(record);
             if (this.has_target(value)) {
-                primary = 'glyphicon-folder-open';
-                secondary = 'glyphicon-erase';
+                // Coog Override Icon
+                primary = 'glyphicon-pencil';
+                // Coog Override Icon
+                secondary = 'glyphicon-trash';
             } else {
                 primary = null;
                 secondary = 'glyphicon-search';
@@ -2791,7 +2793,8 @@ function eval_pyson(value){
                 'aria-label': Sao.i18n.gettext('Switch'),
                 'tabindex': -1,
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-list-alt'
+                // Coog Override Icon
+                'class': 'glyphicon glyphicon-resize-full'
             })).appendTo(buttons);
             this.but_switch.click(this.switch_.bind(this));
 
@@ -2830,7 +2833,8 @@ function eval_pyson(value){
                     'aria-label': Sao.i18n.gettext('Add'),
                     'tabindex': -1,
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-plus'
+                    // Coog Override Icon
+                    'class': 'glyphicon glyphicon-search'
                 })).appendTo(buttons);
                 this.but_add.click(this.add.bind(this));
 
@@ -2840,7 +2844,8 @@ function eval_pyson(value){
                     'aria-label': Sao.i18n.gettext('Remove'),
                     'tabindex': -1,
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-minus'
+                    // Coog Override Icon
+                    'class': 'glyphicon glyphicon-remove'
                 })).appendTo(buttons);
                 this.but_remove.click(this.remove.bind(this));
             }
@@ -2851,7 +2856,8 @@ function eval_pyson(value){
                 'aria-label': Sao.i18n.gettext('New'),
                 'tabindex': -1,
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-edit'
+                // Coog Override Icon
+                'class': 'glyphicon glyphicon-plus'
             })).appendTo(buttons);
             this.but_new.click(this.new_.bind(this));
 
@@ -2861,7 +2867,8 @@ function eval_pyson(value){
                 'aria-label': Sao.i18n.gettext('Open'),
                 'tabindex': -1,
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-folder-open'
+                // Coog Override Icon
+                'class': 'glyphicon glyphicon-pencil'
             })).appendTo(buttons);
             this.but_open.click(this.open.bind(this));
 
@@ -3409,7 +3416,8 @@ function eval_pyson(value){
                 'aria-label': Sao.i18n.gettext('Add'),
                 'tabindex': -1,
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-plus'
+                // Coog Override Icon
+                'class': 'glyphicon glyphicon-search'
             })).appendTo(buttons);
             this.but_add.click(this.add.bind(this));
 
@@ -3419,7 +3427,8 @@ function eval_pyson(value){
                 'aria-label': Sao.i18n.gettext('Remove'),
                 'tabindex': -1,
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-minus'
+                // Coog Override Icon
+                'class': 'glyphicon glyphicon-remove'
             })).appendTo(buttons);
             this.but_remove.click(this.remove.bind(this));
 
@@ -3645,7 +3654,8 @@ function eval_pyson(value){
                 'class': 'btn btn-default',
                 'type': 'button'
             }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-erase'
+                // Coog Override Icon
+                'class': 'glyphicon glyphicon-trash'
             })).appendTo(group);
             this.but_clear.click(this.clear.bind(this));
 
@@ -3795,7 +3805,8 @@ function eval_pyson(value){
                     'class': 'btn btn-default',
                     'type': 'button'
                 }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-folder-open'
+                    // Coog Override Icon
+                    'class': 'glyphicon glyphicon-pencil'
                 })).appendTo(jQuery('<span/>', {
                     'class': 'input-group-btn',
                 }).prependTo(group));
