@@ -753,6 +753,9 @@
         },
         // [Coog specific] JMO: report https://github.com/coopengo/tryton/pull/13
         switch_view: function(view_type, view_id) {
+            if (view_id) {
+                 view_type = null;
+            }
             if (this.current_view) {
                 this.current_view.set_value();
                 if (this.current_record &&
@@ -772,14 +775,15 @@
             }
             var _switch = function() {
                 if ((!view_type) || (!this.current_view) ||
-                        (this.current_view.view_type != view_type)) {
+			(view_type && (this.current_view.view_type != view_type)) ||
+			(view_id && (this.current_view.view_id != view_id))) {
                     var switch_current_view = (function() {
                         this.current_view = this.views[this.views.length - 1];
                         return _switch();
                     }.bind(this));
                     for (var i = 0; i < this.number_of_views(); i++) {
                         if (this.view_to_load.length) {
-                            if (!view_type) {
+                            if (!view_type && !view_id) {
                                 view_type = this.view_to_load[0];
                             }
                             return this.load_next_view().then(
@@ -1492,7 +1496,7 @@
             if (this.group.parent) {
                 this.group.parent.root_parent().reload();
             }
-            this.display();
+            return this.display();
         },
         get_buttons: function() {
             var selected_records = this.current_view.selected_records();
@@ -1527,31 +1531,18 @@
                   action = undefined;
                 }
 
-                if (!action || typeof action != 'string' ||
-                  !(action.startsWith('toggle'))) {
-                    this.reload(ids, true);
-                }
-
-                if (action && typeof action == 'string' &&
-                    action.indexOf('delete') > -1)
-                    this.reload(ids, true, true);
-                else if (action && typeof action != 'string')
-                    this.reload(ids, true, true);
-                else
-                    this.reload(ids, true);
-                if (typeof action == 'string') {
-                    this.client_action(action);
-                    if (action.startsWith('toggle')) {
-                      this.reload(ids, true);
+                this.reload(ids, true).then(function() {
+                    if (typeof action == 'string') {
+                        this.client_action(action);
                     }
-                }
-                else if (action_id) {
-                    Sao.Action.execute(action_id, {
-                        model: this.model_name,
-                        id: this.current_record.id,
-                        ids: ids
-                    }, null, this.context, true);
-                }
+                    else if (action_id) {
+                        Sao.Action.execute(action_id, {
+                            model: this.model_name,
+                            id: this.current_record.id,
+                            ids: ids
+                        }, null, this.context, true);
+                    }
+                }.bind(this));
             };
 
             var selected_records = this.current_view.selected_records();
@@ -1604,7 +1595,7 @@
                             });
                         });
                     } else {
-                        record.save(false).done(function() {
+                        return record.save(false).then(function() {
                             var context = jQuery.extend({}, this.context);
                             context._timestamp = {};
                             ids = [];
@@ -1614,7 +1605,7 @@
                                     record.get_timestamp());
                                 ids.push(record.id);
                             }
-                            record.model.execute(attributes.name,
+                            return record.model.execute(attributes.name,
                                 [ids], context).then(process_action.bind(this));
                         }.bind(this));
                     }
@@ -1651,7 +1642,7 @@
             } else if (action == 'previous') {
                 this.display_previous();
             } else if (action == 'close') {
-                Sao.Tab.close_current();
+                Sao.Tab.tabs.close_current();
             } else if (action.startsWith('switch')) {
                 var view_type = action.split(' ')[1];
                 this.switch_view(view_type);

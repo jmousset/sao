@@ -2180,7 +2180,9 @@ function eval_pyson(value){
                 }
             });
             var value = this.input.html() || '';
-            field.set_client(record, value);
+            if (this.toolbar.is(':visible')) {
+            	field.set_client(record, value);
+            }
         },
         set_readonly: function(readonly) {
             this.input.prop('contenteditable', !readonly);
