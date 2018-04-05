@@ -1025,8 +1025,8 @@
                         record = group[index + 1];
                         break;
                     } else if (group.parent &&
-                            (record.group.model_name ==
-                             group.parent.group.model_name)) {
+                            (record.group.model.name ==
+                             group.parent.group.model.name)) {
                         record = group.parent;
                         group = group.parent.group;
                     } else {
@@ -1054,8 +1054,8 @@
                         record = group[index - 1];
                         break;
                     } else if (group.parent &&
-                            (record.group.model_name ==
-                             group.parent.group.model_name)) {
+                            (record.group.model.name ==
+                             group.parent.group.model.name)) {
                         record = group.parent;
                         group = group.parent.group;
                     } else {
