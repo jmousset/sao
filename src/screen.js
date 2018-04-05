@@ -1531,24 +1531,9 @@
                   action = undefined;
                 }
 
-                /*if (!action || typeof action != 'string' ||
-                  !(action.startsWith('toggle'))) {
-                    this.reload(ids, true);
-
-                if (action && typeof action == 'string' &&
-                    action.indexOf('delete') > -1)
-                    this.reload(ids, true, true);
-                else if (action && typeof action != 'string')
-                    this.reload(ids, true, true);
-                else
-                    this.reload(ids, true);
-                }*/
                 this.reload(ids, true).then(function() {
                     if (typeof action == 'string') {
                         this.client_action(action);
-                        /*if (action.startsWith('toggle')) {
-                          this.reload(ids, true);
-                        }*/
                     }
                     else if (action_id) {
                         Sao.Action.execute(action_id, {
