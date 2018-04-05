@@ -926,7 +926,11 @@
                     'class': 'badge'
                 }).appendTo(this.buttons.attach);
             }
-            badge.text(count);
+            var text = count || '';
+            if (count > 99) {
+                text = '99+';
+            }
+            badge.text(text);
             var record_id = this.screen.get_id();
             this.buttons.attach.prop('disabled',
                 record_id < 0 || record_id === null);
@@ -956,7 +960,11 @@
                     'class': 'badge'
                 }).appendTo(this.buttons.note);
             }
-            badge.text(unread);
+            var text = unread || '';
+            if (unread > 99) {
+                text = '99+';
+            }
+            badge.text(text);
             var record_id = this.screen.get_id();
             this.buttons.note.prop('disabled',
                     record_id < 0 || record_id === null);
