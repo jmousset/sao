@@ -535,3 +535,9 @@ msgstr "Effacer le champ <Del>"
 
 msgid "Search a record <F2>"
 msgstr "Chercher un enregistrement <F2>"
+
+msgid "From"
+msgstr "De"
+
+msgid "To"
+msgstr "À"
