@@ -1,4 +1,5 @@
-* Allow to edit Many2One from tree view
+* FEA#8643 Allow to open in new tab Many2One and Reference
+* FEA#8643 Allow to edit Many2One from tree view
 * BUG#7227 Fix view changes in processes
 
 Version 4.6.3 - 2018-04-03

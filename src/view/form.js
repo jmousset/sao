@@ -2398,9 +2398,18 @@ function eval_pyson(value){
                 return;
             }
             if (this.has_target(value)) {
-                var screen = this.get_screen();
                 var m2o_id =
                     this.id_from_value(record.field_get(this.field_name));
+                if (evt && evt.ctrlKey) {
+                    var params = {};
+                    params.model = this.get_model();
+                    params.res_id = m2o_id;
+                    params.mode = ['form'];
+                    params.name = this.attributes.string;
+                    Sao.Tab.create(params);
+                    return;
+                }
+                var screen = this.get_screen();
                 screen.new_group([m2o_id]);
                 callback = function(result) {
                     if (result) {
