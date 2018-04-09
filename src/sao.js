@@ -460,8 +460,10 @@ var Sao = {};
             jQuery('#menu').append(gs.el);
             jQuery('#menu').append(
                 form.screen.screen_container.content_box.detach());
-            form.screen.views[0].columns.push(
-                new FavoriteColumn(form.screen.model.fields.favorite));
+            var column = new FavoriteColumn(form.screen.model.fields.favorite);
+            form.screen.views[0].table.find('> colgroup').append(column.col);
+            form.screen.views[0].table.find('> thead > tr').append(column.header);
+            form.screen.views[0].columns.push(column);
         });
     };
     Sao.main_menu_screen = null;
@@ -469,6 +471,9 @@ var Sao = {};
     var FavoriteColumn = Sao.class_(Object, {
         init: function(favorite) {
             this.field = favorite;
+            this.col = jQuery('<col/>', {
+                'class': 'favorite',
+            });
             this.header = jQuery('<th/>');
             this.footers = [];
             this.attributes = jQuery.extend({}, this.field.description);
