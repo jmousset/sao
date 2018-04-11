@@ -1,3 +1,4 @@
+* BUG#8703 Show visible boolean extra data
 * BUG#8705 Add white color for link
 * BUG#8706 Remove link when line is not selected
 * BUG#7226 Hide selection state
