@@ -1,3 +1,4 @@
+* BUG#8810 Prevent crash on selection of m2m in form view
 * BUG#8720 Prevent call to focus when not defined on widget
 * BUG#8703 Show visible boolean extra data
 * BUG#8705 Add white color for link
