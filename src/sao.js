@@ -209,7 +209,7 @@ var Sao = {};
     Sao.config.display_size = 20;
     Sao.config.roundup = {};
     Sao.config.roundup.url = 'http://bugs.tryton.org/roundup/';
-    Sao.config.title = 'Tryton';
+    Sao.config.title = 'Coog';
 
     Sao.i18n = i18n();
     Sao.i18n.setlang = function(lang) {
