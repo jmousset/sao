@@ -1,4 +1,5 @@
 * FEA#8785 Change title to Coog in the Sao browser
+* FEA#7941 Add keyword attribute to button tag
 * OTH#0000 Correct grunt installation steps in README
 * BUG#8817 Fix width of selection input
 * BUG#8840 Show scrollbar on modal
