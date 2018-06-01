@@ -2738,6 +2738,7 @@
         build_dialog: function(message, title, prm) {
             var dialog = Sao.common.UserWarningDialog._super.build_dialog.call(
                 this, message, title, prm);
+            // Coog specific : do not display this warning cf bug #9035
             //dialog.body.append(jQuery('<div/>')
             //    .append(jQuery('<input/>', {
             //        'type': 'checkbox'
