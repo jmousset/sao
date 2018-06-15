@@ -1265,7 +1265,9 @@ function eval_pyson(value){
             }).appendTo(jQuery('<div/>', {
                 'class': 'panel-heading'
             }).appendTo(this.sc_editor));
-            this.toolbar.css('width', '100%');
+            this.toolbar.css({
+                width: '100%',
+            });
 
             add_buttons([
                     {
@@ -1282,7 +1284,7 @@ function eval_pyson(value){
             var input = jQuery('<textarea/>', {
             }).appendTo(jQuery('<div/>', {
                 'class': 'panel-body'
-            }).appendTo(this.sc_editor).css('padding', '5px'));
+            }).appendTo(this.sc_editor).css('min-height', '490px'));
             this.codeMirror = CodeMirror.fromTextArea(input[0], {
                 mode: {
                     name: 'python',
@@ -1316,7 +1318,7 @@ function eval_pyson(value){
             this.tbody = jQuery('<tbody/>').appendTo(this.table);
             this.tbody.css({
                 'display': 'block',
-                'height': '35em'
+                'height': '490px'
             });
         },
         display: function(record, field){
