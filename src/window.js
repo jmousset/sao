@@ -1829,7 +1829,6 @@
                 quoteChar: this.el_csv_quotechar.val(),
                 delimiter: this.el_csv_delimiter.val()
             });
-            // MAB: removed 0dc49071 code as this seems to replace it
             Sao.common.download_file(
                 csv, this.name + '.csv', {type: 'text/csv;charset=' + encoding});
             return Sao.common.message.run(
