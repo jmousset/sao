@@ -4018,15 +4018,18 @@ function eval_pyson(value){
             })).appendTo(group);
             this.but_save_as.click(this.save_as.bind(this));
 
-            this.but_select = jQuery('<button/>', {
-                'class': 'btn btn-default',
+            this.input_select = jQuery('<input/>', {
+                'type': 'file',
+            }).change(this.select.bind(this));
+            this.but_select = jQuery('<div/>', {
+                'class': 'btn btn-default input-file',
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext("Select"),
                 'title': Sao.i18n.gettext("Select..."),
-            }).append(jQuery('<span/>', {
+            }).append(this.input_select
+            ).append(jQuery('<span/>', {
                 'class': 'glyphicon glyphicon-search'
             })).appendTo(group);
-            this.but_select.click(this.select.bind(this));
 
             this.but_clear = jQuery('<button/>', {
                 'class': 'btn btn-default',
@@ -4042,9 +4045,11 @@ function eval_pyson(value){
             return group;
         },
         filename_field: function() {
-            var record = this.record();
-            if (record) {
-                return record.model.fields[this.filename];
+            if (this.filename) {
+                var record = this.record();
+                if (record) {
+                    return record.model.fields[this.filename];
+                }
             }
         },
         update_buttons: function(value) {
@@ -4059,58 +4064,15 @@ function eval_pyson(value){
             }
         },
         select: function() {
-            var record = this.record();
-
-            var close = function() {
-                file_dialog.modal.on('hidden.bs.modal', function(event) {
-                    jQuery(this).remove();
-                });
-                file_dialog.modal.modal('hide');
-            };
-
-            var save_file = function() {
-                var reader = new FileReader();
-                reader.onload = function(evt) {
-                    var field = this.field();
-                    var uint_array = new Uint8Array(reader.result);
-                    var value;
-                    if (field.get_size) {
-                        value = uint_array;
-                    } else {
-                        value = String.fromCharCode.apply(null, uint_array);
-                    }
-                    field.set_client(record, value);
-                }.bind(this);
-                reader.onloadend = function(evt) {
-                    close();
-                };
-                var file = file_selector[0].files[0];
-                reader.readAsArrayBuffer(file);
-                if (this.filename) {
-                    this.filename_field().set_client(record, file.name);
+            var record = this.record(),
+                field = this.field(),
+                filename_field = this.filename_field();
+            Sao.common.get_input_data(this.input_select, function(data, filename) {
+                field.set_client(record, data);
+                if (filename_field) {
+                    filename_field.set_client(record, filename);
                 }
-            }.bind(this);
-
-            var file_dialog = new Sao.Dialog(
-                    Sao.i18n.gettext('Select'), 'file-dialog');
-            file_dialog.footer.append(jQuery('<button/>', {
-                'class': 'btn btn-link',
-                'type': 'button'
-            }).append(Sao.i18n.gettext('Cancel')).click(close))
-            .append(jQuery('<button/>', {
-                'class': 'btn btn-primary',
-                'type': 'submit'
-            }).append(Sao.i18n.gettext('OK')).click(save_file));
-            file_dialog.content.submit(function(e) {
-                save_file();
-                e.preventDefault();
-            });
-
-            var file_selector = jQuery('<input/>', {
-                type: 'file'
-            }).appendTo(file_dialog.body);
-
-            file_dialog.modal.modal('show');
+            }, !field.get_size);
         },
         open: function() {
             var params = {};
