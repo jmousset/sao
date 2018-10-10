@@ -4026,10 +4026,9 @@ function eval_pyson(value){
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext("Select"),
                 'title': Sao.i18n.gettext("Select..."),
-            }).append(this.input_select
-            ).append(jQuery('<span/>', {
+            }).append(jQuery('<span/>', {
                 'class': 'glyphicon glyphicon-search'
-            })).appendTo(group);
+            })).append(this.input_select).appendTo(group);
 
             this.but_clear = jQuery('<button/>', {
                 'class': 'btn btn-default',
