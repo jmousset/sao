@@ -34,39 +34,6 @@
             };
             return Sao.rpc(args, this.session, async);
         },
-        delete_: function(records) {
-            if (jQuery.isEmptyObject(records)) {
-                return jQuery.when();
-            }
-            var record = records[0];
-            var root_group = record.group.root_group();
-            console.assert(records.every(function(r) {
-                return r.model.name == record.model.name;
-            }), 'records not from the same model');
-            console.assert(records.every(function(r) {
-                return r.group.root_group() == record.group.root_group();
-            }), 'records not from the same root group');
-            records = records.filter(function(record) {
-                return record.id >= 0;
-            });
-            var context = {};
-            context._timestamp = {};
-            records.forEach(function(record) {
-                jQuery.extend(context._timestamp, record.get_timestamp());
-            });
-            var record_ids = records.map(function(record) {
-                return record.id;
-            });
-            return root_group.on_write_ids(record_ids).then(function(reload_ids) {
-                reload_ids = reload_ids.filter(function(e) {
-                    return !~record_ids.indexOf(e);
-                });
-                return this.execute('delete', [record_ids], context)
-                .then(function() {
-                    root_group.reload(reload_ids);
-                });
-            }.bind(this));
-        },
         copy: function(records, context) {
             if (jQuery.isEmptyObject(records)) {
                 return jQuery.when();
@@ -276,6 +243,38 @@
                 }.bind(this));
             }.bind(this));
         };
+        array.delete_ = function(records) {
+            if (jQuery.isEmptyObject(records)) {
+                return jQuery.when();
+            }
+            var root_group = this.root_group();
+            console.assert(records.every(function(r) {
+                return r.model.name == this.model.name;
+            }.bind(this)), 'records not from the same model');
+            console.assert(records.every(function(r) {
+                return r.group.root_group() == root_group;
+            }), 'records not from the same root group');
+            records = records.filter(function(record) {
+                return record.id >= 0;
+            });
+            var context = this.context();
+            context._timestamp = {};
+            records.forEach(function(record) {
+                jQuery.extend(context._timestamp, record.get_timestamp());
+            });
+            var record_ids = records.map(function(record) {
+                return record.id;
+            });
+            return root_group.on_write_ids(record_ids).then(function(reload_ids) {
+                reload_ids = reload_ids.filter(function(e) {
+                    return !~record_ids.indexOf(e);
+                });
+                return this.model.execute('delete', [record_ids], context)
+                .then(function() {
+                    root_group.reload(reload_ids);
+                });
+            }.bind(this));
+        };
         array.root_group = function() {
             var root = this;
             var parent = this.parent;
@@ -294,7 +293,7 @@
                 this.record_deleted.forEach(function(record) {
                     this._remove(record);
                 }.bind(this));
-                deferreds.push(this.model.delete_(this.record_deleted));
+                deferreds.push(this.delete_(this.record_deleted));
                 this.record_deleted.splice(0, this.record_deleted.length);
             }
             return jQuery.when.apply(jQuery, deferreds);
@@ -392,10 +391,12 @@
         array.context = function() {
             var context = jQuery.extend({}, this.model.session.context);
             if (this.parent) {
-                jQuery.extend(context, this.parent.get_context());
+                var parent_context = this.parent.get_context();
+                jQuery.extend(context, parent_context);
                 if (this.child_name in this.parent.model.fields) {
                     var field = this.parent.model.fields[this.child_name];
-                    jQuery.extend(context, field.get_context(this.parent));
+                    jQuery.extend(context, field.get_context(
+                        this.parent, parent_context));
                 }
             }
             jQuery.extend(context, this._context);
@@ -572,40 +573,46 @@
             }
             var id2record = {};
             id2record[this.id] = this;
-            var loading;
+            var loading, views, field;
             if (name == '*') {
                 loading = 'eager';
+                views = new Set();
+                var views_add = function(view) {
+                    views.add(view);
+                };
                 for (fname in this.model.fields) {
-                    if (!this.model.fields.hasOwnProperty(fname)) {
-                        continue;
-                    }
-                    var field_loading = (
-                            this.model.fields[fname].description.loading ||
-                            'eager');
-                    if (field_loading != 'eager') {
+                    field = this.model.fields[fname];
+                    if ((field.description.loading || 'eager') == 'lazy') {
                         loading = 'lazy';
-                        break;
                     }
+                    field.views.forEach(views_add);
                 }
             } else {
-                loading = (this.model.fields[name].description.loading ||
-                        'eager');
+                loading = this.model.fields[name].description.loading || 'eager';
+                views = this.model.fields[name].views;
             }
-            var fnames = [];
+            var fields = {};
             if (loading == 'eager') {
                 for (fname in this.model.fields) {
-                    if (!this.model.fields.hasOwnProperty(fname)) {
-                        continue;
-                    }
-                    if ((this.model.fields[fname].description.loading ||
-                                'eager') == 'eager') {
-                        fnames.push(fname);
+                    field = this.model.fields[fname];
+                    if ((field.description.loading || 'eager') == 'eager') {
+                        fields[fname] = field;
                     }
                 }
             } else {
-                fnames = Object.keys(this.model.fields);
+                fields = this.model.fields;
             }
-
+            var fnames = [];
+            for (fname in fields) {
+                field = fields[fname];
+                if (!(fname in this._loaded) &&
+                    (!views.size ||
+                        Sao.common.intersect(
+                            Array.from(views).sort(),
+                            Array.from(field.views).sort()))) {
+                    fnames.push(fname);
+                }
+            }
             // JMO: report https://github.com/coopengo/tryton/pull/13
             if (Object.keys(this.fields_to_load).length > 0) {
               fnames = fnames.filter(function(e, i, a) {
@@ -1357,6 +1364,7 @@
             case 'selection':
                 return Sao.field.Selection;
             case 'datetime':
+            case 'timestamp':
                 return Sao.field.DateTime;
             case 'date':
                 return Sao.field.Date;
@@ -1396,6 +1404,7 @@
         init: function(description) {
             this.description = description;
             this.name = description.name;
+            this.views = new Set();
         },
         set: function(record, value) {
             record._values[this.name] = value;
@@ -1454,8 +1463,13 @@
         get_timestamp: function(record) {
             return {};
         },
-        get_context: function(record) {
-            var context = record.get_context();
+        get_context: function(record, record_context) {
+            var context;
+            if (record_context) {
+                context = jQuery.extend({}, record_context);
+            } else {
+                context = record.get_context();
+            }
             jQuery.extend(context,
                 record.expr_eval(this.description.context || {}));
             return context;
@@ -1892,9 +1906,9 @@
             Sao.field.Many2One._super.set_client.call(this, record, value,
                     force_change);
         },
-        get_context: function(record) {
+        get_context: function(record, record_context) {
             var context = Sao.field.Many2One._super.get_context.call(
-                this, record);
+                this, record, record_context);
             if (this.description.datetime_field) {
                 context._datetime = record.get_eval()[
                     this.description.datetime_field];
@@ -2137,7 +2151,8 @@
                         l.forEach(function(v) {
                             Object.keys(v).forEach(function(f) {
                                 if (!(f in fields) &&
-                                    (f != 'id')) {
+                                    (f != 'id') &&
+                                    (!~f.indexOf('.'))) {
                                         field_names[f] = true;
                                     }
                             });
@@ -2418,9 +2433,9 @@
             return Sao.field.Reference._super.get_on_change_value.call(
                     this, record);
         },
-        get_context: function(record) {
+        get_context: function(record, record_context) {
             var context = Sao.field.Reference._super.get_context.call(
-                this, record);
+                this, record, record_context);
             if (this.description.datetime_field) {
                 context._datetime = record.get_eval()[
                     this.description.datetime_field];
@@ -2481,6 +2496,11 @@
 
     Sao.field.Dict = Sao.class_(Sao.field.Field, {
         _default: {},
+        init: function(description) {
+            Sao.field.Dict._super.init.call(this, description);
+            this.schema_model = new Sao.Model(description.schema_model);
+            this.keys = {};
+        },
         set: function(record, value) {
             if (value) {
                 // Order keys to allow comparison with stringify
@@ -2524,6 +2544,75 @@
         },
         time_format: function(record) {
             return '%X';
+        },
+        add_keys: function(keys, record) {
+            var schema_model = this.description.schema_model;
+            var context = this.get_context(record);
+            var domain = this.get_domain(record);
+            var batchlen = Math.min(10, Sao.config.limit);
+
+            keys = jQuery.extend([], keys);
+            var get_keys = function(key_ids) {
+                return this.schema_model.execute('get_keys',
+                        [key_ids], context).then(update_keys);
+            }.bind(this);
+            var update_keys = function(values) {
+                for (var i = 0, len = values.length; i < len; i++) {
+                    var k = values[i];
+                    this.keys[k.name] = k;
+                }
+            }.bind(this);
+
+            var prms = [];
+            while (keys.length > 0) {
+                var sub_keys = keys.splice(0, batchlen);
+                prms.push(this.schema_model.execute('search',
+                            [[['name', 'in', sub_keys], domain],
+                            0, Sao.config.limit, null], context)
+                        .then(get_keys));
+            }
+            return jQuery.when.apply(jQuery, prms);
+        },
+        add_new_keys: function(ids, record) {
+            var context = this.get_context(record);
+            return this.schema_model.execute('get_keys', [ids], context)
+                .then(function(new_fields) {
+                    var names = [];
+                    new_fields.forEach(function(new_field) {
+                        this.keys[new_field.name] = new_field;
+                        names.push(new_field.name);
+                    }.bind(this));
+                    return names;
+                }.bind(this));
+        },
+        validate: function(record, softvalidation, pre_validate) {
+            var valid = Sao.field.Dict._super.validate.call(
+                this, record, softvalidation, pre_validate);
+
+            if (this.description.readonly) {
+                return valid;
+            }
+
+            var decoder = new Sao.PYSON.Decoder();
+            var field_value = this.get_eval(record);
+            var domain = [];
+            for (var key in field_value) {
+                if (!(key in this.keys)) {
+                    continue;
+                }
+                var key_domain = this.keys[key].domain;
+                if (key_domain) {
+                    domain.push(decoder.decode(key_domain));
+                }
+            }
+
+            var inversion = new Sao.common.DomainInversion();
+            var valid_value = inversion.eval_domain(domain, field_value);
+            if (!valid_value) {
+                this.get_state_attrs(record).invalid = 'domain';
+            }
+
+            return valid && valid_value;
         }
     });
 }());

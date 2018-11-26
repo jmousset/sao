@@ -68,7 +68,7 @@
                         return;
                     } else {
                         Sao.common.message.run('Concurrency Exception',
-                                'glyphicon-alert').always(dfd.reject);
+                                'tryton-warning').always(dfd.reject);
                         return;
                     }
                 // PKUNK Fix#10127
@@ -91,7 +91,7 @@
         };
 
         var ajax_error = function(query, status_, error) {
-            if ((query.status == 403) || (query.status == 401)) {
+            if (query.status == 401) {
                 //Try to relog
                 Sao.Session.renew(session).then(function() {
                     Sao.rpc(args, session).then(dfd.resolve, dfd.reject);

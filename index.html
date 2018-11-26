@@ -27,12 +27,10 @@ this repository contains the full copyright notices and license terms. -->
         <script type="text/javascript" src="bower_components/codemirror/addon/display/autorefresh.js"></script>
 
         <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="bower_components/bootstrap-rtl-ondemand/dist/css/bootstrap-rtl-ondemand.min.css">
         <link rel="stylesheet" href="bower_components/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css">
         <link rel="stylesheet" href="bower_components/c3/c3.min.css">
         <link rel="stylesheet" href="bower_components/fullcalendar/dist/fullcalendar.min.css">
-        <link rel="stylesheet" href="bower_components/codemirror/lib/codemirror.css">
-        <link rel="stylesheet" href="bower_components/codemirror/addon/lint/lint.css">
-        <link rel="stylesheet" href="offcanvas.css">
 
         <script type="text/javascript" src="dist/tryton-sao.min.js"></script>
         <link rel="stylesheet" type="text/css" href="dist/tryton-sao.min.css"
@@ -45,16 +43,16 @@ this repository contains the full copyright notices and license terms. -->
                 document.write(unescape('%3clink rel="stylesheet" type="text/css" href="dist/coog-sao.css" media="screen"/%3e'));
             }
         </script>
+        <script type="text/javascript" src="custom.js"></script>
+        <link rel="stylesheet" type="text/css" href="custom.css" media="screen"/>
         </head>
         <body>
-        <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 1px;">
+        <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0px;">
             <div class="container-fluid">
                 <div class="navbar-header">
                     <button type="button" class="navbar-toggle collapsed"
                         data-toggle="collapse" data-target="#main_navbar">
-                        <span class="icon-bar"></span>
-                        <span class="icon-bar"></span>
-                        <span class="icon-bar"></span>
+                        <span class="caret"></span>
                     </button>
                     <a class="navbar-brand" href="#">Coog</a>
                     <p class="pull-left visible navbar-text">
@@ -66,11 +64,10 @@ this repository contains the full copyright notices and license terms. -->
                     </p>
                 </div>
                 <div class="collapse navbar-collapse" id="main_navbar">
-                    <ul class="nav navbar-nav">
+                    <form class="navbar-form navbar-left flip" role="search" id="global-search">
+                    </form>
+                    <ul class="nav navbar-nav navbar-right flip">
                         <li id="user-preferences"></li>
-                        <li id="user-favorites"></li>
-                    </ul>
-                    <ul class="nav navbar-nav navbar-right">
                         <li id="user-logout"></li>
                     </ul>
                     <ul id="tablist" class="nav navbar-nav nav-tabs nav-tabs-justified" role="tablist">
@@ -78,7 +75,7 @@ this repository contains the full copyright notices and license terms. -->
                 </div>
             </div>
         </nav>
-        <div id="main" class="container-fluid">
+        <div id="main" class="container-fluid" style="padding: 0px;">
             <div class="row row-offcanvas row-offcanvas-left active"
                 style="height: calc(100vh - 50px - 1px - 20px);">
                 <!-- !!!> Carefull here ! If bootstrap columns changes, offcanvas.css must be edited as well -->
@@ -109,7 +106,6 @@ this repository contains the full copyright notices and license terms. -->
                             jQuery('.row-offcanvas').addClass('active');
                         }
                     });
-                    Sao.login();
                     });
         </script>
     </body>

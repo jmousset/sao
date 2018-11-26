@@ -15,7 +15,21 @@
             this.prm = jQuery.when();  // renew promise
             this.database = database;
             this.login = login;
-            this.context = {};
+            if (this.database) {
+                var session_data = localStorage.getItem(
+                    'sao_session_' + database);
+                if (session_data !== null) {
+                    session_data = JSON.parse(session_data);
+                    if (!this.login || this.login == session_data.login) {
+                        this.login = session_data.login;
+                        this.user_id = session_data.user_id;
+                        this.session = session_data.session;
+                    }
+                }
+            }
+            this.context = {
+                client: Sao.Bus.id,
+            };
             if (!Sao.Session.current_session) {
                 Sao.Session.current_session = this;
             }
@@ -32,16 +46,21 @@
                 };
             };
             new Sao.Login(func, this).run().then(function(result) {
+                this.login = login;
                 this.user_id = result[0];
                 this.session = result[1];
                 // AKE: save session to localStorage on login
+                // MAB: Save has been kept but we might not need it anymore
                 this.save();
+
+                this.store();
                 dfd.resolve();
             }.bind(this), function() {
                 this.user_id = null;
                 this.session = null;
+                this.store();
                 dfd.reject();
-            });
+            }.bind(this));
             return dfd.promise();
         },
         do_logout: function() {
@@ -63,6 +82,7 @@
                 'url': '/' + this.database + '/',
                 'type': 'post',
             });
+            this.unstore();
             this.database = null;
             this.login = null;
             this.user_id = null;
@@ -80,12 +100,29 @@
                 'params': [true, {}]
             };
             // AKE: avoid cloning session, it will be changed anyway
+            // MAB: We might not need it anymore
             delete this.context;
+
+            this.context = {
+                client: Sao.Bus.id,
+            };
             var prm = Sao.rpc(args, this);
             return prm.then(function(context) {
-                this.context = context;
+                jQuery.extend(this.context, context);
             }.bind(this));
-        }
+        },
+        store: function() {
+            var session = {
+                'login': this.login,
+                'user_id': this.user_id,
+                'session': this.session,
+            };
+            session = JSON.stringify(session);
+            localStorage.setItem('sao_session_' + this.database, session);
+        },
+        unstore: function() {
+            localStorage.removeItem('sao_session_' + this.database);
+        },
     });
 
     // AKE: method to load session from localStorage
@@ -146,7 +183,7 @@
         dialog.button = jQuery('<button/>', {
             'class': 'btn btn-primary',
             'type': 'submit'
-        }).append(Sao.i18n.gettext('Login')).appendTo(dialog.footer);
+        }).append(' ' + Sao.i18n.gettext("Login")).appendTo(dialog.footer);
         return dialog;
     };
 
@@ -183,7 +220,7 @@
             dialog.button.focus();
             dialog.button.prop('disabled', true);
             dialog.modal.modal('hide');
-            var session = new Sao.Session(database, login);
+            session.database = database;
             session.do_login(login)
                 .then(function() {
                     dfd.resolve(session);
@@ -214,10 +251,8 @@
         jQuery.when(Sao.DB.list()).then(function(databases) {
             var el;
             databases = databases || [];
-            if (databases.length <= 1 ) {
-                if (databases.length == 1) {
-                    database = databases[0];
-                }
+            if (databases.length == 1 ) {
+                database = databases[0];
                 el = dialog.database_input;
             } else {
                 el = dialog.database_select;
@@ -231,6 +266,8 @@
             el.prop('readonly', databases.length == 1);
             el.show();
             el.val(database || '');
+        }, function() {
+            dialog.database_input.show();
         });
         return dfd.promise();
     };
@@ -242,12 +279,15 @@
         var dfd = jQuery.Deferred();
         session.prm = dfd.promise();
         // AKE: drop session from localStorage on renew
+        // MAB: Not sure we still need this
         session.drop();
-        if (!session.login) {
+
+        session.do_login(session.login).then(dfd.resolve, function() {
+            Sao.logout();
             dfd.reject();
-            return session.prm;
-        }
-        session.do_login(session.login).then(dfd.resolve, dfd.reject);
+        }).done(function () {
+            Sao.Bus.listen();
+        });
         return session.prm;
     };
 
@@ -289,7 +329,7 @@
                            Sao.i18n.gettext('Unable to reach the server.'));
                     dfd.reject();
                 } else if (data.error) {
-                    if (data.error[0].startsWith('403')) {
+                    if (data.error[0].startsWith('401')) {
                         return this.run({}).then(dfd.resolve, dfd.reject);
                     } else if (data.error[0].startsWith('404')) {
                         dfd.reject();
@@ -311,8 +351,17 @@
                     dfd.resolve(data.result);
                 }
             };
+            var ajax_error = function(query, status_, error) {
+                if (query.status == 401) {
+                    // Retry
+                    this.run({}).then(dfd.resolve, dfd.reject);
+                } else {
+                    Sao.common.error.run(status_, error);
+                    dfd.reject();
+                }
+            };
             ajax_prm.done(ajax_success.bind(this));
-            ajax_prm.fail(dfd.reject);
+            ajax_prm.fail(ajax_error.bind(this));
             return dfd.promise();
         },
         get_char: function(message) {

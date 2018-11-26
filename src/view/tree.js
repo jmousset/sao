@@ -137,7 +137,9 @@
                     label.attr('title', column.attributes.help);
                 }
                 if (column.sortable) {
-                    var arrow = jQuery('<span/>');
+                    var arrow = jQuery('<img/>', {
+                        'class': 'icon',
+                    });
                     label.append(arrow);
                     column.arrow = arrow;
                     th.click(column, this.sort_model.bind(this));
@@ -256,7 +258,6 @@
             if (!attributes.sum) {
                 return;
             }
-            // TODO RTL
             var label = attributes.sum + Sao.i18n.gettext(': ');
             var sum = jQuery('<label/>', {
                 'text': label,
@@ -269,24 +270,30 @@
         sort_model: function(e){
             var column = e.data;
             var arrow = column.arrow;
-            var arrow_top = 'glyphicon glyphicon-triangle-top';
-            var arrow_bottom = 'glyphicon glyphicon-triangle-bottom';
             this.columns.forEach(function(col) {
                 if (col.arrow){
-                    if (col != column && col.arrow.hasClass('glyphicon')) {
-                        col.arrow.removeClass(arrow_top + ' ' + arrow_bottom);
+                    if (col != column && col.arrow.attr('src')) {
+                        col.arrow.attr('src', '');
                     }
                 }
             });
             this.screen.order = this.screen.default_order;
-            if (arrow.hasClass(arrow_bottom)) {
-                arrow.removeClass(arrow_bottom);
-                arrow.addClass(arrow_top);
+            if (arrow.data('order') == 'ASC') {
+                arrow.data('order', 'DESC');
+                Sao.common.ICONFACTORY.get_icon_url('tryton-arrow-up')
+                    .then(function(url) {
+                        arrow.attr('src', url);
+                    });
                 this.screen.order = [[column.attributes.name, 'DESC']];
-            } else if (arrow.hasClass(arrow_top)) {
-                arrow.removeClass(arrow_top);
+            } else if (arrow.data('order') == 'DESC') {
+                arrow.data('order', '');
+                arrow.attr('src', '');
             } else {
-                arrow.addClass(arrow_bottom);
+                arrow.data('order', 'ASC');
+                Sao.common.ICONFACTORY.get_icon_url('tryton-arrow-down')
+                    .then(function(url) {
+                        arrow.attr('src', url);
+                    });
                 this.screen.order = [[column.attributes.name, 'ASC']];
             }
             var unsaved_records = [];
@@ -350,17 +357,17 @@
                     this.screen.group.length, this.display_size);
             // XXX find better check to keep focus
             if (this.children_field) {
-                this.construct(selected, expanded);
+                this.construct();
             } else if ((min_display_size > this.rows.length) &&
                 Sao.common.compare(
                     this.screen.group.slice(0, this.rows.length),
                     row_records())) {
-                this.construct(selected, expanded, true);
+                this.construct(true);
             } else if ((min_display_size != this.rows.length) ||
                 !Sao.common.compare(
                     this.screen.group.slice(0, this.rows.length),
                     row_records())){
-                this.construct(selected, expanded);
+                this.construct();
             }
 
             // Set column visibility depending on attributes and domain
@@ -432,7 +439,12 @@
                         'boolean': 2,
                         'binary': 20,
                     }[column.attributes.widget] || 10;
-                    column.col.css('width', width * 100 + '%');
+                    if (column.attributes.width !== undefined){
+                        width = column.attributes.width + 'px';
+                    } else {
+                        width = width * 100 + '%';
+                    }
+                    column.col.css('width', width);
                     column.col.show();
                 }
             }.bind(this));
@@ -452,7 +464,7 @@
             return this.redraw(selected, expanded).done(
                 Sao.common.debounce(this.update_sum.bind(this), 250));
         },
-        construct: function(selected, expanded, extend) {
+        construct: function(extend) {
             var tbody = this.tbody;
             if (!extend) {
                 this.rows = [];
@@ -471,7 +483,7 @@
                 }
                 var tree_row = new RowBuilder(this, record, this.rows.length);
                 this.rows.push(tree_row);
-                tree_row.construct(selected, expanded);
+                tree_row.construct();
             };
             this.screen.group.slice(start, this.display_size).forEach(
                     add_row.bind(this));
@@ -849,10 +861,7 @@
             table.append(row);
             return [table, row];
         },
-        construct: function(selected, expanded) {
-            selected = selected || [];
-            expanded = expanded || [];
-
+        construct: function() {
             var el_node = this.el[0];
             while (el_node.firstChild) {
                 el_node.removeChild(el_node.firstChild);
@@ -878,13 +887,16 @@
             for (var i = 0; i < this.tree.columns.length; i++) {
                 var column = this.tree.columns[i];
                 td = jQuery('<td/>', {
-                    // TODO RTL
                     'data-title': column.attributes.string + Sao.i18n.gettext(': ')
                 }).append(jQuery('<span/>', { // For responsive min-height
                     'aria-hidden': true
                 }));
-                td.on('click keypress', {'index': i},
-                    this.select_column.bind(this));
+                td.on('click keypress', {'index': i}, function(event_) {
+                    if (this.expander && !this.is_expanded()) {
+                        this.toggle_row();
+                    }
+                    this.select_column(event_.data.index);
+                }.bind(this));
                 if (!this.tree.editable) {
                     td.dblclick(this.switch_row.bind(this));
                 } else {
@@ -900,18 +912,16 @@
                 var row = widgets[1];
                 td.append(table);
                 if ((i === 0) && this.children_field) {
-                    var expanded_icon = 'glyphicon-plus';
-                    if (this.is_expanded() ||
-                            ~expanded.indexOf(this.record.id)) {
-                        expanded_icon = 'glyphicon-minus';
-                    }
-                    this.expander = jQuery('<span/>', {
-                        'class': 'glyphicon ' + expanded_icon,
-                        'tabindex': 0
+                    this.expander = jQuery('<img/>', {
+                        'tabindex': 0,
+                        'class': 'icon',
                     });
                     this.expander.html('&nbsp;');
-                    this.expander.css('margin-left', (depth - 1) + 'em');
-                    this.expander.css('float', 'left');
+                    var margin = 'margin-left';
+                    if (Sao.i18n.rtl) {
+                        margin = 'margin-right';
+                    }
+                    this.expander.css(margin, (depth - 1) + 'em');
                     this.expander.on('click keypress',
                             Sao.common.click_press(this.toggle_row.bind(this)));
                     row.append(jQuery('<td/>', {
@@ -950,6 +960,7 @@
             var row_id_path = this.get_id_path();
             if (this.is_expanded() ||
                     // [Coog specific] multi_mixed_view
+                    // MAB: not sure we still need this
                     Sao.common.contains(expanded, row_id_path) ||
                     (this.tree.always_expand && !this.is_leaf())) {
                 this.tree.expanded[this.path] = this;
@@ -972,6 +983,7 @@
             expanded = expanded || [];
             var update_expander = function() {
                 // [Coog Specific]  needed for multi_mixed_view
+                // MAB: not sure we still need this
                 if (this.is_leaf()  || !this.record.field_get_client(
                     this.children_field).length) {
                     this.expander.css('visibility', 'hidden');
@@ -997,6 +1009,7 @@
             for (var i = 0; i < this.tree.columns.length; i++) {
                 if ((i === 0) && this.children_field) {
                     // [Coog Specific]  needed for multi_mixed_view
+                    // MAB: not sure we still need this
                     if (!this.is_leaf())
                         this.record.load(this.children_field).done(
                             update_expander.bind(this));
@@ -1050,23 +1063,22 @@
             }
             var row_id_path = this.get_id_path();
             this.set_selection(Sao.common.contains(selected, row_id_path));
-            if (this.is_expanded() ||
-                    Sao.common.contains(expanded, row_id_path)) {
-                this.tree.expanded[this.path] = this;
-                if (!this.record._values[this.children_field] ||
-                        (this.record._values[this.children_field].length > 0 &&
-                         this.rows.length === 0)) {
-                    this.expand_children(selected, expanded);
-                } else {
-                    redraw_async(this.rows, selected, expanded);
-                }
-                if (this.expander) {
-                    this.update_expander(true);
-                }
-            } else {
-                if (this.expander) {
-                    this.update_expander(false);
-                }
+            if (this.children_field) {
+                this.record.load(this.children_field).done(function() {
+                    if (this.is_expanded() ||
+                        Sao.common.contains(expanded, row_id_path)) {
+                        this.expander.css('visibility', 'visible');
+                        this.tree.expanded[this.path] = this;
+                        this.expand_children(selected, expanded);
+                        this.update_expander(true);
+                    } else {
+                        var length = this.record.field_get_client(
+                            this.children_field).length;
+                        this.expander.css('visibility',
+                            length ? 'visible' : 'hidden');
+                        this.update_expander(false);
+                    }
+                }.bind(this));
             }
             if (this.record.deleted() || this.record.removed()) {
                 this.el.css('text-decoration', 'line-through');
@@ -1092,13 +1104,16 @@
             return false;
         },
         update_expander: function(expanded) {
+            var icon;
             if (expanded) {
-                this.expander.removeClass('glyphicon-plus');
-                this.expander.addClass('glyphicon-minus');
+                icon = 'tryton-arrow-down';
             } else {
-                this.expander.removeClass('glyphicon-minus');
-                this.expander.addClass('glyphicon-plus');
+                icon = 'tryton-arrow-right';
             }
+            Sao.common.ICONFACTORY.get_icon_url(icon)
+                .then(function(url) {
+                    this.expander.attr('src', url);
+                }.bind(this));
         },
         collapse_children: function() {
             this.rows.forEach(function(row, pos, rows) {
@@ -1109,28 +1124,23 @@
             this.rows = [];
         },
         expand_children: function(selected, expanded) {
-            var add_children = function() {
-                if (!jQuery.isEmptyObject(this.rows)) {
-                    return;
-                }
-                var new_rows = [];
-                var add_row = function(record, pos, group) {
-                    var tree_row = new this.Class(
-                            this.tree, record, pos, this);
-                    tree_row.construct(selected, expanded);
-                    this.rows.push(tree_row);
-                    new_rows.push(tree_row);
-                };
-                var children = this.record.field_get_client(
+            return this.record.load(this.children_field).done(function() {
+                if (this.rows.length === 0) {
+                    var children = this.record.field_get_client(
                         this.children_field);
-                // [Coog Specific]  needed for multi_mixed_view
-                if (children.model.name != this.record.model.name)
-                    children.model.add_fields(this.children_definitions[children.model.name]);
-                children.forEach(add_row.bind(this));
-                redraw_async(new_rows, selected, expanded);
-            };
-            return this.record.load(this.children_field).done(
-                    add_children.bind(this));
+                    // [Coog Specific]  needed for multi_mixed_view
+                    // MAB: not sure we still need this
+                    if (children.model.name != this.record.model.name)
+                        children.model.add_fields(this.children_definitions[children.model.name]);
+                    children.forEach(function(record, pos, group) {
+                        var tree_row = new this.Class(
+                            this.tree, record, pos, this);
+                        tree_row.construct(selected, expanded);
+                        this.rows.push(tree_row);
+                    }.bind(this));
+                }
+                redraw_async(this.rows, selected, expanded);
+            }.bind(this));
         },
         switch_row: function() {
             if (window.getSelection) {
@@ -1159,7 +1169,7 @@
             });
         },
         // end
-        select_column: function(event_) {
+        select_column: function(index) {
         },
         select_row: function(event_) {
             if (this.tree.selection_mode == Sao.common.SELECTION_NONE) {
@@ -1287,8 +1297,8 @@
                 }
             }
         },
-        select_column: function(event_) {
-            this.edited_column = event_.data.index;
+        select_column: function(index) {
+            this.edited_column = index;
         },
         select_row: function(event_) {
             var body, listener;
@@ -1518,7 +1528,7 @@
             this.protocol = protocol || null;
             this.icon = attributes.icon;
             if (this.protocol && !this.icon) {
-                this.icon = 'tryton-web-browser';
+                this.icon = 'tryton-public';
             }
         },
         get_cell: function() {
@@ -1543,7 +1553,7 @@
                 cell = this.get_cell();
             }
             record.load(this.attributes.name).done(function() {
-                var value, icon_prm;
+                var value;
                 var field = record.model.fields[this.attributes.name];
                 var invisible = field.get_state_attrs(record).invisible;
                 if (invisible) {
@@ -1576,16 +1586,16 @@
                     else {
                         value = this.icon;
                     }
-                    icon_prm = Sao.common.ICONFACTORY.register_icon(value);
-                    icon_prm.done(function(url) {
-                        var img_tag;
-                        if (cell.children('img').length) {
-                            img_tag = cell.children('img');
-                        } else {
-                            img_tag = cell;
-                        }
-                        img_tag.attr('src', url || '');
-                    }.bind(this));
+                    Sao.common.ICONFACTORY.get_icon_url(value)
+                        .done(function(url) {
+                            var img_tag;
+                            if (cell.children('img').length) {
+                                img_tag = cell.children('img');
+                            } else {
+                                img_tag = cell;
+                            }
+                            img_tag.attr('src', url || '');
+                        }.bind(this));
                 } else {
                     value = this.attributes.string || '';
                     if (!value) {
@@ -1857,9 +1867,8 @@
                 button = jQuery('<button/>', {
                     'class': 'btn btn-default btn-sm',
                     'type': 'button',
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-save',
-                })).appendTo(cell)
+                }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-save')
+                ).appendTo(cell)
                     .click(record, function(event) {
                         // Prevent editable tree to start edition
                         event.stopPropagation();

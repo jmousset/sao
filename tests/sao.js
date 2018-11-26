@@ -95,10 +95,6 @@
         QUnit.strictEqual(value.__class__, 'Not', 'Not(true).pyson()');
         QUnit.strictEqual(value.v, true, 'Not(true).pyson()');
 
-        QUnit.throws(function() {
-            new Sao.PYSON.Not('foo');
-        }, 'value must be boolean', "Not('foo')");
-
         QUnit.ok(Sao.common.compare(new Sao.PYSON.Not(true).types(),
                 ['boolean']), 'Not(true).types()');
 
@@ -189,15 +185,6 @@
             'And([true, false]).pyson()');
 
         QUnit.throws(function() {
-            new Sao.PYSON.And(['test', false]);
-        }, 'statement must be boolean', "And(['test', false])");
-        QUnit.throws(function() {
-            new Sao.PYSON.And([true, 'test']);
-        }, 'statement must be boolean', "And([true, 'test'])");
-        QUnit.throws(function() {
-            new Sao.PYSON.And([true, false, 'test']);
-        }, 'statement must be boolean', "And([true, false, 'test'])");
-        QUnit.throws(function() {
             new Sao.PYSON.And([true]);
         }, 'must have at least 2 statements', 'And([true])');
         QUnit.throws(function() {
@@ -265,15 +252,6 @@
         QUnit.ok(Sao.common.compare(value.s, [true, false]),
             'Or([true, false]).pyson()');
 
-        QUnit.throws(function() {
-            new Sao.PYSON.Or(['test', false]);
-        }, 'statement must be boolean', "Or(['test', false])");
-        QUnit.throws(function() {
-            new Sao.PYSON.Or([true, 'test']);
-        }, 'statement must be boolean', "Or([true, 'test'])");
-        QUnit.throws(function() {
-            new Sao.PYSON.Or([true, false, 'test']);
-        }, 'statement must be boolean', "Or([true, false, 'test'])");
         QUnit.throws(function() {
             new Sao.PYSON.Or([true]);
         }, 'must have at least 2 statements', 'Or([true])');
@@ -423,9 +401,6 @@
         QUnit.throws(function() {
             new Sao.PYSON.Greater(1, 'test');
         }, 'statement must be an integer or a float');
-        QUnit.throws(function() {
-            new Sao.PYSON.Greater(1, 0, 'test');
-        }, 'equal must be boolean');
 
         QUnit.ok(Sao.common.compare(new Sao.PYSON.Greater(1, 0).types(),
                 ['boolean']), 'Greater(1, 0).types()');
@@ -482,9 +457,6 @@
         QUnit.throws(function() {
             new Sao.PYSON.Less(1, 'test');
         }, 'statement must be an integer or a float');
-        QUnit.throws(function() {
-            new Sao.PYSON.Less(1, 0, 'test');
-        }, 'equal must be boolean');
 
         QUnit.ok(Sao.common.compare(new Sao.PYSON.Less(1, 0).types(),
                 ['boolean']), 'Less(1, 0).types()');
@@ -535,9 +507,6 @@
         QUnit.strictEqual(value.t, 'foo', "If(true, 'foo', 'bar')");
         QUnit.strictEqual(value.e, 'bar', "If(true, 'foo', 'bar')");
 
-        QUnit.throws(function() {
-            new Sao.PYSON.If('test', 'foo', 'bar');
-        }, 'condition must be boolean');
         QUnit.throws(function() {
             new Sao.PYSON.If(true, 'foo', false);
         }, 'then and else statements must be the same type');
@@ -906,6 +875,36 @@
         QUnit.strictEqual(new Sao.PYSON.DateTime(2010, 1, 12, 10, 30, 20, 0,
                 -1, 12, -7, 2, 15, 30, 1).toString(),
             'DateTime(2010, 1, 12, 10, 30, 20, 0, -1, 12, -7, 2, 15, 30, 1)');
+    });
+
+    QUnit.test('PYSON TimeDelta', function() {
+        var value = new Sao.PYSON.TimeDelta(1, 2, 3).pyson();
+        QUnit.strictEqual(value.__class__, 'TimeDelta',
+            'TimeDelta(1, 2, 3).pyson()');
+        QUnit.strictEqual(value.d, 1,
+            'TimeDelta(1, 2, 3).pyson()');
+        QUnit.strictEqual(value.s, 2,
+            'TimeDelta(1, 2, 3).pyson()');
+        QUnit.strictEqual(value.m, 3,
+            'TimeDelta(1, 2, 3).pyson()');
+
+        QUnit.throws(function() {
+            new Sao.PYSON.TimeDelta('test');
+        }, 'days must be integer');
+
+        QUnit.ok(Sao.common.compare(
+            new Sao.PYSON.TimeDelta(1, 2, 3).types(), ['object']),
+            'TimeDelta(1, 2, 3).types()');
+
+        var eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.TimeDelta(1, 2, 3));
+        QUnit.strictEqual(
+            new Sao.PYSON.Decoder().decode(eval_).valueOf(),
+            Sao.TimeDelta(1, 2, 3 / 1000).valueOf());
+
+        QUnit.strictEqual(
+            new Sao.PYSON.TimeDelta(1, 2, 3).toString(),
+            'TimeDelta(1, 2, 3)');
     });
 
     QUnit.test('PYSON Len', function() {
@@ -2227,6 +2226,39 @@
         [[['x', 'in', [3, 5]]], {'x': [3]}, true],
         [[['x', 'in', [3, 5]]], {'x': [3, 4]}, true],
         [[['x', 'in', [3, 5]]], {'x': [1, 2]}, false],
+        [[['x', 'like', 'abc']], {'x': 'abc'}, true],
+        [[['x', 'like', 'abc']], {'x': ''}, false],
+        [[['x', 'like', 'abc']], {'x': 'xyz'}, false],
+        [[['x', 'like', 'abc']], {'x': 'abcd'}, false],
+        [[['x', 'not like', 'abc']], {'x': 'xyz'}, true],
+        [[['x', 'not like', 'abc']], {'x': 'ABC'}, true],
+        [[['x', 'not like', 'abc']], {'x': 'abc'}, false],
+        [[['x', 'not ilike', 'abc']], {'x': 'xyz'}, true],
+        [[['x', 'not ilike', 'abc']], {'x': 'ABC'}, false],
+        [[['x', 'not ilike', 'abc']], {'x': 'abc'}, false],
+        [[['x', 'like', 'a%']], {'x': 'a'}, true],
+        [[['x', 'like', 'a%']], {'x': 'abcde'}, true],
+        [[['x', 'like', 'a%']], {'x': ''}, false],
+        [[['x', 'like', 'a%']], {'x': 'ABCDE'}, false],
+        [[['x', 'like', 'a%']], {'x': 'xyz'}, false],
+        [[['x', 'ilike', 'a%']], {'x': 'a'}, true],
+        [[['x', 'ilike', 'a%']], {'x': 'A'}, true],
+        [[['x', 'ilike', 'a%']], {'x': ''}, false],
+        [[['x', 'ilike', 'a%']], {'x': 'xyz'}, false],
+        [[['x', 'like', 'a_']], {'x': 'ab'}, true],
+        [[['x', 'like', 'a_']], {'x': 'a'}, false],
+        [[['x', 'like', 'a_']], {'x': 'abc'}, false],
+        [[['x', 'like', 'a\\%b']], {'x': 'a%b'}, true],
+        [[['x', 'like', 'a\\%b']], {'x': 'ab'}, false],
+        [[['x', 'like', 'a\\%b']], {'x': 'a123b'}, false],
+        [[['x', 'like', '\\%b']], {'x': '%b'}, true],
+        [[['x', 'like', '\\%b']], {'x': 'b'}, false],
+        [[['x', 'like', '\\%b']], {'x': '123b'}, false],
+        [[['x', 'like', 'a\\_c']], {'x': 'a_c'}, true],
+        [[['x', 'like', 'a\\_c']], {'x': 'abc'}, false],
+        [[['x', 'like', 'a\\_c']], {'x': 'ac'}, false],
+        [[['x', 'like', 'a\\\\_c']], {'x': 'a\\bc'}, true],
+        [[['x', 'like', 'a\\\\_c']], {'x': 'abc'}, false],
         [['OR', ['x', '>', 10], ['x', '<', 0]], {'x': 11}, true],
         [['OR', ['x', '>', 10], ['x', '<', 0]], {'x': -4}, true],
         [['OR', ['x', '>', 10], ['x', '<', 0]], {'x': 5}, false],

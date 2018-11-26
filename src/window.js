@@ -133,6 +133,37 @@
                     'class': 'input-group-btn'
                 }).appendTo(group);
                 var access = Sao.common.MODELACCESS.get(this.screen.model_name);
+
+                this.but_switch = jQuery('<button/>', {
+                    'class': 'btn btn-default btn-sm',
+                    'type': 'button',
+                    'aria-label': Sao.i18n.gettext('Switch')
+                }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-switch')
+                ).appendTo(buttons);
+                this.but_switch.click(this.switch_.bind(this));
+
+                this.but_previous = jQuery('<button/>', {
+                    'class': 'btn btn-default btn-sm',
+                    'type': 'button',
+                    'aria-label': Sao.i18n.gettext('Previous')
+                }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-back')
+                ).appendTo(buttons);
+                this.but_previous.click(this.previous.bind(this));
+
+                this.label = jQuery('<span/>', {
+                    'class': 'badge'
+                }).appendTo(jQuery('<span/>', {
+                    'class': 'btn hidden-xs',
+                }).appendTo(buttons));
+
+                this.but_next = jQuery('<button/>', {
+                    'class': 'btn btn-default btn-sm',
+                    'type': 'button',
+                    'aria-label': Sao.i18n.gettext('Next')
+                }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-forward')
+                ).appendTo(buttons);
+                this.but_next.click(this.next.bind(this));
+
                 if (this.domain) {
                     this.wid_text.show();
 
@@ -140,9 +171,8 @@
                         'class': 'btn btn-default btn-sm',
                         'type': 'button',
                         'aria-label': Sao.i18n.gettext('Add')
-                    }).append(jQuery('<span/>', {
-                        'class': 'glyphicon glyphicon-plus'
-                    })).appendTo(buttons);
+                    }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-add')
+                    ).appendTo(buttons);
                     this.but_add.click(this.add.bind(this));
                     this.but_add.prop('disabled', !access.read || readonly);
 
@@ -150,9 +180,8 @@
                         'class': 'btn btn-default btn-sm',
                         'type': 'button',
                         'aria-label': Sao.i18n.gettext('Remove')
-                    }).append(jQuery('<span/>', {
-                        'class': 'glyphicon glyphicon-minus'
-                    })).appendTo(buttons);
+                    }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-remove')
+                    ).appendTo(buttons);
                     this.but_remove.click(this.remove.bind(this));
                     this.but_remove.prop('disabled', !access.read || readonly);
                 }
@@ -172,9 +201,8 @@
                     'class': 'btn btn-default btn-sm',
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('Delete')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-trash'
-                })).appendTo(buttons);
+                }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-delete')
+                ).appendTo(buttons);
                 this.but_del.click(this.delete_.bind(this));
                 this.but_del.prop('disabled', !access['delete'] || readonly);
 
@@ -182,34 +210,10 @@
                     'class': 'btn btn-default btn-sm',
                     'type': 'button',
                     'aria-label': Sao.i18n.gettext('Undelete')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-repeat'
-                })).appendTo(buttons);
+                }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-undo')
+                ).appendTo(buttons);
                 this.but_undel.click(this.undelete.bind(this));
                 this.but_undel.prop('disabled', !access['delete'] || readonly);
-
-                this.but_previous = jQuery('<button/>', {
-                    'class': 'btn btn-default btn-sm',
-                    'type': 'button',
-                    'aria-label': Sao.i18n.gettext('Previous')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-chevron-left'
-                })).appendTo(buttons);
-                this.but_previous.click(this.previous.bind(this));
-
-                this.label = jQuery('<span/>', {
-                    'class': 'btn'
-                }).appendTo(buttons);
-                this.label.text('(0, 0)');
-
-                this.but_next = jQuery('<button/>', {
-                    'class': 'btn btn-default btn-sm',
-                    'type': 'button',
-                    'aria-label': Sao.i18n.gettext('Next')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-chevron-right'
-                })).appendTo(buttons);
-                this.but_next.click(this.next.bind(this));
 
                 this.but_switch = jQuery('<button/>', {
                     'class': 'btn btn-default btn-sm',
@@ -220,6 +224,8 @@
                     'class': 'glyphicon glyphicon-resize-full'
                 })).appendTo(buttons);
                 this.but_switch.click(this.switch_.bind(this));
+
+                this.screen.message_callback = this.record_label.bind(this);
             }
 
             var content = jQuery('<div/>').appendTo(dialog.body);
@@ -239,6 +245,33 @@
             this.el.on('hidden.bs.modal', function(event) {
                 jQuery(this).remove();
             });
+        },
+        record_label: function(data) {
+            var name = '_';
+            var access = Sao.common.MODELACCESS.get(this.screen.model_name);
+            var readonly = this.screen.group.get_readonly();
+            if (data[0] >= 1) {
+                name = data[0];
+                if (this.domain) {
+                    this.but_remove.prop('disabled', false);
+                }
+                this.but_next.prop('disabled', data[0] >= data[1]);
+                this.but_previous.prop('disabled', data[0] <= 1);
+                if (access.delete && !readonly) {
+                    this.but_del.prop('disabled', false);
+                    this.but_undel.prop('disabled', false);
+                }
+            } else {
+                this.but_del.prop('disabled', true);
+                this.but_undel.prop('disabled', true);
+                this.but_next.prop('disabled', true);
+                this.but_previous.prop('disabled', true);
+                if (this.domain) {
+                    this.but_remove.prop('disabled', true);
+                }
+            }
+            var message = name + '/' + data[1];
+            this.label.text(message).attr('title', message);
         },
         add: function() {
             var domain = jQuery.extend([], this.domain);
@@ -422,6 +455,7 @@
         add_data: function(data, filename) {
             var screen = this.screen;
             this.switch_prm.then(function() {
+<<<<<<< HEAD
                 screen.set_current_record(null);
                 screen.switch_view('form').then(function() {
                     screen.new_().then(function(record) {
@@ -456,10 +490,60 @@
                         record.field_set_client('description', text);
                         screen.display();
                     });
+=======
+                screen.new_().then(function(record) {
+                    var data_field = record.model.fields.data;
+                    record.field_set_client(
+                        data_field.description.filename, filename);
+                    record.field_set_client('data', data);
+                    screen.display();
+>>>>>>> origin/5.0
                 });
             });
         },
     });
+    Sao.Window.Attachment.get_attachments = function(record) {
+        var prm;
+        if (record && (record.id >= 0)) {
+            var context = record.get_context();
+            prm = Sao.rpc({
+                'method': 'model.ir.attachment.search_read',
+                'params': [
+                    [['resource', '=', record.model.name + ',' + record.id]],
+                    0, 20, null, ['rec_name', 'name', 'type', 'link'],
+                    context],
+            }, record.model.session);
+        } else {
+            prm = jQuery.when([]);
+        }
+        var partial = function(callback, attachment, context, session) {
+            return function() {
+                return callback(attachment, context, session);
+            };
+        };
+        return prm.then(function(attachments) {
+            return attachments.map(function(attachment) {
+                var name = attachment.rec_name;
+                if (attachment.type == 'link') {
+                    return [name, attachment.link];
+                } else {
+                    var callback = Sao.Window.Attachment[
+                        'open_' + attachment.type];
+                    return [name, partial(
+                        callback, attachment, context, record.model.session)];
+                }
+            });
+        });
+    };
+    Sao.Window.Attachment.open_data = function(attachment, context, session) {
+        Sao.rpc({
+            'method': 'model.ir.attachment.read',
+            'params': [
+                [attachment.id], ['data'], context],
+        }, session).then(function(values) {
+            Sao.common.download_file(values[0].data, attachment.name);
+        });
+    };
 
     Sao.Window.Note = Sao.class_(Sao.Window.Form, {
         init: function(record, callback) {
@@ -470,15 +554,21 @@
                 domain: [['resource', '=', this.resource]],
                 mode: ['tree', 'form'],
                 context: context,
+<<<<<<< HEAD
             });
             screen.switch_view().done(function() {
                 screen.search_filter();
+=======
+>>>>>>> origin/5.0
             });
             var title = record.rec_name().then(function(rec_name) {
                 return Sao.i18n.gettext('Notes (%1)', rec_name);
             });
             Sao.Window.Note._super.init.call(this, screen, this.callback,
                 {view_type: 'tree', title: title});
+            this.switch_prm = this.switch_prm.then(function() {
+                return screen.search_filter();
+            });
         },
         callback: function(result) {
             var prm = jQuery.when();
@@ -701,16 +791,8 @@
                     .then(function(validate) {
                         if (validate) {
                             var values = jQuery.extend({}, this.screen.get());
-                            var context = jQuery.extend({},
-                                    Sao.Session.current_session.context);
-                            var func = function(parameters) {
-                                return {
-                                    'id': 0,
-                                    'method': 'model.res.user.set_preferences',
-                                    'params': [values, parameters, context]
-                                };
-                            };
-                            return new Sao.Login(func).run();
+                            return this.screen.model.execute(
+                                'set_preferences', [values], {});
                         }
                     }.bind(this));
             }
@@ -836,7 +918,7 @@
             "x-cp1255", "x-cp1256", "x-cp1257", "x-cp1258", "x-euc-jp", "x-gbk",
             "x-mac-cyrillic", "x-mac-roman", "x-mac-ukrainian", "x-sjis",
             "x-user-defined", "x-x-big5"];
-            this.dialog = new Sao.Dialog(title, 'csv', 'lg');
+            this.dialog = new Sao.Dialog(title, 'csv', 'md');
             this.el = this.dialog.modal;
 
             this.fields = {};
@@ -886,9 +968,8 @@
             var button_add = jQuery('<button/>', {
                 'class': 'btn btn-default btn-block',
                 'type': 'button'
-            }).append(jQuery('<i/>', {
-                    'class': 'glyphicon glyphicon-plus'
-            })).click(function(){
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-add')
+            ).click(function(){
                 this.fields_all.find('.bg-primary').each(function(i, el_field) {
                     this.sig_sel_add(el_field);
                 }.bind(this));
@@ -898,9 +979,8 @@
             jQuery('<button/>', {
                 'class': 'btn btn-default btn-block',
                 'type': 'button'
-            }).append(jQuery('<i/>', {
-                    'class': 'glyphicon glyphicon-minus'
-            })).click(function(){
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-remove')
+            ).click(function(){
                 // sig_unsel
                 this.fields_selected.children('li.bg-primary').remove();
             }.bind(this)).append(' '+Sao.i18n.gettext('Remove'))
@@ -909,9 +989,8 @@
             jQuery('<button/>', {
                 'class': 'btn btn-default btn-block',
                 'type': 'button'
-            }).append(jQuery('<i/>', {
-                    'class': 'glyphicon glyphicon-remove'
-            })).click(function(){
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-clear')
+            ).click(function(){
                 this.fields_selected.empty();
             }.bind(this)).append(' '+Sao.i18n.gettext('Clear'))
             .appendTo(this.column_buttons);
@@ -938,7 +1017,7 @@
             }).appendTo(this.dialog.body);
 
             var expander_icon = jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-plus',
+                'class': 'caret',
             }).css('cursor', 'pointer').html('&nbsp;');
 
             var csv_param_label = jQuery('<label/>', {
@@ -947,10 +1026,8 @@
 
             jQuery('<div/>', {
                 'class': 'col-md-12'
-            }).append(expander_icon).append(csv_param_label)
+            }).append(csv_param_label).append(expander_icon)
             .on('click', function(){
-                expander_icon.toggleClass('glyphicon-plus')
-                .toggleClass('glyphicon-minus');
                 this.expander_csv.collapse('toggle');
             }.bind(this)).appendTo(row_csv_param);
 
@@ -1063,20 +1140,20 @@
     });
 
     Sao.Window.Import = Sao.class_(Sao.Window.CSV, {
-        init: function(screen) {
+        init: function(name, screen) {
+            this.name = name;
             this.screen = screen;
             this.session = Sao.Session.current_session;
             this.fields_data = {}; // Ask before Removing this.
             this.fields_invert = {};
             Sao.Window.Import._super.init.call(this,
-                Sao.i18n.gettext('Import from CSV'));
+                Sao.i18n.gettext('CSV Import: %1', name));
 
             jQuery('<button/>', {
                 'class': 'btn btn-default btn-block',
                 'type': 'button'
-            }).append(jQuery('<i/>', {
-                    'class': 'glyphicon glyphicon-search'
-            })).click(function(){
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-search')
+            ).click(function(){
                 this.autodetect();
             }.bind(this)).append(' '+Sao.i18n.gettext('Auto-Detect'))
             .appendTo(this.column_buttons);
@@ -1162,19 +1239,25 @@
 
                 if (parent_node[field].relation) {
                     node.prepend(' ');
-                    var expander_icon = jQuery('<i/>', {
-                        'class': 'glyphicon glyphicon-plus'
-                    }).click(function(e) {
-                        e.stopPropagation();
-                        expander_icon.toggleClass('glyphicon-plus')
-                        .toggleClass('glyphicon-minus');
-                        if(expander_icon.hasClass('glyphicon-minus')) {
-                            this.on_row_expanded(parent_node[field]);
-                        }
-                        else {
-                            node.next('ul').remove();
-                        }
-                    }.bind(this)).prependTo(node);
+                    var expander_icon = Sao.common.ICONFACTORY
+                        .get_icon_img('tryton-arrow-right')
+                        .data('expanded', false)
+                        .click(function(e) {
+                            e.stopPropagation();
+                            var icon;
+                            var expanded = expander_icon.data('expanded');
+                            expander_icon.data('expanded', !expanded);
+                            if (expanded) {
+                                icon = 'tryton-arrow-right';
+                                node.next('ul').remove();
+                            } else {
+                                icon = 'tryton-arrow-down';
+                                this.on_row_expanded(parent_node[field]);
+                            }
+                            Sao.common.ICONFACTORY.get_icon_url(icon).then(function(url) {
+                                expander_icon.attr('src', url);
+                            });
+                        }.bind(this)).prependTo(node);
                 }
             }.bind(this));
         },
@@ -1360,13 +1443,14 @@
     });
 
     Sao.Window.Export = Sao.class_(Sao.Window.CSV, {
-        init: function(screen, ids, names, context) {
+        init: function(name, screen, ids, names, context) {
+            this.name = name;
             this.ids = ids;
             this.screen = screen;
             this.session = Sao.Session.current_session;
             this.context = context;
             Sao.Window.Export._super.init.call(this,
-                Sao.i18n.gettext('Export to CSV')).then(function() {
+                Sao.i18n.gettext('CSV Export: %1',name)).then(function() {
                     var fields = this.screen.model.fields;
                     names.forEach(function(name) {
                         var type = fields[name].description.type;
@@ -1381,32 +1465,14 @@
                     }.bind(this));
                 }.bind(this));
 
-            var row_header = jQuery('<div/>', {
-                'class': 'row'
-            }).prependTo(this.dialog.body);
-
-            var predefined_exports_column = jQuery('<div/>', {
-                'class': 'col-md-12'
-            }).append(jQuery('<label/>', {
-                'text': Sao.i18n.gettext('Predefined Exports')
-            })).appendTo(row_header);
-
-            this.predef_exports_list = jQuery('<ul/>', {
-                'class': 'list-unstyled predef-exports'
-            }).css('cursor', 'pointer')
-            .appendTo(predefined_exports_column);
-
-            predefined_exports_column.append('<hr/>');
-
             this.predef_exports = {};
             this.fill_predefwin();
 
             jQuery('<button/>', {
                 'class': 'btn btn-default btn-block',
                 'type': 'button'
-            }).append(jQuery('<i/>', {
-                    'class': 'glyphicon glyphicon-floppy-save'
-            })).click(function(){
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-save')
+            ).click(function(){
                 this.addreplace_predef();
             }.bind(this)).append(' '+Sao.i18n.gettext('Save Export'))
             .appendTo(this.column_buttons);
@@ -1414,12 +1480,22 @@
             jQuery('<button/>', {
                 'class': 'btn btn-default btn-block',
                 'type': 'button'
-            }).append(jQuery('<i/>', {
-                    'class': 'glyphicon glyphicon-floppy-remove'
-            })).click(function(){
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-delete')
+            ).click(function(){
                 this.remove_predef();
             }.bind(this)).append(' '+Sao.i18n.gettext('Delete Export'))
             .appendTo(this.column_buttons);
+
+            var predefined_exports_column = jQuery('<div/>', {
+                'class': 'col-md-12'
+            }).append(jQuery('<label/>', {
+                'text': Sao.i18n.gettext('Predefined Exports')
+            })).appendTo(this.column_buttons);
+
+            this.predef_exports_list = jQuery('<ul/>', {
+                'class': 'list-unstyled predef-exports'
+            }).css('cursor', 'pointer')
+            .appendTo(predefined_exports_column);
 
             this.el_add_field_names = jQuery('<input/>', {
                 'type': 'checkbox',
@@ -1461,19 +1537,25 @@
 
                 if (parent_node[name].children) {
                     node.prepend(' ');
-                    var expander_icon = jQuery('<i/>', {
-                        'class': 'glyphicon glyphicon-plus'
-                    }).click(function(e){
-                        e.stopPropagation();
-                        expander_icon.toggleClass('glyphicon-plus')
-                        .toggleClass('glyphicon-minus');
-                        if(expander_icon.hasClass('glyphicon-minus')) {
-                            this.on_row_expanded(parent_node[name]);
-                        }
-                        else {
-                            node.next('ul').remove();
-                        }
-                    }.bind(this)).prependTo(node);
+                    var expander_icon = Sao.common.ICONFACTORY
+                        .get_icon_img('tryton-arrow-right')
+                        .data('expanded', false)
+                        .click(function(e) {
+                            e.stopPropagation();
+                            var icon;
+                            var expanded = expander_icon.data('expanded');
+                            expander_icon.data('expanded', !expanded);
+                            if (expanded) {
+                                icon = 'tryton-arrow-right';
+                                node.next('ul').remove();
+                            } else {
+                                icon = 'tryton-arrow-down';
+                                this.on_row_expanded(parent_node[name]);
+                            }
+                            Sao.common.ICONFACTORY.get_icon_url(icon).then(function(url) {
+                                expander_icon.attr('src', url);
+                            });
+                        }.bind(this)).prependTo(node);
                 }
             }.bind(this));
         },
@@ -1765,6 +1847,7 @@
                 quoteChar: this.el_csv_quotechar.val(),
                 delimiter: this.el_csv_delimiter.val()
             });
+<<<<<<< HEAD
             var blob = new Blob([csv], {type: 'text/csv;charset=' + encoding});
             var blobElement = document.createElement('a');
             if (navigator.msSaveOrOpenBlob) {
@@ -1781,6 +1864,10 @@
                 window.URL.revokeObjectURL(this.blobElement.href);
             }
 
+=======
+            Sao.common.download_file(
+                csv, this.name + '.csv', {type: 'text/csv;charset=' + encoding});
+>>>>>>> origin/5.0
             return Sao.common.message.run(
                 Sao.i18n.ngettext('%1 record saved', '%1 records saved',
                     data.length));

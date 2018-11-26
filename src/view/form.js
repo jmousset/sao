@@ -157,7 +157,6 @@ function eval_pyson(value){
                     attributes.states = model.fields[name].description.states;
                 }
                 if (attributes.string === undefined) {
-                    // TODO RTL and translation
                     attributes.string = model.fields[name]
                         .description.string + ': ';
                 }
@@ -314,17 +313,26 @@ function eval_pyson(value){
             var promesses = [];
             if (record) {
                 // Force to set fields in record
-                // Get first the lazy one to reduce number of requests
-
-                // [Coog specific]
-                // JMO: report https://github.com/coopengo/tryton/pull/13
+                // Get first the lazy one from the view to reduce number of requests
                 var fields = [];
                 for (name in this._field_keys) {
                     field = record.model.fields[name];
-                    fields.push([name, field.description.loading || 'eager']);
+                    if (field.views.has(this.view_id)) {
+                        fields.push([
+                            name,
+                            field.description.loading || 'eager' == 'eager',
+                            field.views.size,
+                        ]);
+                    }
                 }
                 fields.sort(function(a, b) {
-                    return a[1].localeCompare(b[1]);
+                    if (!a[1] && b[1]) {
+                        return -1;
+                    } else if (a[1] && !b[1]) {
+                        return 1;
+                    } else {
+                        return a[2] - b[2];
+                    }
                 });
                 // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
@@ -541,7 +549,13 @@ function eval_pyson(value){
 
             if (attributes.xalign !== undefined) {
                 // TODO replace by start/end when supported
-                cell.css('text-align', attributes.xalign >= 0.5? 'right': 'left');
+                var align;
+                if (Sao.i18n.rtl) {
+                    align = attributes.xalign >= 0.5? 'left': 'right';
+                } else {
+                    align = attributes.xalign >= 0.5? 'right': 'left';
+                }
+                cell.css('text-align', align);
             }
             if (xexpand) {
                 cell.addClass('xexpand');
@@ -719,8 +733,8 @@ function eval_pyson(value){
             } else {
                 state_changes = {};
             }
-            if ((field && field.description.readonly) ||
-                    state_changes.readonly) {
+            if (state_changes.readonly === undefined) {
+                state_changes.readonly = !field;
             }
             Sao.common.apply_label_attributes(
                     this.label_el,
@@ -779,9 +793,7 @@ function eval_pyson(value){
                 'class': 'tab-pane',
             }).uniqueId();
             var tab_id = pane.attr('id');
-            var img = jQuery('<img/>', {
-                'class': 'icon',
-            });
+            var img = Sao.common.ICONFACTORY.get_icon_img(icon);
             var page = jQuery('<li/>', {
                 'role': 'presentation'
             }).append(
@@ -801,10 +813,6 @@ function eval_pyson(value){
                 pane.addClass('active');
                 this.selected = true;
             }
-            Sao.common.ICONFACTORY.register_icon(icon)
-                .done(function(url) {
-                    img.attr('src', url);
-                });
             return page;
         },
         set_current_page: function(page_index) {
@@ -928,7 +936,7 @@ function eval_pyson(value){
                 var field = record.model.fields[name];
                 name = field.get(record);
             }
-            Sao.common.ICONFACTORY.register_icon(name)
+            Sao.common.ICONFACTORY.get_icon_url(name)
                 .done(function(url) {
                     this.img.attr('src', url);
                 }.bind(this));
@@ -944,6 +952,7 @@ function eval_pyson(value){
             case 'date':
                 return Sao.View.Form.Date;
             case 'datetime':
+            case 'timestamp':
                 return Sao.View.Form.DateTime;
             case 'time':
                 return Sao.View.Form.Time;
@@ -1051,17 +1060,19 @@ function eval_pyson(value){
             } else {
                 this.el.removeClass('readonly');
             }
+            var required_el = this._required_el();
             this.set_required(required);
             if (!readonly && required) {
-                this.el.addClass('required');
+                required_el.addClass('required');
             } else {
-                this.el.removeClass('required');
+                required_el.removeClass('required');
             }
             var invalid = state_attrs.invalid;
+            var invalid_el = this._invalid_el();
             if (!readonly && invalid) {
-                this.el.addClass('has-error');
+                invalid_el.addClass('has-error');
             } else {
-                this.el.removeClass('has-error');
+                invalid_el.removeClass('has-error');
             }
             if (invisible === undefined) {
                 invisible = field.get_state_attrs(record).invisible;
@@ -1070,6 +1081,12 @@ function eval_pyson(value){
                 }
             }
             this.set_invisible(invisible);
+        },
+        _required_el: function () {
+            return this.el;
+        },
+        _invalid_el: function() {
+            return this.el;
         },
         record: function() {
             if (this.view && this.view.screen) {
@@ -1714,16 +1731,14 @@ function eval_pyson(value){
                 this.group.css('width', '100%');
             }
             if (this.attributes.translate) {
-                var button = jQuery('<button/>', {
-                    'class': 'btn btn-default btn-sm form-control',
-                    'type': 'button',
-                    'aria-label': Sao.i18n.gettext('Translate')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-flag'
-                })).appendTo(jQuery('<span/>', {
-                    'class': 'input-group-btn'
-                }).appendTo(this.group));
-                button.click(this.translate.bind(this));
+                Sao.common.ICONFACTORY.get_icon_img('tryton-translate')
+                    .appendTo(jQuery('<div/>', {
+                        'class': 'icon-input icon-secondary',
+                        'aria-label': Sao.i18n.gettext('Translate'),
+                        'title': Sao.i18n.gettext('Translate'),
+                    }).appendTo(
+                        this.group.addClass('input-icon input-icon-secondary')))
+                .click(this.translate.bind(this));
             }
         },
         get_client_value: function(record, field) {
@@ -1831,19 +1846,15 @@ function eval_pyson(value){
                 'class': this.class_
             });
             this.date = this.labelled = jQuery('<div/>', {
-                'class': 'input-group input-group-sm'
+                'class': ('input-group input-group-sm ' +
+                    'input-icon input-icon-primary'),
             }).appendTo(this.el);
-            jQuery('<span/>', {
-                'class': 'input-group-btn'
-            }).append(jQuery('<button/>', {
-                'class': 'datepickerbutton btn btn-default',
-                'type': 'button',
-                'tabindex': -1,
-                'aria-label': Sao.i18n.gettext("Open the calendar"),
-                'title': Sao.i18n.gettext("Open the calendar"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-calendar'
-            }))).appendTo(this.date);
+            Sao.common.ICONFACTORY.get_icon_img('tryton-date')
+                .appendTo(jQuery('<div/>', {
+                    'class': 'datepickerbutton icon-input icon-primary',
+                    'aria-label': Sao.i18n.gettext("Open the calendar"),
+                    'title': Sao.i18n.gettext("Open the calendar"),
+                }).appendTo(this.date));
             this.input = jQuery('<input/>', {
                 'type': 'text',
                 'class': 'form-control input-sm mousetrap'
@@ -1854,15 +1865,17 @@ function eval_pyson(value){
             });
             this.date.css('max-width', this._width);
             this.date.on('dp.change', this.focus_out.bind(this));
-            // We must set the overflow of the treeview containing the input to
-            // visible to prevent vertical scrollbar inherited from the auto
-            // overflow-x
+            // We must set the overflow of the treeview and modal-body
+            // containing the input to visible to prevent vertical scrollbar
+            // inherited from the auto overflow-x
             // (see http://www.w3.org/TR/css-overflow-3/#overflow-properties)
             this.date.on('dp.hide', function() {
                 this.date.closest('.treeview').css('overflow', '');
+                this.date.closest('.modal-body').css('overflow', '');
             }.bind(this));
             this.date.on('dp.show', function() {
                 this.date.closest('.treeview').css('overflow', 'visible');
+                this.date.closest('.modal-body').css('overflow', 'visible');
             }.bind(this));
             var mousetrap = new Mousetrap(this.el[0]);
 
@@ -2220,9 +2233,8 @@ function eval_pyson(value){
                 }).appendTo(jQuery('<span/>', {
                     'class': 'input-group-btn'
                 }).appendTo(this.el));
-                button.append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-flag'
-                }));
+                button.append(
+                    Sao.common.ICONFACTORY.get_icon_img('tryton-translate'));
                 button.click(this.translate.bind(this));
             }
         },
@@ -2285,9 +2297,8 @@ function eval_pyson(value){
                 }).appendTo(jQuery('<span/>', {
                     'class': 'input-group-btn',
                 }).appendTo(this.el));
-                button.append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-flag',
-                }));
+                button.append(
+                    Sao.common.ICONFACTORY.get_icon_img('tryton-translate'));
                 button.click(this.translate.bind(this));
             }
         },
@@ -2314,9 +2325,9 @@ function eval_pyson(value){
                     button = jQuery('<button/>', {
                         'class': 'btn btn-default',
                         'type': 'button'
-                    }).append(jQuery('<span/>', {
-                        'class': 'glyphicon glyphicon-' + properties.icon
-                    })).appendTo(group);
+                    }).append(Sao.common.ICONFACTORY.get_icon_img(
+                        'tryton-format-' + properties.icon)
+                    ).appendTo(group);
                     button.click(properties.command, button_apply_command);
                 }
             };
@@ -2329,7 +2340,7 @@ function eval_pyson(value){
                         'icon': 'italic',
                         'command': 'italic'
                     }, {
-                        'icon': 'text-color',  // XXX
+                        'icon': 'underline',
                         'command': 'underline'
                     }]);
 
@@ -2347,7 +2358,8 @@ function eval_pyson(value){
                 return function(option) {
                     dropdown.append(jQuery('<li/>').append(jQuery('<a/>', {
                         'href': '#'
-                    }).append(option).click(function() {
+                    }).append(option).click(function(evt) {
+                        evt.preventDefault();
                         document.execCommand(properties.command, false, option);
                     })));
                 };
@@ -2377,13 +2389,13 @@ function eval_pyson(value){
             add_buttons([
                     {
                         'icon': 'align-left',
-                        'command': 'justifyLeft'
+                        'command': Sao.i18n.rtl? 'justifyRight' : 'justifyLeft',
                     }, {
                         'icon': 'align-center',
                         'command': 'justifyCenter'
                     }, {
                         'icon': 'align-right',
-                        'command': 'justifyRight'
+                        'command': Sao.i18n.rtl? 'justifyLeft': 'justifyRight',
                     }, {
                         'icon': 'align-justify',
                         'command': 'justifyFull'
@@ -2456,7 +2468,11 @@ function eval_pyson(value){
                 }
                 // Some browsers set start as default align
                 if (el.attr('align') == 'start') {
-                    el.attr('align', 'left');
+                    if (Sao.i18n.rtl) {
+                        el.attr('align', 'right');
+                    } else {
+                        el.attr('align', 'left');
+                    }
                 }
             });
         },
@@ -2507,12 +2523,25 @@ function eval_pyson(value){
                 'class': this.class_
             });
             var group = jQuery('<div/>', {
-                'class': 'input-group input-group-sm'
+                'class': 'input-group input-group-sm input-icon'
             }).appendTo(this.el);
             this.entry = this.labelled = jQuery('<input/>', {
                 'type': 'input',
                 'class': 'form-control input-sm mousetrap'
             }).appendTo(group);
+            this.but_primary = jQuery('<img/>', {
+                'class': 'icon',
+            }).appendTo(jQuery('<div/>', {
+                'class': 'icon-input icon-primary',
+            }).appendTo(group));
+            this.but_secondary = jQuery('<img/>', {
+                'class': 'icon',
+            }).appendTo(jQuery('<div/>', {
+                'class': 'icon-input icon-secondary',
+            }).appendTo(group));
+            this.but_primary.click('primary', this.edit.bind(this));
+            this.but_secondary.click('secondary', this.edit.bind(this));
+
             // Use keydown to not receive focus-in TAB
             this.entry.on('keydown', this.key_press.bind(this));
 
@@ -2523,29 +2552,6 @@ function eval_pyson(value){
                     this._completion_action_activated.bind(this));
                 this.wid_completion = true;
             }
-
-            // Append buttons after the completion to not break layout
-            this.but_primary = jQuery('<button/>', {
-                'class': 'btn btn-default',
-                'type': 'button',
-                'tabindex': -1,
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon'
-            })).appendTo(jQuery('<span/>', {
-                'class': 'input-group-btn'
-            }).prependTo(group));
-            this.but_secondary = jQuery('<button/>', {
-                'class': 'btn btn-default',
-                'type': 'button',
-                'tabindex': -1,
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon'
-            })).appendTo(jQuery('<span/>', {
-                'class': 'input-group-btn'
-            }).appendTo(group));
-            this.but_primary.click('primary', this.edit.bind(this));
-            this.but_secondary.click('secondary', this.edit.bind(this));
-
             this.el.change(this.focus_out.bind(this));
             this._readonly = false;
         },
@@ -2619,33 +2625,36 @@ function eval_pyson(value){
                 tooltip1 = Sao.i18n.gettext("Open the record <F2>");
                 // Coog Override Icon
                 secondary = 'glyphicon-trash';
-                tooltip1 = Sao.i18n.gettext("Open the record <F2>");
                 tooltip2 = Sao.i18n.gettext("Clear the field <Del>");
             } else {
                 primary = null;
                 tooltip1 = '';
-                secondary = 'glyphicon-search';
+                secondary = 'tryton-search';
                 tooltip2 = Sao.i18n.gettext("Search a record <F2>");
             }
             if (this.entry.prop('readonly')) {
                 secondary = null;
             }
             [
-                [primary, tooltip1, this.but_primary],
-                [secondary, tooltip2, this.but_secondary]
+                [primary, tooltip1, this.but_primary, 'primary'],
+                [secondary, tooltip2, this.but_secondary, 'secondary']
             ].forEach(function(items) {
                 var icon_name = items[0];
                 var tooltip = items[1];
                 var button = items[2];
-                var icon = button.find('.glyphicon');
-                icon.removeClass().addClass('glyphicon');
+                var icon_input = button.parent();
+                var type = 'input-icon-' + items[3];
                 // don't use .hide/.show because the display value is not
                 // correctly restored on modal.
                 if (!icon_name) {
-                    button.parent().css('display', 'none');
+                    icon_input.hide();
+                    icon_input.parent().removeClass(type);
                 } else {
-                    button.parent().css('display', 'table-cell');
-                    icon.addClass(icon_name);
+                    icon_input.show();
+                    icon_input.parent().addClass(type);
+                    Sao.common.ICONFACTORY.get_icon_url(icon_name).then(function(url) {
+                        button.attr('src', url);
+                    });
                 }
                 button.attr('aria-label', tooltip);
                 button.attr('title', tooltip);
@@ -2721,7 +2730,6 @@ function eval_pyson(value){
                     return;
                 }
                 var screen = this.get_screen();
-                screen.new_group([m2o_id]);
                 callback = function(result) {
                     if (result) {
                         var rec_name_prm = screen.current_record.rec_name();
@@ -3137,9 +3145,8 @@ function eval_pyson(value){
                 'tabindex': -1,
                 'aria-label': Sao.i18n.gettext("Previous"),
                 'title': Sao.i18n.gettext("Previous"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-chevron-left'
-            })).appendTo(buttons);
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-back')
+            ).appendTo(buttons);
             this.but_previous.click(this.previous.bind(this));
 
             this.label = jQuery('<span/>', {
@@ -3154,9 +3161,8 @@ function eval_pyson(value){
                 'tabindex': -1,
                 'aria-label': Sao.i18n.gettext("Next"),
                 'title': Sao.i18n.gettext("Next"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-chevron-right'
-            })).appendTo(buttons);
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-forward')
+            ).appendTo(buttons);
             this.but_next.click(this.next.bind(this));
 
             if (attributes.add_remove) {
@@ -3226,9 +3232,8 @@ function eval_pyson(value){
                 'tabindex': -1,
                 'aria-label': Sao.i18n.gettext("Delete"),
                 'title': Sao.i18n.gettext("Delete"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-trash'
-            })).appendTo(buttons);
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-delete')
+            ).appendTo(buttons);
             this.but_del.click(this.delete_.bind(this));
 
             this.but_undel = jQuery('<button/>', {
@@ -3237,9 +3242,8 @@ function eval_pyson(value){
                 'tabindex': -1,
                 'aria-label': Sao.i18n.gettext("Undelete"),
                 'title': Sao.i18n.gettext("Undelete"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-repeat'
-            })).appendTo(buttons);
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-undo')
+            ).appendTo(buttons);
             this.but_undel.click(this.undelete.bind(this));
 
 
@@ -4019,9 +4023,8 @@ function eval_pyson(value){
                 'type': 'button',
                 'aria-label': Sao.i18n.gettext("Save As"),
                 'title': Sao.i18n.gettext("Save As..."),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-save'
-            })).appendTo(group);
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-save')
+            ).appendTo(group);
             this.but_save_as.click(this.save_as.bind(this));
 
             this.input_select = jQuery('<input/>', {
@@ -4072,6 +4075,7 @@ function eval_pyson(value){
             var record = this.record(),
                 field = this.field(),
                 filename_field = this.filename_field();
+
             Sao.common.get_input_data(this.input_select, function(data, filename) {
                 field.set_client(record, data);
                 if (filename_field) {
@@ -4360,8 +4364,8 @@ function eval_pyson(value){
             }
         },
         set_icon: function(value) {
-            value = value || 'tryton-web-browser';
-            Sao.common.ICONFACTORY.register_icon(value).done(function(url) {
+            value = value || 'tryton-public';
+            Sao.common.ICONFACTORY.get_icon_url(value).done(function(url) {
                 this.icon.attr('src', url);
             }.bind(this));
         },
@@ -4445,8 +4449,7 @@ function eval_pyson(value){
             Sao.View.Form.Dict._super.init.call(
                     this, field_name, model, attributes);
 
-            this.schema_model = new Sao.Model(attributes.schema_model);
-            this.keys = {};
+            this.schema_model = attributes.schema_model;
             this.fields = {};
             this.rows = {};
 
@@ -4490,7 +4493,15 @@ function eval_pyson(value){
                     'class': 'form-control input-sm'
                 }).appendTo(group);
 
-                // TODO completion
+            this.but_add = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm',
+                'type': 'button',
+                'aria-label': Sao.i18n.gettext('Add')
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-add')
+            ).appendTo(jQuery('<div/>', {
+                'class': 'input-group-btn'
+            }).appendTo(group));
+            this.but_add.click(this.add.bind(this));
 
                 this.but_add = jQuery('<button/>', {
                     'class': 'btn btn-default btn-sm',
@@ -4505,6 +4516,12 @@ function eval_pyson(value){
             }
             this._readonly = false;
             this._record_id = null;
+        },
+        _required_el: function() {
+            return this.wid_text;
+        },
+        _invalid_el: function() {
+            return this.wid_text;
         },
         add: function() {
             var context = this.field().get_context(this.record());
@@ -4522,7 +4539,7 @@ function eval_pyson(value){
             }.bind(this);
 
             var parser = new Sao.common.DomainParser();
-            var win = new Sao.Window.Search(this.schema_model.name,
+            var win = new Sao.Window.Search(this.schema_model,
                     callback, {
                         sel_multi: true,
                         context: context,
@@ -4533,19 +4550,17 @@ function eval_pyson(value){
                     });
         },
         add_new_keys: function(ids) {
-            var context = this.field().get_context(this.record());
-            this.schema_model.execute('get_keys', [ids], context)
-                .then(function(new_fields) {
+            var field = this.field();
+            field.add_new_keys(ids, this.record())
+                .then(function(new_names) {
                     var focus = false;
-                    new_fields.forEach(function(new_field) {
-                        if (this.fields[new_field.name]) {
-                            return;
-                        }
-                        this.keys[new_field.name] = new_field;
-                        this.add_line(new_field.name);
-                        if (!focus) {
-                            this.fields[new_field.name].input.focus();
-                            focus = true;
+                    new_names.forEach(function(name) {
+                        if (!(name in this.fields)) {
+                            this.add_line(name);
+                            if (!focus) {
+                                this.fields[name].input.focus();
+                                focus = true;
+                            }
                         }
                     }.bind(this));
                 }.bind(this));
@@ -4602,13 +4617,13 @@ function eval_pyson(value){
         },
         add_line: function(key) {
             var field, row;
-            this.fields[key] = field = new (this.get_entries(
-                        this.keys[key].type_))(key, this);
+            var key_schema = this.field().keys[key];
+            this.fields[key] = field = new (
+                this.get_entries(key_schema.type_))(key, this);
             this.rows[key] = row = jQuery('<div/>', {
                 'class': 'row'
             });
-            // TODO RTL
-            var text = this.keys[key].string + Sao.i18n.gettext(':');
+            var text = key_schema.string + Sao.i18n.gettext(':');
             var label = jQuery('<label/>', {
                 'text': text
             }).appendTo(jQuery('<div/>', {
@@ -4632,33 +4647,6 @@ function eval_pyson(value){
 
             row.appendTo(this.container);
         },
-        add_keys: function(keys) {
-            var context = this.field().get_context(this.record());
-            var domain = this.field().get_domain(this.record());
-            var batchlen = Math.min(10, Sao.config.limit);
-            keys = jQuery.extend([], keys);
-
-            var get_keys = function(key_ids) {
-                return this.schema_model.execute('get_keys',
-                        [key_ids], context).then(update_keys);
-            }.bind(this);
-            var update_keys = function(values) {
-                for (var i = 0, len = values.length; i < len; i++) {
-                    var k = values[i];
-                    this.keys[k.name] = k;
-                }
-            }.bind(this);
-
-            var prms = [];
-            while (keys.length > 0) {
-                var sub_keys = keys.splice(0, batchlen);
-                prms.push(this.schema_model.execute('search',
-                            [[['name', 'in', sub_keys], domain],
-                            0, Sao.config.limit, null], context)
-                        .then(get_keys));
-            }
-            return jQuery.when.apply(jQuery, prms);
-        },
         display: function(record, field) {
             Sao.View.Form.Dict._super.display.call(this, record, field);
 
@@ -4678,22 +4666,24 @@ function eval_pyson(value){
 
             var value = field.get_client(record);
             var new_key_names = Object.keys(value).filter(function(e) {
-                return !this.keys[e];
+                return !this.fields[e];
             }.bind(this));
 
             var prm;
             if (!jQuery.isEmptyObject(new_key_names)) {
-                prm = this.add_keys(new_key_names);
+                prm = field.add_keys(new_key_names, record);
             } else {
                 prm = jQuery.when();
             }
             prm.then(function() {
                 var i, len, key;
                 var keys = Object.keys(value).sort();
+                var decoder = new Sao.PYSON.Decoder();
+                var inversion = new Sao.common.DomainInversion();
                 for (i = 0, len = keys.length; i < len; i++) {
                     key = keys[i];
                     var val = value[key];
-                    if (!this.keys[key]) {
+                    if (!field.keys[key]) {
                         continue;
                     }
                     if (!this.fields[key]) {
@@ -4702,6 +4692,15 @@ function eval_pyson(value){
                     var widget = this.fields[key];
                     widget.set_value(val);
                     widget.set_readonly(this._readonly);
+                    var key_domain = (decoder.decode(field.keys[key].domain ||
+                        'null'));
+                    if (key_domain !== null) {
+                        if (!inversion.eval_domain(key_domain, value)) {
+                            widget.el.addClass('has-error');
+                        } else {
+                            widget.el.removeClass('has-error');
+                        }
+                    }
                 }
                 var removed_key_names = Object.keys(this.fields).filter(
                         function(e) {
@@ -4740,7 +4739,7 @@ function eval_pyson(value){
         class_: 'dict-char',
         init: function(name, parent_widget) {
             this.name = name;
-            this.definition = parent_widget.keys[name];
+            this.definition = parent_widget.field().keys[name];
             this.parent_widget = parent_widget;
             this.create_widget();
         },
@@ -4759,9 +4758,8 @@ function eval_pyson(value){
                 'class': 'btn btn-default',
                 'type': 'button',
                 'arial-label': Sao.i18n.gettext('Remove')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-minus'
-            })).appendTo(jQuery('<div/>', {
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-remove')
+            ).appendTo(jQuery('<div/>', {
                 'class': 'input-group-btn'
             }).appendTo(group));
 
@@ -4906,17 +4904,12 @@ function eval_pyson(value){
         create_widget: function() {
             Sao.View.Form.Dict.Date._super.create_widget.call(this);
             this.date = this.input.parent();
-            jQuery('<span/>', {
-                'class': 'input-group-btn',
-            }).append(jQuery('<button/>', {
-                'class': 'datepickerbutton btn btn-default',
-                'type': 'button',
-                'tabindex': -1,
-                'aria-label': Sao.i18n.gettext("Open the calendar"),
-                'title': Sao.i18n.gettext("Open the calendar"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-calendar'
-            }))).prependTo(this.date);
+            Sao.common.ICONFACTORY.get_icon_img('tryton-date')
+                .appendTo(jQuery('<div/>', {
+                    'class': 'datepickerbutton icon-input icon-primary',
+                    'aria-label': Sao.i18n.gettext("Open the calendar"),
+                    'title': Sao.i18n.gettext("Open the calendar"),
+                }).prependTo(this.date));
             this.date.datetimepicker({
                 'format': Sao.common.moment_format(this.format),
                 'locale': moment.locale(),
@@ -4924,6 +4917,18 @@ function eval_pyson(value){
             });
             this.date.on('dp.change',
                     this.parent_widget.focus_out.bind(this.parent_widget));
+            // We must set the overflow of the treeview and modal-body
+            // containing the input to visible to prevent vertical scrollbar
+            // inherited from the auto overflow-x
+            // (see http://www.w3.org/TR/css-overflow-3/#overflow-properties)
+            this.date.on('dp.hide', function() {
+                this.date.closest('.treeview').css('overflow', '');
+                this.date.closest('.modal-body').css('overflow', '');
+            }.bind(this));
+            this.date.on('dp.show', function() {
+                this.date.closest('.treeview').css('overflow', 'visible');
+                this.date.closest('.modal-body').css('overflow', 'visible');
+            }.bind(this));
             var mousetrap = new Mousetrap(this.el[0]);
 
             mousetrap.bind(['enter', '='], function(e, combo) {
@@ -4981,11 +4986,10 @@ function eval_pyson(value){
             this.encoder = new Sao.PYSON.Encoder({});
             this.decoder = new Sao.PYSON.Decoder({}, true);
             this.el.keyup(this.validate_pyson.bind(this));
-            this.icon = jQuery('<span/>', {
-                'class': 'glyphicon',
-            }).appendTo(jQuery('<span/>', {
-                'class': 'input-group-addon',
-            }).appendTo(this.group));
+            this.icon = jQuery('<img/>', {
+                'class': 'icon form-control-feedback',
+            }).appendTo(this.group);
+            this.group.addClass('has-feedback');
         },
         display: function(record, field) {
             Sao.View.Form.PYSON._super.display.call(this, record, field);
@@ -5024,10 +5028,12 @@ function eval_pyson(value){
         validate_pyson: function() {
             var icon = 'ok';
             if (this.get_encoded_value() === null) {
-                icon = 'remove';
+                icon = 'error';
             }
-            this.icon.removeClass().addClass('glyphicon').addClass(
-                ' glyphicon-' + icon + '-sign');
+            Sao.common.ICONFACTORY.get_icon_url('tryton-' + icon)
+                .then(function(url) {
+                    this.icon.attr('src', url);
+                }.bind(this));
         },
         focus_out: function() {
             this.validate_pyson();

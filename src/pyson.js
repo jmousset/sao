@@ -168,12 +168,10 @@
             if (value instanceof Sao.PYSON.PYSON) {
                 if (jQuery(value.types()).not(['boolean', 'object']).length ||
                     jQuery(['boolean']).not(value.types()).length) {
-                    throw 'value must be boolean';
+                    value = new Sao.PYSON.Bool(value);
                     }
-            } else {
-                if (typeof value != 'boolean') {
-                    throw 'value must be boolean';
-                }
+            } else if (typeof value != 'boolean') {
+                value = Sao.PYSON.Bool(value);
             }
             this._value = value;
         },
@@ -253,12 +251,10 @@
                 if (statement instanceof Sao.PYSON.PYSON) {
                     if (jQuery(statement.types()).not(['boolean']).length ||
                         jQuery(['boolean']).not(statement.types()).length) {
-                        throw 'statement must be boolean';
+                        statements[i] = new Sao.PYSON.Bool(statement);
                         }
-                } else {
-                    if (typeof statement != 'boolean') {
-                        throw 'statement must be boolean';
-                    }
+                } else if (typeof statement != 'boolean') {
+                    statements[i] = new Sao.PYSON.Bool(statement);
                 }
             }
             if (statements.length < 2) {
@@ -395,12 +391,10 @@
             if (equal instanceof Sao.PYSON.PYSON) {
                 if (jQuery(equal.types()).not(['boolean']).length ||
                     jQuery(['boolean']).not(equal.types()).length) {
-                    throw 'equal must be boolean';
+                    equal = new Sao.PYSON.Bool(equal);
                     }
-            } else {
-                if (typeof equal != 'boolean') {
-                    throw 'equal must be boolean';
-                }
+            } else if (typeof equal != 'boolean') {
+                equal = new Sao.PYSON.Bool(equal);
             }
             this._statement1 = statement1;
             this._statement2 = statement2;
@@ -475,12 +469,10 @@
             if (condition instanceof Sao.PYSON.PYSON) {
                 if (jQuery(condition.types()).not(['boolean']).length ||
                     jQuery(['boolean']).not(condition.types()).length) {
-                    throw 'condition must be boolean';
+                    condition = new Sao.PYSON.Bool(condition);
                 }
-            } else {
-                if (typeof condition != 'boolean') {
-                    throw 'condition must be boolean';
-                }
+            } else if (typeof condition != 'boolean') {
+                condition = new Sao.PYSON.Bool(condition);
             }
             var then_types, else_types;
             if (then_statement instanceof Sao.PYSON.PYSON) {
@@ -805,6 +797,55 @@
     Sao.PYSON.DateTime.init_from_object = function(obj) {
         return new Sao.PYSON.DateTime(obj.y, obj.M, obj.d, obj.h, obj.m, obj.s,
             obj.ms, obj.dy, obj.dM, obj.dd, obj.dh, obj.dm, obj.ds, obj.dms);
+    };
+
+    Sao.PYSON.eval.TimeDelta = function(days, seconds, microseconds) {
+        return new Sao.PYSON.TimeDelta(days, seconds, microseconds);
+    };
+    Sao.PYSON.TimeDelta = Sao.class_(Sao.PYSON.PYSON, {
+        init: function(days, seconds, microseconds) {
+            Sao.PYSON.TimeDelta._super.init.call(this);
+            if (days === undefined) days = 0;
+            if (seconds === undefined) seconds = 0;
+            if (microseconds === undefined) microseconds = 0;
+
+            function test(value, name) {
+                if (value instanceof Sao.PYSON.TimeDelta) {
+                    if (jQuery(value.types()).not(['number']).length)
+                    {
+                        throw name + ' must be an integer';
+                    }
+                } else {
+                    if (typeof value != 'number') {
+                        throw name + ' must be an integer';
+                    }
+                }
+                return value;
+            }
+            this._days = test(days, 'days');
+            this._seconds = test(seconds, 'seconds');
+            this._microseconds = test(microseconds, 'microseconds');
+        },
+        pyson: function() {
+            return {
+                '__class__': 'TimeDelta',
+                'd': this._days,
+                's': this._seconds,
+                'm': this._microseconds,
+            };
+        },
+        types: function() {
+            return ['object'];
+        },
+        __string_params__: function() {
+            return [this._days, this._seconds, this._microseconds];
+        },
+    });
+    Sao.PYSON.TimeDelta.eval_ = function(value, context) {
+        return Sao.TimeDelta(value.d, value.s, value.m / 1000);
+    };
+    Sao.PYSON.TimeDelta.init_from_object = function(obj) {
+        return new Sao.PYSON.TimeDelta(obj.d, obj.s, obj.microseconds);
     };
 
     Sao.PYSON.eval.Len = function(value) {
