@@ -4450,32 +4450,31 @@ function eval_pyson(value){
 
             // [Coog specific]
             //      > attribute no_command (hide input line)
-            if (!attributes.no_command){
-                var group = jQuery('<div/>', {
-                    'class': 'input-group input-group-sm'
-                }).appendTo(jQuery('<div>', {
-                    'class': 'col-md-12'
-                }).appendTo(jQuery('<div/>', {
-                    'class': 'row'
-                }).appendTo(jQuery('<div/>', {
-                    'class': 'container-fluid'
-                }).appendTo(body))));
-                this.wid_text = jQuery('<input/>', {
-                    'type': 'text',
-                    'class': 'form-control input-sm'
-                }).appendTo(group);
+            // MAB: removed the if because it breaks contract and claim processes
+            var group = jQuery('<div/>', {
+                'class': 'input-group input-group-sm'
+            }).appendTo(jQuery('<div>', {
+                'class': 'col-md-12'
+            }).appendTo(jQuery('<div/>', {
+                'class': 'row'
+            }).appendTo(jQuery('<div/>', {
+                'class': 'container-fluid'
+            }).appendTo(body))));
+            this.wid_text = jQuery('<input/>', {
+                'type': 'text',
+                'class': 'form-control input-sm'
+            }).appendTo(group);
 
-                this.but_add = jQuery('<button/>', {
-                    'class': 'btn btn-default btn-sm',
-                    'type': 'button',
-                    'aria-label': Sao.i18n.gettext('Add')
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-plus'
-                })).appendTo(jQuery('<div/>', {
-                    'class': 'input-group-btn'
-                }).appendTo(group));
-                this.but_add.click(this.add.bind(this));
-            }
+            this.but_add = jQuery('<button/>', {
+                'class': 'btn btn-default btn-sm',
+                'type': 'button',
+                'aria-label': Sao.i18n.gettext('Add')
+            }).append(jQuery('<span/>', {
+                'class': 'glyphicon glyphicon-plus'
+            })).appendTo(jQuery('<div/>', {
+                'class': 'input-group-btn'
+            }).appendTo(group));
+            this.but_add.click(this.add.bind(this));
             this._readonly = false;
             this._record_id = null;
         },
