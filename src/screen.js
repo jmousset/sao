@@ -848,37 +848,6 @@
                 }
             }.bind(this);
             var _switch = function() {
-<<<<<<< HEAD
-                if ((!view_type) || (!this.current_view) ||
-			(view_type && (this.current_view.view_type != view_type)) ||
-			(view_id && (this.current_view.view_id != view_id))) {
-                    var switch_current_view = (function() {
-                        this.current_view = this.views[this.views.length - 1];
-                        return _switch();
-                    }.bind(this));
-                    for (var i = 0; i < this.number_of_views(); i++) {
-                        if (this.view_to_load.length) {
-                            if (!view_type && !view_id) {
-                                view_type = this.view_to_load[0];
-                            }
-                            return this.load_next_view().then(
-                                    switch_current_view);
-                        }
-                        this.current_view = this.views[
-                            (this.views.indexOf(this.current_view) + 1) %
-                            this.views.length];
-                        // JMO: report https://github.com/coopengo/tryton/pull/13
-                        if (view_id) {
-                          if (this.current_view.view_id  == view_id) {
-                            break;
-                          }
-                        }
-                        else if (!view_type) {
-                            break;
-                        } else if (this.current_view.view_type == view_type) {
-                            break;
-                        }
-=======
                 var switch_current_view = (function() {
                     this.current_view = this.views[this.views.length - 1];
                     return _switch();
@@ -897,12 +866,19 @@
                             switch_current_view);
                     } else {
                         var i = this.views.indexOf(this.current_view);
+
                         this.current_view = this.views[
                             (i + 1) % this.views.length];
                     }
                     if (!view_id && (view_id === null)) {
                         break;
->>>>>>> origin/5.0
+                    }
+
+                    // JMO: report https://github.com/coopengo/tryton/pull/13
+                    if (view_id) {
+                        if (this.current_view.view_id  == view_id) {
+                            break;
+                        }
                     }
                 }
                 this.screen_container.set(this.current_view.el);
@@ -1079,8 +1055,6 @@
                 this.set_current_record(null);
             }
             this.group.add_fields(fields);
-<<<<<<< HEAD
-=======
             var views_add = function(view) {
                 this.group.model.fields[name].views.add(view);
             }.bind(this);
@@ -1088,7 +1062,6 @@
                 var views = fields_views[name];
                 views.forEach(views_add);
             }
->>>>>>> origin/5.0
             this.group.exclude_field = this.exclude_field;
         },
         new_group: function(context) {
@@ -1172,24 +1145,16 @@
                         ~['tree', 'graph', 'calendar'].indexOf(
                             this.current_view.view_type));
                 deferreds.push(search_prm);
-<<<<<<< HEAD
                 // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
-                //for (var i = 0; i < this.views.length; i++) {
-                //    if (this.views[i]) {
-                //        deferreds.push(this.views[i].display());
-                //    }
-                //}
+                // for (var i = 0; i < this.views.length; i++) {
+                //      if (this.views[i] &&
+                //         ((this.views[i] == this.current_view) ||
+                //             this.views[i].el.parent().length)) {
+                //         deferreds.push(this.views[i].display());
+                //     }
+                // }
                 deferreds.push(this.current_view.display());
-=======
-                for (var i = 0; i < this.views.length; i++) {
-                    if (this.views[i] &&
-                        ((this.views[i] == this.current_view) ||
-                            this.views[i].el.parent().length)) {
-                        deferreds.push(this.views[i].display());
-                    }
-                }
->>>>>>> origin/5.0
             }
             return jQuery.when.apply(jQuery, deferreds).then(function() {
                 this.set_tree_state();
@@ -1756,7 +1721,7 @@
                             model: this.model_name,
                             id: this.current_record.id,
                             ids: ids
-                        }, null, this.context, true);
+                        }, null, this.context(), true);
                     }
                 }.bind(this));
             };
@@ -1860,18 +1825,13 @@
             } else if (action == 'close') {
                 Sao.Tab.tabs.close_current();
             } else if (action.startsWith('switch')) {
-<<<<<<< HEAD
-                var view_type = action.split(' ')[1];
-                this.switch_view(view_type);
+                this.switch_view.apply(this, action.split(' ', 3).slice(1));
             } else if (action.startsWith('toggle')) {
               // [Coog specific]
               // JMO: report https://github.com/coopengo/tryton/pull/13
               var split_action = action.split(':');
               var view_id = split_action[1];
               this.switch_view(undefined, Number(view_id));
-=======
-                this.switch_view.apply(this, action.split(' ', 3).slice(1));
->>>>>>> origin/5.0
             } else if (action == 'reload') {
                 if (~['tree', 'graph', 'calendar'].indexOf(this.current_view.view_type) &&
                         !this.group.parent) {

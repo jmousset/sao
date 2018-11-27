@@ -620,9 +620,6 @@
               }.bind(this));
             }
 
-            fnames = fnames.filter(function(e, i, a) {
-                return !(e in this._loaded);
-            }.bind(this));
             var fnames_to_fetch = fnames.slice();
             var rec_named_fields = ['many2one', 'one2one', 'reference'];
             for (var i in fnames) {

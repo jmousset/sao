@@ -455,49 +455,12 @@
         add_data: function(data, filename) {
             var screen = this.screen;
             this.switch_prm.then(function() {
-<<<<<<< HEAD
-                screen.set_current_record(null);
-                screen.switch_view('form').then(function() {
-                    screen.new_().then(function(record) {
-                        var data_field = record.model.fields.data;
-                        record.field_set_client(
-                            data_field.description.filename, filename);
-                        record.field_set_client('data', data);
-                        screen.display();
-                    });
-                });
-            });
-        },
-        add_uri: function(uri) {
-            var screen = this.screen;
-            this.switch_prm.then(function() {
-                screen.set_current_record(null);
-                screen.switch_view('form').then(function() {
-                    screen.new_().then(function(record) {
-                        record.field_set_client('link', uri);
-                        record.field_set_client('type', 'link');
-                        screen.display();
-                    });
-                });
-            });
-        },
-        add_text: function(text) {
-            var screen = this.screen;
-            this.switch_prm.then(function() {
-                screen.set_current_record(null);
-                screen.switch_view('form').then(function() {
-                    screen.new_().then(function(record) {
-                        record.field_set_client('description', text);
-                        screen.display();
-                    });
-=======
                 screen.new_().then(function(record) {
                     var data_field = record.model.fields.data;
                     record.field_set_client(
                         data_field.description.filename, filename);
                     record.field_set_client('data', data);
                     screen.display();
->>>>>>> origin/5.0
                 });
             });
         },
@@ -554,12 +517,6 @@
                 domain: [['resource', '=', this.resource]],
                 mode: ['tree', 'form'],
                 context: context,
-<<<<<<< HEAD
-            });
-            screen.switch_view().done(function() {
-                screen.search_filter();
-=======
->>>>>>> origin/5.0
             });
             var title = record.rec_name().then(function(rec_name) {
                 return Sao.i18n.gettext('Notes (%1)', rec_name);
@@ -1847,27 +1804,9 @@
                 quoteChar: this.el_csv_quotechar.val(),
                 delimiter: this.el_csv_delimiter.val()
             });
-<<<<<<< HEAD
-            var blob = new Blob([csv], {type: 'text/csv;charset=' + encoding});
-            var blobElement = document.createElement('a');
-            if (navigator.msSaveOrOpenBlob) {
-                navigator.msSaveOrOpenBlob(blob, "export.csv");
-            } else {
-                blobElement.href = window.URL.createObjectURL(blob);
-                var splittedUrl = blobElement.href.split('/');
-                blobElement.setAttribute('download', splittedUrl[splittedUrl.length-1] + '.csv');
-                document.body.appendChild(blobElement);
-                blobElement.click();
-                document.body.removeChild(blobElement);
-            }
-            if (this.blobElement) {
-                window.URL.revokeObjectURL(this.blobElement.href);
-            }
-
-=======
+            // MAB: removed 0dc49071 code as this seems to replace it
             Sao.common.download_file(
                 csv, this.name + '.csv', {type: 'text/csv;charset=' + encoding});
->>>>>>> origin/5.0
             return Sao.common.message.run(
                 Sao.i18n.ngettext('%1 record saved', '%1 records saved',
                     data.length));

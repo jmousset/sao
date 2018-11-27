@@ -957,15 +957,6 @@
             } else {
                 this.tree.tbody.append(this.el);
             }
-            var row_id_path = this.get_id_path();
-            if (this.is_expanded() ||
-                    // [Coog specific] multi_mixed_view
-                    // MAB: not sure we still need this
-                    Sao.common.contains(expanded, row_id_path) ||
-                    (this.tree.always_expand && !this.is_leaf())) {
-                this.tree.expanded[this.path] = this;
-                this.expand_children(selected, expanded);
-            }
         },
         _get_column_td: function(column_index, row) {
             row = row || this.el;

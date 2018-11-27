@@ -21,9 +21,6 @@ this repository contains the full copyright notices and license terms. -->
         <script type="text/javascript" src="bower_components/fullcalendar/dist/fullcalendar.min.js"></script>
         <script type="text/javascript" src="bower_components/fullcalendar/dist/locale-all.js"></script>
         <script type="text/javascript" src="bower_components/mousetrap/mousetrap.min.js"></script>
-        <script type="text/javascript" src="bower_components/codemirror/lib/codemirror.js"></script>
-        <script type="text/javascript" src="bower_components/codemirror/mode/python/python.js"></script>
-        <script type="text/javascript" src="bower_components/codemirror/addon/lint/lint.js"></script>
         <script type="text/javascript" src="bower_components/codemirror/addon/display/autorefresh.js"></script>
 
         <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
@@ -62,6 +59,7 @@ this repository contains the full copyright notices and license terms. -->
                             <span id="toggle-text"> Toggle menu </span>
                         </button>
                     </p>
+
                 </div>
                 <div class="collapse navbar-collapse" id="main_navbar">
                     <form class="navbar-form navbar-left flip" role="search" id="global-search">
@@ -77,11 +75,12 @@ this repository contains the full copyright notices and license terms. -->
         </nav>
         <div id="main" class="container-fluid" style="padding: 0px;">
             <div class="row row-offcanvas row-offcanvas-left active"
-                style="height: calc(100vh - 50px - 1px - 20px);">
+                style="height: calc(100vh - 50px - 1px - 20px); margin: 0px;">
                 <!-- !!!> Carefull here ! If bootstrap columns changes, offcanvas.css must be edited as well -->
-                <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="menu" role="navigation"
+                <!-- MAB: offcanvas.css does not exist anymore, there is offcanvas.less -->
+                <div class="navbar-default col-xs-12 col-sm-3 col-lg-2 sidebar-offcanvas" id="menu" role="navigation"
                     style="overflow-y: auto; height: 100%;"></div>
-                <div class="col-xs-12 col-md-9 main-screen-offcanvas" style="overflow-y: auto; height: 100%;">
+                <div class="col-xs-12 col-md-9 col-lg-10 main-offcanvas" style="overflow-y: auto; height: 100%;">
                     <div id="tabs" role="tabpanel">
                         <div id="tabcontent" class="tab-content">
                         </div>
@@ -92,18 +91,19 @@ this repository contains the full copyright notices and license terms. -->
         <script type="text/javascript">
             jQuery(function() {
                     jQuery('[data-toggle="offcanvas"]').click(function() {
-                        jQuery('#menu').toggleClass('hidden');
                         jQuery('.row-offcanvas').toggleClass('active');
                         jQuery('.main-screen-offcanvas').toggleClass('full_mode');
                         jQuery(window).trigger('resize');
                         });
                     jQuery('#tabs').on('ready', function() {
-                        if (window.matchMedia("(min-width: 991px)").matches)
-                            return;
-                        if (jQuery(this).find('> .nav-tabs').children().length) {
-                            jQuery('.row-offcanvas').removeClass('active');
-                        } else {
-                            jQuery('.row-offcanvas').addClass('active');
+                        // MAB: I removed b08b13cb commit code in this script as it seems contradictory with what b2ck do
+                        var mq = window.matchMedia('(max-width: 991px)');
+                        if (mq.matches) {
+                            if (jQuery('#tablist').children().length) {
+                                jQuery('.row-offcanvas').removeClass('active');
+                            } else {
+                                jQuery('.row-offcanvas').addClass('active');
+                            }
                         }
                     });
                     });
