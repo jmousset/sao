@@ -1060,19 +1060,25 @@ function eval_pyson(value){
             } else {
                 this.el.removeClass('readonly');
             }
-            var required_el = this._required_el();
-            this.set_required(required);
-            if (!readonly && required) {
-                required_el.addClass('required');
-            } else {
-                required_el.removeClass('required');
+            // MAB: For extra data
+            if (!this.attributes.no_command){
+                var required_el = this._required_el();
+                this.set_required(required);
+                if (!readonly && required) {
+                    required_el.addClass('required');
+                } else {
+                    required_el.removeClass('required');
+                }
             }
             var invalid = state_attrs.invalid;
-            var invalid_el = this._invalid_el();
-            if (!readonly && invalid) {
-                invalid_el.addClass('has-error');
-            } else {
-                invalid_el.removeClass('has-error');
+            // MAB: For extra data
+            if (!this.attributes.no_command){
+                var invalid_el = this._invalid_el();
+                if (!readonly && invalid) {
+                    invalid_el.addClass('has-error');
+                } else {
+                    invalid_el.removeClass('has-error');
+                }
             }
             if (invisible === undefined) {
                 invisible = field.get_state_attrs(record).invisible;
@@ -4450,31 +4456,33 @@ function eval_pyson(value){
 
             // [Coog specific]
             //      > attribute no_command (hide input line)
-            // MAB: removed the if because it breaks contract and claim processes
-            var group = jQuery('<div/>', {
-                'class': 'input-group input-group-sm'
-            }).appendTo(jQuery('<div>', {
-                'class': 'col-md-12'
-            }).appendTo(jQuery('<div/>', {
-                'class': 'row'
-            }).appendTo(jQuery('<div/>', {
-                'class': 'container-fluid'
-            }).appendTo(body))));
-            this.wid_text = jQuery('<input/>', {
-                'type': 'text',
-                'class': 'form-control input-sm'
-            }).appendTo(group);
+            // MAB: For extra data
+            if (!attributes.no_command) {
+                var group = jQuery('<div/>', {
+                    'class': 'input-group input-group-sm'
+                }).appendTo(jQuery('<div>', {
+                    'class': 'col-md-12'
+                }).appendTo(jQuery('<div/>', {
+                    'class': 'row'
+                }).appendTo(jQuery('<div/>', {
+                    'class': 'container-fluid'
+                }).appendTo(body))));
+                this.wid_text = jQuery('<input/>', {
+                    'type': 'text',
+                    'class': 'form-control input-sm'
+                }).appendTo(group);
 
-            this.but_add = jQuery('<button/>', {
-                'class': 'btn btn-default btn-sm',
-                'type': 'button',
-                'aria-label': Sao.i18n.gettext('Add')
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-plus'
-            })).appendTo(jQuery('<div/>', {
-                'class': 'input-group-btn'
-            }).appendTo(group));
-            this.but_add.click(this.add.bind(this));
+                this.but_add = jQuery('<button/>', {
+                    'class': 'btn btn-default btn-sm',
+                    'type': 'button',
+                    'aria-label': Sao.i18n.gettext('Add')
+                }).append(jQuery('<span/>', {
+                    'class': 'glyphicon glyphicon-plus'
+                })).appendTo(jQuery('<div/>', {
+                    'class': 'input-group-btn'
+                }).appendTo(group));
+                this.but_add.click(this.add.bind(this));
+            }
             this._readonly = false;
             this._record_id = null;
         },
@@ -4555,7 +4563,10 @@ function eval_pyson(value){
                 var widget = this.fields[key];
                 widget.set_readonly(readonly);
             }
-            this.wid_text.prop('disabled', readonly);
+            // MAB: For extra data
+            if (!this.attributes.no_command) {
+                this.wid_text.prop('disabled', readonly);
+            }
         },
         _set_button_sensitive: function() {
             var create = this.attributes.create;
@@ -4566,7 +4577,10 @@ function eval_pyson(value){
             if (delete_ === undefined) {
                 delete_ = true;
             }
-            this.but_add.prop('disabled', this._readonly || !create);
+            // MAB: For extra data
+            if (!this.attributes.no_command) {
+                this.but_add.prop('disabled', this._readonly || !create);
+            }
             for (var key in this.fields) {
                 var button = this.fields[key].button;
                 button.prop('disabled', this._readonly || !delete_);
@@ -4593,10 +4607,14 @@ function eval_pyson(value){
             field.labelled.uniqueId();
             field.labelled.attr('aria-labelledby', label.attr('id'));
             label.attr('for', field.labelled.attr('id'));
-
-            field.button.click(function() {
-                this.remove(key, true);
-            }.bind(this));
+            // MAB: For extra data
+            if (!this.attributes.no_command){
+                field.button.click(function() {
+                    this.remove(key, true);
+                }.bind(this));
+            } else {
+                field.button.remove();
+            }
 
             row.appendTo(this.container);
         },
