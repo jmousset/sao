@@ -1577,16 +1577,18 @@
                     else {
                         value = this.icon;
                     }
-                    Sao.common.ICONFACTORY.get_icon_url(value)
-                        .done(function(url) {
-                            var img_tag;
-                            if (cell.children('img').length) {
-                                img_tag = cell.children('img');
-                            } else {
-                                img_tag = cell;
-                            }
-                            img_tag.attr('src', url || '');
-                        }.bind(this));
+                    if (value) {
+                        Sao.common.ICONFACTORY.get_icon_url(value)
+                            .done(function(url) {
+                                var img_tag;
+                                if (cell.children('img').length) {
+                                    img_tag = cell.children('img');
+                                } else {
+                                    img_tag = cell;
+                                }
+                                img_tag.attr('src', url || '');
+                            }.bind(this));
+                    }
                 } else {
                     value = this.attributes.string || '';
                     if (!value) {
