@@ -503,8 +503,6 @@
             this.state_attrs = {};
             this.autocompletion = {};
             this.exception = false;
-            // JMO: report https://github.com/coopengo/tryton/pull/13
-            this.fields_to_load = {};
         },
         has_changed: function() {
             return !jQuery.isEmptyObject(this._changed);
@@ -612,12 +610,6 @@
                             Array.from(field.views).sort()))) {
                     fnames.push(fname);
                 }
-            }
-            // JMO: report https://github.com/coopengo/tryton/pull/13
-            if (Object.keys(this.fields_to_load).length > 0) {
-              fnames = fnames.filter(function(e, i, a) {
-                return (e in this.fields_to_load);
-              }.bind(this));
             }
 
             var fnames_to_fetch = fnames.slice();
