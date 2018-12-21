@@ -47,16 +47,13 @@
                 'class': 'btn btn-default',
                 'aria-label': Sao.i18n.gettext("Search"),
                 'title': Sao.i18n.gettext("Search"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-search'
-            }));
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-search'));
 
             this.but_active = jQuery('<button/>', {
                 type: 'button',
                 'class': 'btn btn-default hidden-xs',
                 'aria-expanded': false,
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-compressed',
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-archive', {
                 'aria-hidden': true,
             }));
             this._set_active_tooltip();
@@ -70,9 +67,8 @@
                 'aria-label': Sao.i18n.gettext("Bookmarks"),
                 'title': Sao.i18n.gettext("Bookmarks"),
                 'id': 'bookmarks'
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-bookmark',
-                'aria-hidden': true
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-bookmark', {
+                'aria-hidden': true,
             }));
             var dropdown_bookmark = jQuery('<ul/>', {
                 'class': 'dropdown-menu',
@@ -100,14 +96,14 @@
             this.but_star = jQuery('<button/>', {
                 'class': 'btn btn-default',
                 'type': 'button'
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon',
+            }).append(jQuery('<img/>', {
+                'class': 'icon',
                 'aria-hidden': true
-            })).click(this.star_click.bind(this));
+            }).data('star', false)).click(this.star_click.bind(this));
             this.set_star();
 
             jQuery('<div/>', {
-                'class': 'input-group'
+                'class': 'input-group input-group-sm'
             })
             .append(jQuery('<span/>', {
                 'class': 'input-group-btn'
@@ -131,9 +127,8 @@
                 'class': 'btn btn-default',
                 'aria-label': Sao.i18n.gettext("Previous"),
                 'title': Sao.i18n.gettext("Previous"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-menu-left',
-                'aria-hidden': true
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-back', {
+                'aria-hidden': true,
             }));
             this.but_prev.click(this.search_prev.bind(this));
             this.but_next = jQuery('<button/>', {
@@ -141,9 +136,8 @@
                 'class': 'btn btn-default',
                 'aria-label': Sao.i18n.gettext("Next"),
                 'title': Sao.i18n.gettext("Next"),
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-menu-right',
-                'aria-hidden': true
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-forward', {
+                'aria-hidden': true,
             }));
             this.but_next.click(this.search_next.bind(this));
 
@@ -216,23 +210,24 @@
             }, this);
         },
         set_star: function(star) {
-            var glyphicon = this.but_star.children('span.glyphicon');
-            var title;
+            var img = this.but_star.children('img');
+            var title, icon;
             if (star) {
-                glyphicon.removeClass('glyphicon-star-empty');
-                glyphicon.addClass('glyphicon-star');
+                icon = 'tryton-star';
                 title = Sao.i18n.gettext("Remove this bookmark");
             } else {
-                glyphicon.removeClass('glyphicon-star');
-                glyphicon.addClass('glyphicon-star-empty');
+                icon = 'tryton-star-border';
                 title = Sao.i18n.gettext('Bookmark this filter');
             }
+            this.but_star.data('star', Boolean(star));
             this.but_star.attr('title', title);
             this.but_star.attr('aria-label', title);
+            Sao.common.ICONFACTORY.get_icon_url(icon).then(function(url) {
+                img.attr('src', url);
+            });
         },
         get_star: function() {
-            var glyphicon = this.but_star.children('span.glyphicon');
-            return glyphicon.hasClass('glyphicon-star');
+            return this.but_star.data('star');
         },
         star_click: function() {
             var star = this.get_star();
@@ -274,6 +269,7 @@
             }.bind(this));
         },
         bookmark_activate: function(e) {
+            e.preventDefault();
             var domain = e.data;
             this.set_text(this.screen.domain_parser().string(domain));
             this.do_search();
@@ -570,9 +566,8 @@
                     'tabindex': -1,
                     'aria-label': Sao.i18n.gettext("Open the calendar"),
                     'title': Sao.i18n.gettext("Open the calendar"),
-                }).append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-calendar'
-                }))).appendTo(entry);
+                }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-date')
+                )).appendTo(entry);
                 jQuery('<input/>', {
                     'class': 'form-control input-sm',
                     type: 'text',
@@ -796,6 +791,9 @@
                 }
             }
             this.group.add_fields(fields);
+            for (field in fields) {
+                this.group.model.fields[field].views.add(view_id);
+            }
             // [Coog specific] multi_mixed_view
             var view_widget = Sao.View.parse(this, xml_view, view.field_childs,
                 view.children_definitions);
@@ -811,10 +809,13 @@
         number_of_views: function() {
             return this.views.length + this.view_to_load.length;
         },
-        // [Coog specific] JMO: report https://github.com/coopengo/tryton/pull/13
         switch_view: function(view_type, view_id) {
-            if (view_id) {
-                 view_type = null;
+            if ((view_id !== undefined) && (view_id !== null)) {
+                view_id = Number(view_id);
+                // [Coog specific] JMO: report https://github.com/coopengo/tryton/pull/13
+                view_type = null;
+            } else {
+                view_id = null;
             }
             if (this.current_view) {
                 this.current_view.set_value();
@@ -833,34 +834,49 @@
                     }.bind(this));
                 }
             }
+            var found = function() {
+                if (!this.current_view) {
+                    return false;
+                }
+                else if (!view_type && (view_id === null)) {
+                    return false;
+                }
+                else if (view_id !== null) {
+                    return this.current_view.view_id == view_id;
+                } else {
+                    return this.current_view.view_type == view_type;
+                }
+            }.bind(this);
             var _switch = function() {
-                if ((!view_type) || (!this.current_view) ||
-			(view_type && (this.current_view.view_type != view_type)) ||
-			(view_id && (this.current_view.view_id != view_id))) {
-                    var switch_current_view = (function() {
-                        this.current_view = this.views[this.views.length - 1];
-                        return _switch();
-                    }.bind(this));
-                    for (var i = 0; i < this.number_of_views(); i++) {
-                        if (this.view_to_load.length) {
-                            if (!view_type && !view_id) {
-                                view_type = this.view_to_load[0];
-                            }
-                            return this.load_next_view().then(
-                                    switch_current_view);
-                        }
+                var switch_current_view = (function() {
+                    this.current_view = this.views[this.views.length - 1];
+                    return _switch();
+                }.bind(this));
+
+                var is_view_id = function(view) {
+                    return view.view_id == view_id;
+                };
+
+                while (!found()) {
+                    if (this.view_to_load.length) {
+                        return this.load_next_view().then(switch_current_view);
+                    } else if ((view_id !== null) &&
+                        !this.views.find(is_view_id)) {
+                        return this.add_view_id(view_id, view_type).then(
+                            switch_current_view);
+                    } else {
+                        var i = this.views.indexOf(this.current_view);
+
                         this.current_view = this.views[
-                            (this.views.indexOf(this.current_view) + 1) %
-                            this.views.length];
-                        // JMO: report https://github.com/coopengo/tryton/pull/13
-                        if (view_id) {
-                          if (this.current_view.view_id  == view_id) {
-                            break;
-                          }
-                        }
-                        else if (!view_type) {
-                            break;
-                        } else if (this.current_view.view_type == view_type) {
+                            (i + 1) % this.views.length];
+                    }
+                    if (!view_id && (view_id === null)) {
+                        break;
+                    }
+
+                    // JMO: report https://github.com/coopengo/tryton/pull/13
+                    if (view_id) {
+                        if (this.current_view.view_id  == view_id) {
                             break;
                         }
                     }
@@ -1010,13 +1026,14 @@
             return context;
         },
         set_group: function(group) {
-            var fields = {};
+            var fields = {},
+                fields_views = {},
+                name;
             if (this.group) {
-                for (var name in this.group.model.fields) {
-                    if (!this.group.model.fields.hasOwnProperty(name)) {
-                        continue;
-                    }
-                    fields[name] = this.group.model.fields[name].description;
+                for (name in this.group.model.fields) {
+                    var field = this.group.model.fields[name];
+                    fields[name] = field.description;
+                    fields_views[name] = field.views;
                 }
                 this.group.screens.splice(
                         this.group.screens.indexOf(this), 1);
@@ -1038,6 +1055,13 @@
                 this.set_current_record(null);
             }
             this.group.add_fields(fields);
+            var views_add = function(view) {
+                this.group.model.fields[name].views.add(view);
+            }.bind(this);
+            for (name in fields_views) {
+                var views = fields_views[name];
+                views.forEach(views_add);
+            }
             this.group.exclude_field = this.exclude_field;
         },
         new_group: function(context) {
@@ -1067,6 +1091,9 @@
                 var data = [pos || 0, this.group.length + this.offset,
                     this.search_count, record_id];
                 this.message_callback(data);
+            }
+            if (this.switch_callback) {
+                this.switch_callback();
             }
             if (this.tab) {
                 if (record) {
@@ -1120,11 +1147,13 @@
                 deferreds.push(search_prm);
                 // [Coog specific]
                 // JMO: report https://github.com/coopengo/tryton/pull/13
-                //for (var i = 0; i < this.views.length; i++) {
-                //    if (this.views[i]) {
-                //        deferreds.push(this.views[i].display());
-                //    }
-                //}
+                // for (var i = 0; i < this.views.length; i++) {
+                //      if (this.views[i] &&
+                //         ((this.views[i] == this.current_view) ||
+                //             this.views[i].el.parent().length)) {
+                //         deferreds.push(this.views[i].display());
+                //     }
+                // }
                 deferreds.push(this.current_view.display());
             }
             return jQuery.when.apply(jQuery, deferreds).then(function() {
@@ -1251,11 +1280,15 @@
                 return prm.then(function() {
                     group.add(record, this.new_model_position());
                     this.set_current_record(record);
+                    var prm = jQuery.when();
                     if (previous_view.view_type == 'calendar') {
-                       previous_view.set_default_date(record, selected_date);
+                        prm = previous_view.set_default_date(
+                            record, selected_date);
                     }
-                    this.display().done(function() {
-                        this.set_cursor(true, true);
+                    prm.then(function() {
+                        this.display().done(function() {
+                            this.set_cursor(true, true);
+                        }.bind(this));
                     }.bind(this));
                     return record;
                 }.bind(this));
@@ -1380,7 +1413,7 @@
             }
             if (delete_) {
                 // TODO delete children before parent
-                prm = this.model.delete_(records);
+                prm = this.group.delete_(records);
             }
             var top_record = records[0];
             var top_group = top_record.group;
@@ -1688,7 +1721,7 @@
                             model: this.model_name,
                             id: this.current_record.id,
                             ids: ids
-                        }, null, this.context, true);
+                        }, null, this.context(), true);
                     }
                 }.bind(this));
             };
@@ -1792,8 +1825,7 @@
             } else if (action == 'close') {
                 Sao.Tab.tabs.close_current();
             } else if (action.startsWith('switch')) {
-                var view_type = action.split(' ')[1];
-                this.switch_view(view_type);
+                this.switch_view.apply(this, action.split(' ', 3).slice(1));
             } else if (action.startsWith('toggle')) {
               // [Coog specific]
               // JMO: report https://github.com/coopengo/tryton/pull/13

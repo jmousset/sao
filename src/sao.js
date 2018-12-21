@@ -56,6 +56,18 @@ var Sao = {};
         };
     }
 
+    if (!Array.from) {
+        Array.from = function (value) {
+            // Implementation is not strictly equivalent but works for most
+            // cases
+            var result = [];
+            value.forEach(function(e) {
+                result.push(e);
+            });
+            return result;
+        };
+    }
+
     // Ensure RichText doesn't use style with css
     try {
         document.execCommand('styleWithCSS', false, false);
@@ -227,6 +239,7 @@ var Sao = {};
     Sao.config.roundup = {};
     Sao.config.roundup.url = 'https://support.coopengo.com/';
     Sao.config.title = 'Coog';
+    Sao.config.bus_timeout = 10 * 60 * 1000;
 
     Sao.i18n = i18n();
     Sao.i18n.setlang = function(lang) {
@@ -266,6 +279,13 @@ var Sao = {};
     Sao.i18n.BC47 = function(lang) {
         return lang.replace('_', '-');
     };
+    Sao.i18n.set_direction = function(direction) {
+        Sao.i18n.rtl = (direction === 'rtl');
+        jQuery('html').attr('dir', direction);
+        jQuery('.row-offcanvas')
+            .removeClass('row-offcanvas-left row-offcanvas-right')
+            .addClass(Sao.i18n.rtl ? 'row-offcanvas-right' : 'row-offcanvas-left');
+    };
     Sao.i18n.locale = {};
 
     Sao.get_preferences = function() {
@@ -285,6 +305,10 @@ var Sao = {};
                         Sao.Action.execute(action_id, {}, null, {});
                     });
                     Sao.set_title();
+                    Sao.common.ICONFACTORY.get_icon_url('tryton-menu')
+                        .then(function(url) {
+                            jQuery('.navbar-brand > img').attr('src', url);
+                        });
                     var new_lang = preferences.language != Sao.i18n.getLocale();
                     var prm = jQuery.Deferred();
                     Sao.i18n.setlang(preferences.language).always(function() {
@@ -293,6 +317,7 @@ var Sao = {};
                         }
                         prm.resolve(preferences);
                     });
+                    Sao.i18n.set_direction(preferences.language_direction);
                     Sao.i18n.locale = preferences.locale;
                     return prm;
                 });
@@ -303,6 +328,7 @@ var Sao = {};
     Sao.set_title = function(name) {
         var title = [name, Sao.config.title];
         document.title = title.filter(function(e) {return e;}).join(' - ');
+        jQuery('#title').text(Sao.config.title);
     };
 
     Sao.set_url = function(path, name) {
@@ -318,7 +344,7 @@ var Sao = {};
     };
 
     window.onhashchange = function() {
-         var session = Sao.Session.current_session;
+        var session = Sao.Session.current_session;
         if (!session) {
             return;
         }
@@ -388,7 +414,7 @@ var Sao = {};
                 attributes.context_model = params.context_model;
             } catch (e) {
                 return;
-             }
+            }
             var res_id = path.shift();
             if (res_id) {
                 res_id = Number(res_id);
@@ -427,7 +453,7 @@ var Sao = {};
             } catch (e) {
                 // Prevent crashing the client
                 return;
-             }
+            }
         }
         function open_report(path) {
             var attributes = {};
@@ -450,7 +476,7 @@ var Sao = {};
                 // Prevent crashing the client
                 return;
             }
-         }
+        }
         function open_url() {
             var url;
             try {
@@ -461,7 +487,7 @@ var Sao = {};
             if (url) {
                 window.open(url, '_blank');
             }
-         }
+        }
 
         switch (type) {
             case 'model':
@@ -477,9 +503,10 @@ var Sao = {};
                 open_url();
                 break;
         }
-     };
+    };
 
     Sao.login = function() {
+        Sao.set_title();
         Sao.i18n.setlang().always(function() {
             Sao.Session.get_credentials()
                 .then(function(session) {
@@ -489,6 +516,7 @@ var Sao = {};
                     Sao.menu(preferences);
                     Sao.user_menu(preferences);
                     Sao.open_url();
+                    Sao.Bus.listen();
                 });
         });
     };
@@ -499,6 +527,7 @@ var Sao = {};
             jQuery('#user-preferences').children().remove();
             jQuery('#user-logout').children().remove();
             jQuery('#user-favorites').children().remove();
+            jQuery('#global-search').children().remove();
             jQuery('#menu').children().remove();
             session.do_logout().always(Sao.login);
             Sao.set_title();
@@ -520,18 +549,10 @@ var Sao = {};
         });
     };
     Sao.favorites_menu = function() {
-        var clear_menu = function() {
-            if (menu) {
-                menu.remove();
-            }
-        };
         jQuery(window).click(function() {
-            clear_menu();
+            Sao.favorites_menu_clear();
         });
-        if (jQuery('#user-favorites').children('.dropdown-menu')
-                .length !== 0 ) {
-            clear_menu();
-        } else {
+        if (!jQuery('#user-favorites').children('.dropdown-menu').length) {
             var name = Sao.main_menu_screen.model_name + '.favorite';
             var session = Sao.Session.current_session;
             var args = {
@@ -539,7 +560,8 @@ var Sao = {};
             };
             var menu = jQuery('<ul/>', {
                 'class': 'dropdown-menu',
-                'aria-expanded': 'false'
+                'aria-expanded': 'false',
+                'aria-labelledby': 'user-favorites',
             });
             jQuery('#user-favorites').append(menu);
             Sao.rpc(args, session).then(function(fav) {
@@ -551,16 +573,14 @@ var Sao = {};
                     var li = jQuery('<li/>', {
                         'role': 'presentation'
                     });
-                    var icon = jQuery('<img/>', {
-                        'class': 'favorite-icon'
-                    });
+                    var icon = Sao.common.ICONFACTORY.get_icon_img(
+                        menu_item[2], {'class': 'favorite-icon'});
                     a.append(icon);
                     li.append(a);
-                    icon.attr('src',
-                         Sao.common.ICONFACTORY.get_icon_url(menu_item[2]));
                     a.append(menu_item[1]);
-                    a.click(function() {
-                        clear_menu();
+                    a.click(function(evt) {
+                        evt.preventDefault();
+                        Sao.favorites_menu_clear();
                         // ids is not defined to prevent to add suffix
                         Sao.Action.exec_keyword('tree_open', {
                             'model': Sao.main_menu_screen.model_name,
@@ -576,18 +596,22 @@ var Sao = {};
                     'role': 'presentation'
                 }).append(jQuery('<a/>', {
                         'href': '#'
-                    }).click(function() {
-                        clear_menu();
+                    }).click(function(evt) {
+                        evt.preventDefault();
+                        Sao.favorites_menu_clear();
                         Sao.Tab.create({
                             'model': Sao.main_menu_screen.model_name +
                             '.favorite',
                             'mode': ['tree', 'form'],
-                            'name': Sao.i18n.gettext('Manage favorites')
+                            'name': Sao.i18n.gettext('Favorites')
                         });
-                    }).text(Sao.i18n.gettext('Manage favorites'))).appendTo(
+                    }).text(Sao.i18n.gettext('Manage...'))).appendTo(
                        menu);
             });
         }
+    };
+    Sao.favorites_menu_clear = function() {
+        jQuery('#user-favorites').children('.dropdown-menu').remove();
     };
 
     Sao.user_menu = function(preferences) {
@@ -595,15 +619,24 @@ var Sao = {};
         jQuery('#user-favorites').children().remove();
         jQuery('#user-logout').children().remove();
         jQuery('#user-preferences').append(jQuery('<a/>', {
-            'href': '#'
-        }).click(Sao.preferences).append(preferences.status_bar));
-        jQuery('#user-logout').append(jQuery('<a/>', {
-            'href': '#'
-        }).click(Sao.logout).append(Sao.i18n.gettext('Logout')));
-        jQuery('#user-favorites').append(jQuery('<a/>', {
             'href': '#',
-            'data-toggle': 'dropdown'
-        }).click(Sao.favorites_menu).append(Sao.i18n.gettext('Favorites')));
+            'title': preferences.status_bar,
+        }).click(function(evt) {
+            evt.preventDefault();
+            Sao.preferences();
+        }).append(preferences.status_bar));
+        var title = Sao.i18n.gettext("Logout");
+        jQuery('#user-logout').append(jQuery('<a/>', {
+            'href': '#',
+            'title': title,
+            'aria-label': title,
+        }).click(Sao.logout).append(
+            Sao.common.ICONFACTORY.get_icon_img('tryton-exit', {
+            'class': 'icon hidden-xs',
+            'aria-hidden': true,
+        })).append(jQuery('<span/>', {
+            'class': 'visible-xs',
+        }).text(title)));
     };
 
     Sao.main_menu_row_activate = function() {
@@ -654,10 +687,10 @@ var Sao = {};
             var view = form.screen.current_view;
             view.table.removeClass('table table-bordered table-striped');
             view.table.find('thead').hide();
-            jQuery('#menu').children().remove();
-
             var gs = new Sao.GlobalSearch();
-            jQuery('#menu').append(gs.el);
+            jQuery('#global-search').children().remove();
+            jQuery('#global-search').append(gs.el);
+            jQuery('#menu').children().remove();
             jQuery('#menu').append(
                 form.screen.screen_container.content_box.detach());
             var column = new FavoriteColumn(form.screen.model.fields.favorite);
@@ -681,8 +714,9 @@ var Sao = {};
 
         },
         get_cell: function() {
-            var cell = jQuery('<span/>', {
-                'tabindex': 0
+            var cell = jQuery('<img/>', {
+                'class': 'column-affix',
+                'tabindex': 0,
             });
             return cell;
         },
@@ -692,11 +726,15 @@ var Sao = {};
             }
             record.load(this.field.name).done(function() {
                 if (record._values.favorite !== null) {
-                    var star = 'glyphicon glyphicon-star';
+                    var icon = 'tryton-star';
                     if (!record._values.favorite) {
-                        star += '-empty';
+                        icon += '-border';
                     }
-                    cell.addClass(star);
+                    cell.data('star', Boolean(record._values.favorite));
+                    Sao.common.ICONFACTORY.get_icon_url(icon)
+                        .then(function(url) {
+                            cell.attr('src', url);
+                        });
                     cell.click({'record': record, 'button': cell},
                         this.favorite_click);
                     }
@@ -707,16 +745,20 @@ var Sao = {};
             // Prevent activate the action of the row
             e.stopImmediatePropagation();
             var button = e.data.button;
-            var method;
-            if (button.hasClass('glyphicon-star-empty')) {
-                button.removeClass('glyphicon-star-empty');
-                button.addClass('glyphicon-star');
+            var method, icon;
+            var star = button.data('star');
+            if (!star) {
+                icon = 'tryton-star';
                 method = 'set';
             } else {
-                button.removeClass('glyphicon-star');
-                button.addClass('glyphicon-star-empty');
+                icon = 'tryton-star-border';
                 method = 'unset';
             }
+            button.data('star', !star);
+            Sao.common.ICONFACTORY.get_icon_url(icon)
+                .then(function(url) {
+                    button.attr('src', url);
+                });
             var name = Sao.main_menu_screen.model_name + '.favorite';
             var session = Sao.Session.current_session;
             var args = {
@@ -724,6 +766,7 @@ var Sao = {};
                 'params': [e.data.record.id, session.context]
             };
             Sao.rpc(args, session);
+            Sao.favorites_menu_clear();
         }
     });
 
@@ -777,16 +820,34 @@ var Sao = {};
     Sao.GlobalSearch = Sao.class_(Object, {
         init: function() {
             this.el = jQuery('<div/>', {
-                'class': 'global-search-container'
+                'class': 'global-search-container',
             });
+            var group = jQuery('<div/>', {
+                'class': 'input-group input-group-sm',
+            }).appendTo(this.el);
+
+            jQuery('<div/>', {
+                'id': 'user-favorites',
+                'class': 'input-group-btn',
+            }).append(jQuery('<button/>', {
+                'class': 'btn btn-default dropdown-toggle',
+                'data-toggle': 'dropdown',
+                'aria-haspopup': true,
+                'aria-expanded': false,
+                'title': Sao.i18n.gettext("Favorites"),
+                'aria-label': Sao.i18n.gettext("Favorites"),
+            }).click(Sao.favorites_menu).append(
+                Sao.common.ICONFACTORY.get_icon_img('tryton-bookmarks')))
+                .appendTo(group);
+
             this.search_entry = jQuery('<input>', {
                 'id': 'global-search-entry',
                 'class': 'form-control mousetrap',
-                'placeholder': Sao.i18n.gettext('Search...')
-            });
-            this.el.append(this.search_entry);
+                'placeholder': Sao.i18n.gettext('Action')
+            }).appendTo(group);
+
             var completion = new Sao.common.InputCompletion(
-                    this.search_entry,
+                    this.el,
                     this.update.bind(this),
                     this.match_selected.bind(this),
                     this.format.bind(this));
@@ -801,13 +862,9 @@ var Sao = {};
         },
         format: function(content) {
             var el = jQuery('<div/>');
-            var img = jQuery('<img/>', {
-                'class': 'global-search-icon'
-            }).appendTo(el);
-            Sao.common.ICONFACTORY.register_icon(content.icon).then(
-                    function(icon_url) {
-                        img.attr('src', icon_url);
-                    });
+            Sao.common.ICONFACTORY.get_icon_img(
+                content.icon, {'class': 'global-search-icon'})
+                .appendTo(el);
             jQuery('<span/>', {
                 'class': 'global-search-text'
             }).text(content.record_name).appendTo(el);
@@ -857,7 +914,7 @@ var Sao = {};
         // {shortcut, label, id of tab button or callback method}
         return [
             {
-                shortcut: 'ctrl+a',
+                shortcut: 'alt+n',
                 label: Sao.i18n.gettext('New'),
                 id: 'new_',
             }, {
@@ -893,7 +950,7 @@ var Sao = {};
                 label: Sao.i18n.gettext('Search'),
                 id: 'search',
             }, {
-                shortcut: 'ctrl+x',
+                shortcut: 'alt+w',
                 label: Sao.i18n.gettext('Close Tab'),
                 id: 'close',
             }, {
@@ -935,7 +992,7 @@ var Sao = {};
                     jQuery('#global-search-entry').focus();
                 },
             }, {
-                shortcut: 'ctrl+h',
+                shortcut: 'f1',
                 label: Sao.i18n.gettext('Show this help'),
                 callback: function() {
                     shortcuts_dialog();
@@ -946,6 +1003,12 @@ var Sao = {};
 
     jQuery(document).ready(function() {
         set_shortcuts();
+        try {
+            Notification.requestPermission();
+        } catch (e) {
+            (console.error || console.log).call(console, e, e.stack);
+        }
+        Sao.login();
     });
 
     function set_shortcuts() {

@@ -70,8 +70,13 @@
                     if (result.view) {
                         this.clean();
                         var view = result.view;
-                        this.update(view.fields_view, view.defaults,
-                            view.buttons);
+                        this.update(view.fields_view, view.buttons);
+
+                        this.screen.new_(false).then(function() {
+                            this.screen.current_record.set_default(view.defaults);
+                            this.screen.set_cursor();
+                        }.bind(this));
+
                         this.screen_state = view.state;
                         this.__waiting_response = true;
                     } else {
@@ -106,14 +111,16 @@
             };
             process.call(this);
         },
-        destroy: function() {
+        destroy: function(action) {
             // TODO
         },
         end: function() {
             return Sao.rpc({
                 'method': 'wizard.' + this.action + '.delete',
                 'params': [this.session_id, this.session.context]
-            }, this.session);
+            }, this.session).then(function(action) {
+                this.destroy(action);
+            }.bind(this));
         },
         clean: function() {
             this.widget.children().remove();
@@ -144,7 +151,7 @@
             }
             return button;
         },
-        update: function(view, defaults, buttons) {
+        update: function(view, buttons) {
             buttons.forEach(function(button) {
                 this._get_button(button);
             }.bind(this));
@@ -156,11 +163,6 @@
             // TODO title
             // TODO toolbar
             this.widget.append(this.screen.screen_container.el);
-
-            this.screen.new_(false).then(function() {
-                this.screen.current_record.set_default(defaults);
-                this.screen.set_cursor();
-            }.bind(this));
         }
     });
 
@@ -202,6 +204,20 @@
             }.bind(this));
             return button;
         },
+        destroy: function(action) {
+            Sao.Wizard.Form._super.destroy.call(this, action);
+            switch (action) {
+                case 'reload menu':
+                    Sao.Session.current_session.reload_context()
+                        .then(function() {
+                            Sao.menu();
+                        });
+                    break;
+                case 'reload context':
+                    Sao.Session.current_session.reload_context();
+                    break;
+            }
+        },
         end: function() {
             return Sao.Wizard.Form._super.end.call(this).always(function() {
                 return this.tab.close();
@@ -215,7 +231,7 @@
                 name = Sao.i18n.gettext('Wizard');
             }
             Sao.Wizard.Dialog._super.init.call(this);
-            var dialog = new Sao.Dialog(name, 'wizard-dialog', 'lg', false);
+            var dialog = new Sao.Dialog(name, 'wizard-dialog', 'md', false);
             this.dialog = dialog.modal;
             this.content = dialog.content;
             this.footer = dialog.footer;
@@ -243,10 +259,9 @@
             }
             return button;
         },
-        update: function(view, defaults, buttons) {
+        update: function(view, buttons) {
             this.content.unbind('submit');
-            Sao.Wizard.Dialog._super.update.call(this, view, defaults,
-                    buttons);
+            Sao.Wizard.Dialog._super.update.call(this, view, buttons);
             this.dialog.modal('show');
             this.dialog.on('keydown', function(e) {
                 if (e.which == Sao.common.ESC_KEYCODE) {
@@ -258,7 +273,7 @@
             }.bind(this));
         },
         destroy: function(action) {
-            Sao.Wizard.Dialog._super.destroy.call(this);
+            Sao.Wizard.Dialog._super.destroy.call(this, action);
             var destroy = function() {
                 this.dialog.remove();
                 var dialog = jQuery('.wizard-dialog').filter(':visible')[0];
@@ -306,10 +321,6 @@
             } else {
                 destroy();
             }
-        },
-        end: function() {
-            return Sao.Wizard.Dialog._super.end.call(this).then(
-                    this.destroy.bind(this));
         },
         show: function() {
             this.dialog.modal('show');

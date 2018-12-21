@@ -1,19 +1,34 @@
+* Add drag & drop support on attachment button
+
+Version 5.0.0 - 2018-10-01
+* Bug fixes (see mercurial logs for details)
+* Prevent similar tab
+* Remove dialog for input file
+* Use dropdown for attachment
+* Manage icons in input
+* Support RTL language direction
+* Apply factor on domain parser
+* Use tab name in CSV Export/Import
+* Add bus management
+* Load custom CSS and Javascript
+* New icons
+* Support timestamp field
+* Validate dictionary items
+* Add (i)like support to domain inversion
+* Improve loading strategy by using views
+* Add support of width attribute on tree view
+* Use non conflicting keyboard shortcuts
+* Use the context to get the suffix of window name
+* Call on_change methods after setting default dtstart on calendar view
+* Allow to open in new tab Many2One and Reference with CTRL key
+* Store session in browser storage
+* Increase the space available for tab list
+* Allow to toggle menu on large screen
+* Manage URL and history
+
 * BUG#10127 Clean session if local session is wrong and we got an ir.session error
 * BUG#10098 Allow list view when Ctrl+click
 * BUG#9909 Autorefresh modal codeMirror using addon
-
-Version 4.8.6 - 2018-09-22
-* Bug fixes (see mercurial logs for details)
-
-Version 4.8.5 - 2018-08-20
-* Bug fixes (see mercurial logs for details)
-
-Version 4.8.4 - 2018-08-03
-* Bug fixes (see mercurial logs for details)
-
-Version 4.8.3 - 2018-07-05
-* Bug fixes (see mercurial logs for details)
-
 * BUG#9960 Correctly set operand for M2M and O2M size_limt
 * BUG#9293 Add linting to rule algorithms
 * BUG#9680 Remove text color change on dropdown menu when hover element
@@ -39,21 +54,6 @@ Version 4.8.3 - 2018-07-05
 * BUG#8705 Add white color for link
 * BUG#8706 Remove link when line is not selected
 * BUG#7226 Hide selection state
-* BUG#8474 Add position and count label on one2many widget and tree view : http://hg.tryton.org/sao/rev/e19282c20d57
-* BUG#7226 Refactor the editable tree process  : http://hg.tryton.org/sao/rev/cf989f7a944e/
-* BUG#8474 Ensure consistent treeview rendering by using fixed table-layout : http://hg.tryton.org/sao/rev/60d4cde3ed8f
-
-* BUG#8651 Remove right blank space
-* OTH#0000 Increase line spacing of list view, add space after icon in tree views
-* FEA#8643 Allow to open in new tab Many2One and Reference
-* FEA#8643 Allow to edit Many2One from tree view
-* BUG#7227 Fix view changes in processes
-
-Version 4.8.2 - 2018-06-11
-* Bug fixes (see mercurial logs for details)
-
-Version 4.8.1 - 2018-05-22
-* Bug fixes (see mercurial logs for details)
 
 Version 4.8.0 - 2018-04-23
 * Bug fixes (see mercurial logs for details)

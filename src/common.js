@@ -749,12 +749,13 @@
             }
             this.icon = this.el.children('img');
             if (!this.icon.length) {
-                this.icon = jQuery('<img/>').prependTo(this.el);
+                this.icon = jQuery('<img/>', {
+                    'class': 'icon',
+                }).prependTo(this.el);
                 this.icon.hide();
             }
             this.el.addClass('btn btn-default');
             this.el.attr('type', 'button');
-            this.icon.addClass('icon');
             this.icon.attr('aria-hidden', true);
             this.set_icon(attributes.icon);
         },
@@ -764,8 +765,7 @@
                 this.icon.hide();
                 return;
             }
-            var prm = Sao.common.ICONFACTORY.register_icon(icon_name);
-            prm.done(function(url) {
+            Sao.common.ICONFACTORY.get_icon_url(icon_name).done(function(url) {
                 this.icon.attr('src', url);
                 this.icon.show();
             }.bind(this));
@@ -2045,11 +2045,19 @@
             'not in': function(a, b) {
                 return !Sao.common.DomainInversion.in_(a, b);
             },
+            'like': function(a, b) {
+                return Sao.common.DomainInversion.sql_like(a, b, false);
+            },
+            'ilike': function(a, b) {
+                return Sao.common.DomainInversion.sql_like(a, b, true);
+            },
+            'not like': function(a, b) {
+                return !Sao.common.DomainInversion.sql_like(a, b, false);
+            },
+            'not ilike': function(a, b) {
+                return !Sao.common.DomainInversion.sql_like(a, b, true);
+            },
             // Those operators are not supported (yet ?)
-            'like': function() {return true;},
-            'ilike': function() {return true;},
-            'not like': function() {return true;},
-            'not ilike': function() {return true;},
             'child_of': function() {return true;},
             'not child_of': function() {return true;}
         },
@@ -2329,6 +2337,43 @@
             return Boolean(~b.indexOf(a));
         }
     };
+    Sao.common.DomainInversion.sql_like = function(value, pattern, ignore_case)
+    {
+        var escape = false;
+        var chars = [];
+        var splitted = pattern.split(/(.|\\)/);
+        var char;
+        for (var i=1, len=splitted.length; i < len; i = i+2) {
+            char = splitted[i];
+            if (escape) {
+                if ((char == '%') || (char == '_')) {
+                    chars.push(char);
+                } else {
+                    chars.push('\\', char);
+                }
+                escape = false;
+            } else if (char == '\\') {
+                escape = true;
+            } else if (char == '_') {
+                chars.push('.');
+            } else if (char == '%') {
+                chars.push('.*');
+            } else {
+                chars.push(char);
+            }
+        }
+
+        if (!pattern.startsWith('%')) {
+            chars.splice(0, 0, '^');
+        }
+        if (!pattern.endsWith('%')) {
+            chars.push('$');
+        }
+
+        var flags = ignore_case ? 'i' : '';
+        var regexp = new RegExp(chars.join(''), flags);
+        return regexp.test(value);
+    };
     Sao.common.DomainInversion.And = Sao.class_(Object, {
         init: function(expressions) {
             this.domain_inversion = new Sao.common.DomainInversion();
@@ -2477,59 +2522,57 @@
     };
 
     Sao.common.LOCAL_ICONS = [
-        'tryton-attachment-hi',
-        'tryton-attachment',
+        'tryton-add',
+        'tryton-archive',
+        'tryton-attach',
+        'tryton-back',
+        'tryton-bookmark-border',
         'tryton-bookmark',
+        'tryton-bookmarks',
         'tryton-cancel',
         'tryton-clear',
         'tryton-close',
-        'tryton-connect',
         'tryton-copy',
+        'tryton-create',
+        'tryton-date',
         'tryton-delete',
-        'tryton-dialog-error',
-        'tryton-dialog-information',
-        'tryton-dialog-warning',
-        'tryton-disconnect',
-        'tryton-executable',
-        'tryton-find-replace',
-        'tryton-find',
-        'tryton-folder-new',
-        'tryton-fullscreen',
-        'tryton-go-home',
-        'tryton-go-jump',
-        'tryton-go-next',
-        'tryton-go-previous',
-        'tryton-help',
-        'tryton-icon',
-        'tryton-list-add',
-        'tryton-list-remove',
-        'tryton-locale',
-        'tryton-lock',
-        'tryton-log-out',
-        'tryton-mail-message-new',
-        'tryton-mail-message',
-        'tryton-new',
+        'tryton-email',
+        'tryton-error',
+        'tryton-exit',
+        'tryton-export',
+        'tryton-filter',
+        'tryton-format-align-center',
+        'tryton-format-align-justify',
+        'tryton-format-align-left',
+        'tryton-format-align-right',
+        'tryton-format-bold',
+        'tryton-format-color-text',
+        'tryton-format-italic',
+        'tryton-format-underline',
+        'tryton-forward',
+        'tryton-history',
+        'tryton-import',
+        'tryton-info',
+        'tryton-launch',
+        'tryton-link',
+        'tryton-log',
+        'tryton-menu',
+        'tryton-note',
         'tryton-ok',
         'tryton-open',
-        'tryton-preferences-system-session',
-        'tryton-preferences-system',
-        'tryton-preferences',
-        'tryton-print-email',
-        'tryton-print-open',
         'tryton-print',
+        'tryton-public',
         'tryton-refresh',
-        'tryton-save-as',
+        'tryton-remove',
         'tryton-save',
+        'tryton-search',
+        'tryton-star-border',
         'tryton-star',
-        'tryton-start-here',
-        'tryton-system-file-manager',
-        'tryton-system',
-        'tryton-text-background',
-        'tryton-text-foreground',
-        'tryton-text-markup',
+        'tryton-switch',
+        'tryton-translate',
+        'tryton-unarchive',
         'tryton-undo',
-        'tryton-unstar',
-        'tryton-web-browser'
+        'tryton-warning',
     ];
 
     Sao.common.IconFactory = Sao.class_(Object, {
@@ -2575,15 +2618,12 @@
                 return jQuery.when();
             } else if ((icon_name in this.loaded_icons) ||
                     ~Sao.common.LOCAL_ICONS.indexOf(icon_name)) {
-                return jQuery.when(this.get_icon_url(icon_name));
+                return jQuery.when();
             }
             if (this.register_prm.state() == 'pending') {
-                var waiting_prm = jQuery.Deferred();
-                this.register_prm.then(function() {
-                    this.register_icon(icon_name).then(
-                        waiting_prm.resolve, waiting_prm.reject);
+                return this.register_prm.then(function() {
+                    return this.register_icon(icon_name);
                 }.bind(this));
-                return waiting_prm;
             }
             var loaded_prm;
             if (!(icon_name in this.name2id)) {
@@ -2617,55 +2657,54 @@
                     [ids, ['name', 'icon']], {});
                 return read_prm.then(function(icons) {
                     icons.forEach(function(icon) {
-                        var img_url;
-                        if (navigator.userAgent.match(/firefox/i)) {
-                            // Fixefox doesn't support SVG inside Blob
-                            // https://bugzilla.mozilla.org/show_bug.cgi?id=841920
-                            // Temporary use the embeded base64 version which
-                            // will be replaced later by the URL of the png object
-                            img_url = 'data:image/svg+xml;base64,' +
-                                window.btoa(unescape(encodeURIComponent(icon.icon)));
-                            var image = new Image();
-                            image.src = img_url;
-                            image.onload = function() {
-                                var canvas = document.createElement('canvas');
-                                canvas.width = image.width;
-                                canvas.height = image.height;
-                                var context = canvas.getContext('2d');
-                                context.drawImage(image, 0, 0);
-                                canvas.toBlob(function(blob) {
-                                    var old_img_url = img_url;
-                                    img_url =  window.URL.createObjectURL(blob);
-                                    this.loaded_icons[icon.name] = img_url;
-                                    jQuery(document).find('img').each(function(i, el) {
-                                        if (el.src == old_img_url) {
-                                            el.src = img_url;
-                                        }
-                                    });
-                                    canvas.remove();
-                                }.bind(this), 'image/png');
-                            }.bind(this);
-                        } else {
-                            var blob = new Blob([icon.icon],
-                                {type: 'image/svg+xml'});
-                            img_url = window.URL.createObjectURL(blob);
-                        }
+                        var img_url = this._convert(icon.icon);
                         this.loaded_icons[icon.name] = img_url;
                         delete this.name2id[icon.name];
                         this.tryton_icons.splice(
                             find_array([icon.id, icon.name]), 1);
                     }.bind(this));
-                    return this.get_icon_url(icon_name);
                 }.bind(this));
             }.bind(this));
             return this.register_prm;
         },
+        _convert: function(data) {
+            var xml = jQuery.parseXML(data);
+            jQuery(xml).find('svg').attr('fill', Sao.config.icon_color);
+            data = new XMLSerializer().serializeToString(xml);
+            var blob = new Blob([data],
+                {type: 'image/svg+xml'});
+            return window.URL.createObjectURL(blob);
+        },
         get_icon_url: function(icon_name) {
-            if (icon_name in this.loaded_icons) {
-                return this.loaded_icons[icon_name];
+            if (!icon_name) {
+                return;
             }
-            return "images/" + icon_name + ".svg";
-        }
+            return this.register_icon(icon_name).then(function() {
+                if (icon_name in this.loaded_icons) {
+                    return this.loaded_icons[icon_name];
+                } else {
+                    return jQuery.get('images/' + icon_name + '.svg', null, null, 'text')
+                        .then(function(icon) {
+                            var img_url = this._convert(icon);
+                            this.loaded_icons[icon_name] = img_url;
+                            return img_url;
+                        }.bind(this));
+                }
+            }.bind(this));
+        },
+        get_icon_img: function(icon_name, attrs) {
+            attrs = attrs || {};
+            if (!attrs['class']) {
+                attrs['class'] = 'icon';
+            }
+            var img = jQuery('<img/>', attrs);
+            if (icon_name) {
+                this.get_icon_url(icon_name).then(function(url) {
+                    img.attr('src', url);
+                });
+            }
+            return img;
+        },
     });
 
     Sao.common.ICONFACTORY = new Sao.common.IconFactory();
@@ -2716,9 +2755,8 @@
             dialog.body.append(jQuery('<div/>', {
                 'class': 'alert alert-info',
                 role: 'alert'
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon ' + icon,
-                'aria-hidden': true
+            }).append(Sao.common.ICONFACTORY.get_icon_img(icon, {
+                'aria-hidden': true,
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
             }).append(Sao.i18n.gettext('Message: '))
@@ -2736,7 +2774,7 @@
         },
         run: function(message, icon) {
             return Sao.common.MessageDialog._super.run.call(
-                    this, message, icon || 'glyphicon-info-sign');
+                    this, message, icon || 'tryton-info');
         }
     });
     Sao.common.message = new Sao.common.MessageDialog();
@@ -2749,9 +2787,8 @@
             var content = jQuery('<div/>', {
                 'class': 'alert alert-warning',
                 role: 'alert'
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-alert',
-                'aria-hidden': true
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-warning', {
+                'aria-hidden': true,
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
             }).append(Sao.i18n.gettext('Warning: '))
@@ -2827,9 +2864,8 @@
             dialog.body.append(jQuery('<div/>', {
                 'class': 'alert alert-info',
                 role: 'alert'
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-info-sign',
-                'aria-hidden': true
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-info', {
+                'aria-hidden': true,
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
             }).append(Sao.i18n.gettext('Confirmation: '))
@@ -2946,9 +2982,8 @@
                 'class': 'alert alert-warning',
                 role: 'alert'
             }).append(jQuery('<p/>')
-                .append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-info-sign',
-                    'aria-hidden': true
+                .append(Sao.common.ICONFACTORY.get_icon_img('tryton-info', {
+                    'aria-hidden': true,
                 })).append(jQuery('<span/>', {
                     'class': 'sr-only'
                 }).append(Sao.i18n.gettext('Write Concurrency Warning: '))
@@ -3009,9 +3044,8 @@
             dialog.body.append(jQuery('<div/>', {
                 'class': 'alert alert-warning',
                 role: 'alert'
-            }).append(jQuery('<span/>', {
-                'class': 'glyphicon glyphicon-alert',
-                'aria-hidden': true
+            }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-error', {
+                'aria-hidden': true,
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
             }).append(Sao.i18n.gettext('Warning: '))
@@ -3129,16 +3163,18 @@
                     this.menu.dropdown('toggle');
                 }
             }.bind(this));
-            // We must set the overflow of the treeview containing the input to
-            // visible to prevent vertical scrollbar inherited from the auto
-            // overflow-x
+            // We must set the overflow of the treeview and modal-body
+            // containing the input to visible to prevent vertical scrollbar
+            // inherited from the auto overflow-x
             // (see http://www.w3.org/TR/css-overflow-3/#overflow-properties)
             this.dropdown.on('hide.bs.dropdown', function() {
                 this.input.focus();
                 this.input.closest('.treeview').css('overflow', '');
+                this.input.closest('.modal-body').css('overflow', '');
             }.bind(this));
             this.dropdown.on('show.bs.dropdown', function() {
                 this.input.closest('.treeview').css('overflow', 'visible');
+                this.input.closest('.modal-body').css('overflow', 'visible');
             }.bind(this));
         },
         set_actions: function(actions, action_activated) {
@@ -3159,7 +3195,8 @@
                 }).append(jQuery('<a/>', {
                     'href': '#'
                 }).append(this._format_action(content)))
-                .click(function() {
+                .click(function(evt) {
+                    evt.preventDefault();
                     if (this.action_activated) {
                         this.action_activated(action_id);
                     }
@@ -3210,7 +3247,8 @@
                 }).append(jQuery('<a/>', {
                     'href': '#'
                 }).append(this._format(value)))
-                .click(function() {
+                .click(function(evt) {
+                    evt.preventDefault();
                     if (this.match_selected) {
                         this.match_selected(value);
                     }
@@ -3366,10 +3404,13 @@
         }
     };
 
-    Sao.common.download_file = function(data, name) {
-        var type = Sao.common.guess_mimetype(
-            name ? name.split('.').pop() : undefined);
-        var blob = new Blob([data], {type: type});
+    Sao.common.download_file = function(data, name, options) {
+        if (options === undefined) {
+            var type = Sao.common.guess_mimetype(
+                name ? name.split('.').pop() : undefined);
+            options = {type: type};
+        }
+        var blob = new Blob([data], options);
 
         if (window.navigator && window.navigator.msSaveOrOpenBlob) {
             window.navigator.msSaveOrOpenBlob(blob, name);
@@ -3388,8 +3429,6 @@
                 'text': name,
                 'target': '_blank'
                 }).appendTo(dialog.body)
-                .append(jQuery('<span/>', {
-                    'class': 'glyphicon glyphicon-download-alt'}))
                 .click(close);
         var button = jQuery('<button/>', {
             'class': 'btn btn-default',
@@ -3410,7 +3449,9 @@
     };
 
     Sao.common.get_input_data = function(input, callback, char_) {
-        Sao.common.get_file_data(input[0].files[0], callback, char_);
+        for (var i = 0; i < input[0].files.length; i++) {
+            Sao.common.get_file_data(input[0].files[i], callback, char_);
+        }
     };
 
     Sao.common.get_file_data = function(file, callback, char_) {
@@ -3442,4 +3483,14 @@
             }.bind(this), wait);
         }.bind(this);
     };
+
+    Sao.common.uuid4 = function() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,
+            function(c) {
+                var r = Math.random() * 16 | 0;
+                var v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+    };
+
 }());

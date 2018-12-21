@@ -10,21 +10,14 @@
     Sao.Action.exec_action = function(action, data, context) {
         if (context === undefined) {
             context = {};
-        } else {
-            context = jQuery.extend({}, context);
         }
         var session = Sao.Session.current_session;
-        if (!('date_format' in context)) {
-            if (session.context.locale && session.context.locale.date) {
-                context.date_format = session.context.locale.date;
-            }
-        }
         if (data === undefined) {
             data = {};
         } else {
             data = jQuery.extend({}, data);
         }
-        function add_name_suffix(name){
+        function add_name_suffix(name, context){
             if (!data.model || !data.ids) {
                 return jQuery.when(name);
             }
@@ -105,7 +98,7 @@
                 params.icon = action['icon.rec_name'] || '';
 
                 if (action.keyword) {
-                    name_prm = add_name_suffix(action.name);
+                    name_prm = add_name_suffix(action.name, params.context);
                 }
                 name_prm.then(function(name) {
                     params.name = name;
@@ -122,7 +115,7 @@
                 params.window = action.window;
                 name_prm = jQuery.when(action.name);
                 if ((action.keyword || 'form_action') === 'form_action') {
-                    name_prm = add_name_suffix(action.name);
+                    name_prm = add_name_suffix(action.name, context);
                 }
                 name_prm.done(function(name) {
                     params.name = name;
