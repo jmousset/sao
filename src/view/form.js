@@ -3314,10 +3314,19 @@ function eval_pyson(value){
             }
             widget = null;
             var to_display = null;
+            var to_display_prm = jQuery.when();
+            var record_load_promises, display_prm;
+
+            function display_form(widget, record) {
+                return function () {
+                    widget.display(widget.record(), widget.field());
+                };
+            }
 
             for (var i = 0; i < to_sync.length; i++){
                 widget = to_sync[i].widget;
                 record = to_sync[i].record;
+                record_load_promises = [];
 
                 if (widget.screen.current_view === undefined)
                     continue;
@@ -3331,22 +3340,31 @@ function eval_pyson(value){
                         ret[name] = fields[name].description;
                     }
                     record.group.model.add_fields(ret);
+
+                    for (var field_name in fields) {
+                        if (!fields.hasOwnProperty(field_name)) {
+                            continue;
+                        }
+                        record_load_promises.push(record.load(field_name));
+                    }
                 }
 
                 widget.screen.current_record = record;
-                widget.display(widget.record(), widget.field());
+                display_prm = jQuery.when.apply(jQuery, record_load_promises);
+                display_prm.done(display_form(widget, record).bind(this));
                 if (record){
                     to_display = widget;
-                }
-            }
-            if (widget){
-                for (j in widget.view.containers) {
-                    var container = widget.view.containers[j];
-                    container.resize();
+                    to_display_prm = display_prm;
                 }
             }
             if (to_display) {
-                to_display.display(to_display.record(), to_display.field());
+                to_display_prm.done(function() {
+                    for (var j in to_display.view.containers) {
+                        var container = widget.view.containers[j];
+                        container.resize();
+                    }
+                    to_display.display(to_display.record(), to_display.field());
+                });
             }
         },
         set_readonly: function(readonly) {
