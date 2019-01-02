@@ -237,7 +237,20 @@ function eval_pyson(value){
             var widget = new WidgetFactory(name, model, attributes);
             widget.position = this.widget_id += 1;
             widget.view = this;
-            // TODO expand, fill, height, width
+            if (WidgetFactory.prototype.expand) {
+                if (attributes.yexpand === undefined) {
+                    attributes.yexpand = true;
+                }
+                if (attributes.yfill === undefined) {
+                    attributes.yfill = true;
+                }
+            }
+            if (attributes.height) {
+                widget.el.css('min-height', attributes.height + 'px');
+            }
+            if (attributes.width !== undefined) {
+                widget.el.css('min-width', attributes.width + 'px');
+            }
             container.add(attributes, widget);
             if (this.widgets[name] === undefined) {
                 this.widgets[name] = [];
@@ -542,7 +555,9 @@ function eval_pyson(value){
                 return;
             }
 
-            // TODO yexpand
+            if (attributes.yexpand) {
+                cell.css('height', '100%');
+            }
             if (attributes.yfill) {
                 cell.css('vertical-align', 'top');
             }
@@ -1009,6 +1024,7 @@ function eval_pyson(value){
 
 
     Sao.View.Form.Widget = Sao.class_(Object, {
+        expand: false,
         init: function(field_name, model, attributes) {
             this.field_name = field_name;
             this.model = model;
@@ -2219,6 +2235,7 @@ function eval_pyson(value){
 
     Sao.View.Form.Text = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-text',
+        expand: true,
         init: function(field_name, model, attributes) {
             Sao.View.Form.Text._super.init.call(this, field_name, model,
                 attributes);
@@ -2277,6 +2294,7 @@ function eval_pyson(value){
 
     Sao.View.Form.RichText = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-richtext',
+        expand: true,
         init: function(field_name, model, attributes) {
             Sao.View.Form.RichText._super.init.call(
                     this, field_name, model, attributes);
@@ -3091,6 +3109,7 @@ function eval_pyson(value){
 
     Sao.View.Form.One2Many = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-one2many',
+        expand: true,
         init: function(field_name, model, attributes) {
             Sao.View.Form.One2Many._super.init.call(this, field_name, model,
                 attributes);
@@ -3756,6 +3775,7 @@ function eval_pyson(value){
 
     Sao.View.Form.Many2Many = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-many2many',
+        expand: true,
         init: function(field_name, model, attributes) {
             Sao.View.Form.Many2Many._super.init.call(this, field_name, model,
                 attributes);
@@ -4463,6 +4483,7 @@ function eval_pyson(value){
 
     Sao.View.Form.Dict = Sao.class_(Sao.View.Form.Widget, {
         class_: 'form-dict',
+        expand: true,
         init: function(field_name, model, attributes) {
             Sao.View.Form.Dict._super.init.call(
                     this, field_name, model, attributes);
