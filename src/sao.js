@@ -1077,6 +1077,8 @@ var Sao = {};
         return false;
     }
 
+    Sao.Plugins = [];
+
     // Fix stacked modal
     jQuery(document)
         .on('show.bs.modal', '.modal', function(event) {
