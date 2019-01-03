@@ -1,3 +1,4 @@
+* Reduce offset when no search result
 * Use tab name in CSV Export/Import
 * Add support for plugins
 * Add drag & drop support on attachment button
