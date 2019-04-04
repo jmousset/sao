@@ -2765,7 +2765,7 @@
                 attrs['class'] = 'icon';
             }
             var img = jQuery('<img/>', attrs);
-            if (icon_name) {
+            if (icon_name && !icon_name.includes('glyphicon')) {
                 this.get_icon_url(icon_name).then(function(url) {
                     img.attr('src', url);
                 });
