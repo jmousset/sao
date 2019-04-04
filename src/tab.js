@@ -490,6 +490,7 @@
             this.set_buttons_sensitive();
 
             this.view_prm = this.screen.switch_view().done(function() {
+                this.screen.count_tab_domain();
                 this.set_name(attributes.name || '');
                 this.content.append(screen.screen_container.el);
                 if (attributes.res_id) {
@@ -780,7 +781,6 @@
                     if (this.screen.current_record) {
                         record_id = this.screen.current_record.id;
                     }
-                    this.screen.save_tree_state(false);
                     if (this.screen.current_view.view_type != 'form') {
                         return this.screen.search_filter(
                             this.screen.screen_container.search_entry.val())
@@ -807,6 +807,7 @@
             if (test_modified) {
                 return this.modified_save().then(reload);
             } else {
+                this.screen.save_tree_state(false);
                 return reload();
             }
         },

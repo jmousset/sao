@@ -158,7 +158,7 @@ function eval_pyson(value){
                 }
                 if (attributes.string === undefined) {
                     attributes.string = model.fields[name]
-                        .description.string + ': ';
+                        .description.string + Sao.i18n.gettext(':');
                 }
             }
             if (attributes.xalign === undefined) {
@@ -1600,7 +1600,7 @@ function eval_pyson(value){
                 prm.then(function() {
                     Sao.rpc(args, widget.model.session)
                             .then(function(fuzzy_value) {
-                        value = fuzzy_value[0][widget.field_name];
+                        value = fuzzy_value[0][widget.field_name] || '';
                         widget.translate_widget_set(
                             input, value);
                         widget.translate_widget_set_readonly(
@@ -1719,7 +1719,7 @@ function eval_pyson(value){
         el.prop('readonly', value);
     };
     Sao.View.Form.TranslateMixin.translate_widget_set = function(el, value) {
-        el.val(value || '');
+        el.val(value);
     };
     Sao.View.Form.TranslateMixin.translate_widget_get = function(el) {
         return el.val();
@@ -1900,15 +1900,23 @@ function eval_pyson(value){
             }.bind(this));
             var mousetrap = new Mousetrap(this.el[0]);
 
-            mousetrap.bind(['enter', '='], function(e, combo) {
-                if (e.which != Sao.common.RETURN_KEYCODE) {
-                    e.preventDefault();
+            mousetrap.bind('enter', function(e, combo) {
+                if (!this.date.find('input').prop('readonly')) {
+                    this.date.data('DateTimePicker').date();
                 }
-                this.date.data('DateTimePicker').date(moment());
+            }.bind(this));
+            mousetrap.bind('=', function(e, combo) {
+                if (!this.date.find('input').prop('readonly')) {
+                    e.preventDefault();
+                    this.date.data('DateTimePicker').date(moment());
+                }
             }.bind(this));
 
             Sao.common.DATE_OPERATORS.forEach(function(operator) {
                 mousetrap.bind(operator[0], function(e, combo) {
+                    if (this.date.find('input').prop('readonly')) {
+                        return;
+                    }
                     e.preventDefault();
                     var dp = this.date.data('DateTimePicker');
                     var date = dp.date();
@@ -3469,10 +3477,7 @@ function eval_pyson(value){
             this._set_button_sensitive();
 
             this.prm.done(function() {
-                if (!record) {
-                    return;
-                }
-                if (field === undefined) {
+                if (!field) {
                     this.screen.new_group();
                     this.screen.set_current_record(null);
                     this.screen.group.parent = null;
@@ -3655,8 +3660,8 @@ function eval_pyson(value){
                     }.bind(this);
 
                     var make_product = function() {
+                        screen.group.remove(first, true);
                         if (jQuery.isEmptyObject(product)) {
-                            screen.group.remove(first, true);
                             return;
                         }
 
@@ -3665,22 +3670,14 @@ function eval_pyson(value){
                             return product[field];
                         });
                         Sao.common.product(values).forEach(function(values) {
-                            var set_default = function(record) {
+                            screen.new_(false).then(function(record) {
                                 var default_value = jQuery.extend({}, default_);
                                 fields.forEach(function(field, i) {
                                     default_value[field] = values[i][0];
                                     default_value[field + '.rec_name'] = values[i][1];
                                 });
                                 record.set_default(default_value);
-                            };
-
-                            var record;
-                            if (first) {
-                                set_default(first);
-                                first = null;
-                            } else {
-                                screen.new_(false).then(set_default);
-                            }
+                            });
                         });
                     };
 
@@ -3906,10 +3903,7 @@ function eval_pyson(value){
             Sao.View.Form.Many2Many._super.display.call(this, record, field);
 
             this.prm.done(function() {
-                if (!record) {
-                    return;
-                }
-                if (field === undefined) {
+                if (!field) {
                     this.screen.new_group();
                     this.screen.set_current_record(null);
                     this.screen.group.parent = null;

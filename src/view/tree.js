@@ -308,7 +308,19 @@
                     (this.screen.group.parent)) {
                 this.screen.search_filter(search_string, true).then(
                 function(ids) {
-                    this.screen.group.sort(ids);
+                    this.screen.group.sort(function(a, b) {
+                        a = ids.indexOf(a.id);
+                        a = a < 0 ? ids.length : a;
+                        b = ids.indexOf(b.id);
+                        b = b < 0 ? ids.length : b;
+                        if (a < b) {
+                            return -1;
+                        } else if (a > b) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    });
                     this.screen.display();
                 }.bind(this));
             } else {
@@ -326,7 +338,7 @@
         },
         display: function(selected, expanded) {
             var current_record = this.screen.current_record;
-            if (!selected) {
+            if (jQuery.isEmptyObject(selected)) {
                 selected = this.get_selected_paths();
                 if (current_record) {
                     var current_path = current_record.get_path(this.screen.group);
@@ -451,9 +463,10 @@
             this.tbody.find('tr.more-row > td').attr(
                 'colspan', visible_columns);
 
-            if (this.columns.filter(function(c) {
-                return c.header.is(':visible');
-            }).length > 1) {
+            if (!this.table.hasClass('no-responsive') &
+                (this.columns.filter(function(c) {
+                    return !c.header.hasClass('invisible');
+                }).length > 1)) {
                 this.table.addClass('responsive');
                 this.table.addClass('responsive-header');
             } else {

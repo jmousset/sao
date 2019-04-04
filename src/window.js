@@ -57,7 +57,8 @@
 
             this.switch_prm = this.screen.switch_view(view_type)
                 .done(function() {
-                    if (kwargs.new_) {
+                    if (kwargs.new_ &&
+                        (this.screen.current_view.view_type == view_type)) {
                         this.screen.new_(undefined, kwargs.rec_name);
                     }
                 }.bind(this));
@@ -233,9 +234,13 @@
             dialog.body.append(this.info_bar.el);
 
             this.switch_prm.done(function() {
-                title_prm.done(dialog.add_title.bind(dialog));
-                content.append(this.screen.screen_container.alternate_viewport);
-                this.el.modal('show');
+                if (this.screen.current_view.view_type != view_type) {
+                    this.destroy();
+                } else {
+                    title_prm.done(dialog.add_title.bind(dialog));
+                    content.append(this.screen.screen_container.alternate_viewport);
+                    this.el.modal('show');
+                }
             }.bind(this));
             this.el.on('shown.bs.modal', function(event) {
                 this.screen.display().done(function() {
@@ -1298,12 +1303,10 @@
             this.fields_selected.empty();
             this.el_csv_skip.val(1);
             Papa.parse(this.file_input[0].files[0], {
-                config: {
-                    delimiter: this.el_csv_delimiter.val(),
-                    quoteChar: this.el_csv_quotechar.val(),
-                    preview: 1,
-                    encoding: this.el_csv_encoding.val()
-                },
+                delimiter: this.el_csv_delimiter.val(),
+                quoteChar: this.el_csv_quotechar.val(),
+                preview: 1,
+                encoding: this.el_csv_encoding.val(),
                 error: function(err, file, inputElem, reason) {
                     Sao.common.warning(
                         Sao.i18n.gettext('Error occured in loading the file'));
@@ -1397,11 +1400,9 @@
             var prm = jQuery.Deferred();
 
             Papa.parse(this.file_input[0].files[0], {
-                config: {
-                    delimiter: this.el_csv_delimiter.val(),
-                    quoteChar: this.el_csv_quotechar.val(),
-                    encoding: encoding
-                },
+                delimiter: this.el_csv_delimiter.val(),
+                quoteChar: this.el_csv_quotechar.val(),
+                encoding: encoding,
                 error: function(err, file, inputElem, reason) {
                     Sao.common.warning.run(
                         Sao.i18n.gettext('Error occured in loading the file'))

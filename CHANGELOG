@@ -6,6 +6,24 @@
 * Add support for plugins
 * Add drag & drop support on attachment button
 
+Version 5.0.6 - 2019-04-02
+* Bug fixes (see mercurial logs for details)
+
+Version 5.0.5 - 2019-03-15
+* Bug fixes (see mercurial logs for details)
+
+Version 5.0.4 - 2019-02-19
+* Bug fixes (see mercurial logs for details)
+
+Version 5.0.3 - 2019-01-22
+* Bug fixes (see mercurial logs for details)
+
+Version 5.0.2 - 2019-01-05
+* Bug fixes (see mercurial logs for details)
+
+Version 5.0.1 - 2018-11-12
+* Bug fixes (see mercurial logs for details)
+
 Version 5.0.0 - 2018-10-01
 * Bug fixes (see mercurial logs for details)
 * Prevent similar tab

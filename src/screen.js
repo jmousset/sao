@@ -581,10 +581,11 @@
                 entry.data('DateTimePicker').format(format);
                 var mousetrap = new Mousetrap(el[0]);
 
-                mousetrap.bind(['enter', '='], function(e, combo) {
-                    if (e.which != Sao.common.RETURN_KEYCODE) {
-                        e.preventDefault();
-                    }
+                mousetrap.bind('enter', function(e, combo) {
+                    entry.data('DateTimePicker').date();
+                });
+                mousetrap.bind('=', function(e, combo) {
+                    e.preventDefault();
                     entry.data('DateTimePicker').date(moment());
                 });
 
@@ -741,7 +742,9 @@
             // end
             this.message_callback = null;
             this.switch_callback = null;
-            this.count_tab_domain();
+            // count_tab_domain is called in Sao.Tab.Form.init after
+            // switch_view to avoid unnecessary call to fields_view_get by
+            // domain_parser.
         },
         load_next_view: function() {
             if (!jQuery.isEmptyObject(this.view_to_load)) {
@@ -848,11 +851,35 @@
                 }
             }.bind(this);
             var _switch = function() {
-                var switch_current_view = (function() {
+                var set_container = function() {
+                    this.screen_container.set(this.current_view.el);
+                    return this.display().done(function() {
+                        this.set_cursor();
+                        if (this.switch_callback) {
+                            this.switch_callback();
+                        }
+                    }.bind(this));
+                }.bind(this);
+                var continue_loop = function() {
+                    if (!view_type && (view_id === null)) {
+                        return false;
+                    }
+                    if (view_type && !view_id && !this.view_to_load.length) {
+                        return false;
+                    }
+                    return true;
+                }.bind(this);
+                var set_current_view = function() {
                     this.current_view = this.views[this.views.length - 1];
-                    return _switch();
+                }.bind(this);
+                var switch_current_view = (function() {
+                    set_current_view();
+                    if (continue_loop()) {
+                        return _switch();
+                    } else {
+                        return set_container();
+                    }
                 }.bind(this));
-
                 var is_view_id = function(view) {
                     return view.view_id == view_id;
                 };
@@ -862,15 +889,15 @@
                         return this.load_next_view().then(switch_current_view);
                     } else if ((view_id !== null) &&
                         !this.views.find(is_view_id)) {
-                        return this.add_view_id(view_id, view_type).then(
-                            switch_current_view);
+                        return this.add_view_id(view_id, view_type)
+                            .then(set_current_view);
                     } else {
                         var i = this.views.indexOf(this.current_view);
 
                         this.current_view = this.views[
                             (i + 1) % this.views.length];
                     }
-                    if (!view_id && (view_id === null)) {
+                    if (!continue_loop()) {
                         break;
                     }
 
@@ -881,13 +908,7 @@
                         }
                     }
                 }
-                this.screen_container.set(this.current_view.el);
-                return this.display().done(function() {
-                    this.set_cursor();
-                    if (this.switch_callback) {
-                        this.switch_callback();
-                    }
-                }.bind(this));
+                return set_container();
             }.bind(this);
             return _switch();
         },
@@ -923,34 +944,25 @@
             if (this.screen_container.but_active.hasClass('active')) {
                 context.active_test = false;
             }
-            var search = function() {
-                return this.model.execute(
-                    'search', [domain, this.offset, this.limit, this.order],
-                    context)
-                    .then(function(ids) {
-                        if (ids.length || this.offset <= 0) {
-                            return ids;
-                        } else {
-                            this.offset = Math.max(this.offset - this.limit, 0);
-                            return search();
-                        }
-                    }.bind(this));
-            }.bind(this);
-            return search().then(function(ids) {
-                    this.search_count = ids.length;
+            return this.model.execute(
+                'search', [domain, this.offset, this.limit, this.order],
+                context).then(function(ids) {
                     var count_prm = jQuery.when(this.search_count);
-                    if ((!only_ids) &&
-                        ((this.limit !== null) &&
-                            (ids.length == this.limit))) {
-                        count_prm = this.model.execute(
-                            'search_count', [domain], context)
-                            .then(function(count) {
-                                this.search_count = count;
-                                return this.search_count;
-                            }.bind(this), function() {
-                                this.search_count = 0;
-                                return this.search_count;
-                            }.bind(this));
+                    if (!only_ids) {
+                        if ((this.limit !== null) &&
+                            (ids.length == this.limit)) {
+                            count_prm = this.model.execute(
+                                'search_count', [domain], context)
+                                .then(function(count) {
+                                    this.search_count = count;
+                                    return this.search_count;
+                                }.bind(this), function() {
+                                    this.search_count = 0;
+                                    return this.search_count;
+                                }.bind(this));
+                        } else {
+                            this.search_count = ids.length;
+                        }
                     }
                     return count_prm.then(function(count) {
                         this.screen_container.but_next.prop('disabled',
@@ -962,8 +974,9 @@
                             return ids;
                         }
                         this.clear();
-                        this.load(ids);
-                        this.count_tab_domain();
+                        return this.load(ids).then(function() {
+                            this.count_tab_domain();
+                        }.bind(this));
                     }.bind(this));
                 }.bind(this));
         },
@@ -1129,14 +1142,14 @@
             this.group.load(ids, modified);
             if (ids.length && this.current_view.view_type != 'calendar') {
                 this.current_record = this.group.get(ids[0]);
-                this.display();
             } else {
                 this.current_record = null;
-                this.display();
             }
-            if (set_cursor) {
-                this.set_cursor();
-            }
+            return this.display().then(function() {
+                if (set_cursor) {
+                    this.set_cursor();
+                }
+            }.bind(this));
         },
         display: function(set_cursor) {
             var deferreds = [];
@@ -1165,13 +1178,14 @@
                 deferreds.push(this.current_view.display());
             }
             return jQuery.when.apply(jQuery, deferreds).then(function() {
-                this.set_tree_state();
-                this.set_current_record(this.current_record);
-                // set_cursor must be called after set_tree_state because
-                // set_tree_state redraws the tree
-                if (set_cursor) {
-                    this.set_cursor(false, false);
-                }
+                return this.set_tree_state().then(function() {
+                    this.set_current_record(this.current_record);
+                    // set_cursor must be called after set_tree_state because
+                    // set_tree_state redraws the tree
+                    if (set_cursor) {
+                        this.set_cursor(false, false);
+                    }
+                }.bind(this));
             }.bind(this));
         },
         display_next: function() {
@@ -1967,26 +1981,25 @@
             var parent_, timestamp, state, state_prm, tree_state_model;
             var view = this.current_view;
             if (!~['tree', 'form'].indexOf(view.view_type)) {
-                return;
+                return jQuery.when();
             }
 
             if (~this.tree_states_done.indexOf(view)) {
-                return;
+                return jQuery.when();
             }
             if (view.view_type == 'form' &&
                     !jQuery.isEmptyObject(this.tree_states_done)) {
-                return;
+                return jQuery.when();
             }
             if (view.view_type == 'tree' && !view.attributes.tree_state) {
                 this.tree_states_done.push(view);
-                return;
             }
 
             parent_ = this.group.parent ? this.group.parent.id : null;
             if (parent_ < 0) {
-                return;
+                return jQuery.when();
             }
-            timestamp = parent ? parent._timestamp : null;
+            timestamp = this.group.parent ? this.group.parent._timestamp : null;
             if (!(parent_ in this.tree_states)) {
                 this.tree_states[parent_] = {};
             }
@@ -2003,22 +2016,24 @@
                         this.get_tree_domain(parent_),
                         view.children_field], {})
                     .then(function(state) {
-                        return [timestamp,
+                        state = [timestamp,
                             JSON.parse(state[0]), JSON.parse(state[1])];
-                    });
+                        if (!(parent_ in this.tree_states)) {
+                            this.tree_states[parent_] = {};
+                        }
+                        this.tree_states[parent_][view.children_field || null] = state;
+                        return state;
+                    }.bind(this));
             } else {
                 state_prm = jQuery.when(state);
             }
-            state_prm.done(function(state) {
+            this.tree_states_done.push(view);
+            return state_prm.done(function(state) {
                 var expanded_nodes, selected_nodes, record;
-                if (!(parent_ in this.tree_states)) {
-                    this.tree_states[parent_] = {};
-                }
-                this.tree_states[parent_][view.children_field || null] = state;
                 expanded_nodes = state[1];
                 selected_nodes = state[2];
                 if (view.view_type == 'tree') {
-                    view.display(selected_nodes, expanded_nodes);
+                    return view.display(selected_nodes, expanded_nodes);
                 } else {
                     if (!jQuery.isEmptyObject(selected_nodes)) {
                         for (var i = 0; i < selected_nodes[0].length; i++) {
@@ -2038,7 +2053,6 @@
                     }
                 }
             }.bind(this));
-            this.tree_states_done.push(view);
         }
     });
 }());

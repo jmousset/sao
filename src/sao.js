@@ -365,9 +365,10 @@ var Sao = {};
                 Sao.set_url(tab.get_url(), tab.name);
             }
         } else {
+            url = decodeURIComponent(url);
             for (var i = 0; i < Sao.Tab.tabs.length; i++) {
                 tab = Sao.Tab.tabs[i];
-                if (tab.get_url() == url) {
+                if (decodeURIComponent(tab.get_url()) == url) {
                     tab.show();
                     return;
                 }
@@ -687,6 +688,7 @@ var Sao = {};
         form.view_prm.done(function() {
             var view = form.screen.current_view;
             view.table.removeClass('table table-bordered table-striped');
+            view.table.addClass('no-responsive');
             view.table.find('thead').hide();
             var gs = new Sao.GlobalSearch();
             jQuery('#global-search').children().remove();
