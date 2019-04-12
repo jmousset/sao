@@ -239,7 +239,7 @@ var Sao = {};
     Sao.config.roundup = {};
     Sao.config.roundup.url = 'https://support.coopengo.com/';
     Sao.config.title = 'Coog';
-    Sao.config.icon_colors = '#3465a4,#555753,#cc0000'.split(',');
+    Sao.config.icon_colors = '#0094d2,#555753,#cc0000'.split(',');
     Sao.config.bus_timeout = 10 * 60 * 1000;
 
     Sao.i18n = i18n();
