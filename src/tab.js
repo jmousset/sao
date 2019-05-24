@@ -180,7 +180,7 @@
                 'role': 'menu'
             })).append(jQuery('<button/>', {
                 'type': 'button',
-                'class': 'close visible-xs visible-sm',
+                'class': 'close visible-xs',
                 'aria-label': Sao.i18n.gettext('Close')
             }).append(jQuery('<span/>', {
                 'aria-hidden': true
@@ -190,9 +190,6 @@
                 'class': 'btn-toolbar navbar-right flip',
                 'role': 'toolbar'
             })));
-            var wrapper = jQuery('<div/>', {
-                'class': 'toolbar-wrapper'
-            }).append(toolbar);
             this.set_menu(toolbar.find('ul[role*="menu"]'));
 
             var group;
@@ -268,30 +265,7 @@
                     jQuery(this).parents('.btn-group')
                         .addClass('hidden-xs');
                 });
-            var tabs = jQuery('#tabs');
-            toolbar.affix({
-                'target': tabs.parent(),
-                'offset': {
-                    'top': function() {
-                        return jQuery('#main_navbar').height();
-                    }
-                }
-            });
-            toolbar.on('affix.bs.affix', function() {
-                wrapper.height(jQuery('#main_navbar').height());
-            });
-            toolbar.on('affix-top.bs.affix affix-bottom.bs.affix',
-                    function() {
-                        wrapper.height('');
-                    });
-            toolbar.on('affixed.bs.affix', function() {
-                Sao.Tab.affix_set_with(toolbar);
-            });
-            toolbar.on('affixed-top.bs.affix affixed-bottom.bs.affix',
-                    function() {
-                        Sao.Tab.affix_unset_width(toolbar);
-                    });
-            return wrapper;
+            return toolbar;
         },
         show: function() {
             jQuery('#tablist').find('a[href="#' + this.id + '"]').tab('show');
@@ -331,25 +305,6 @@
         compare: function(attributes) {
             return false;
         },
-    });
-
-    Sao.Tab.affix_set_with = function(toolbar) {
-        var width = jQuery(toolbar.parent()).width();
-        toolbar.css('width', width);
-    };
-    Sao.Tab.affix_unset_width = function(toolbar) {
-        toolbar.css('width', '');
-    };
-    jQuery(window).resize(function() {
-        jQuery('.toolbar').each(function(i, toolbar) {
-            toolbar = jQuery(toolbar);
-            toolbar.affix('checkPosition');
-            if (toolbar.hasClass('affix')) {
-                Sao.Tab.affix_set_with(toolbar);
-            } else {
-                Sao.Tab.affix_unset_width(toolbar);
-            }
-        });
     });
 
     Sao.Tab.counter = 0;
@@ -466,6 +421,13 @@
         var tablist = jQuery('#tablist');
         var tab = tablist.find('#nav-' + current_tab.id);
         var next = tab[direction]('li').first();
+        if (!next.length) {
+            if (direction == 'prevAll') {
+                next = tablist.find('li').last();
+            } else {
+                next = tablist.find('li').first();
+            }
+        }
         if (next) {
             next.find('a').tab('show');
             tabs.trigger('ready');
@@ -498,8 +460,8 @@
                         attributes.res_id = [attributes.res_id];
                     }
                     screen.group.load(attributes.res_id);
-                    screen.set_current_record(
-                        screen.group.get(attributes.res_id));
+                    screen.current_record = screen.group.get(
+                        attributes.res_id);
                     screen.display();
                 } else {
                     if (screen.current_view.view_type == 'form') {
@@ -518,7 +480,7 @@
             var screen = this.screen;
             var buttons = this.buttons;
             var prm = screen.model.execute('view_toolbar_get', [],
-                screen.context());
+                screen.context);
             prm.done(function(toolbars) {
                 [
                 ['action', 'tryton-launch',
@@ -565,9 +527,11 @@
                         });
                     var menu = button.find('.dropdown-menu');
                     button.click(function() {
-                        menu.find('.' + menu_action[0] + '_button').remove();
-                        menu.find('.divider').remove();
-                        menu.find('.' + menu_action[0] + '_plugin').remove();
+                        menu.find([
+                            '.' + menu_action[0] + '_button',
+                            '.divider-button',
+                            '.' + menu_action[0] + '_plugin',
+                            '.divider-plugin'].join(',')).remove();
                         var buttons = screen.get_buttons().filter(
                             function(button) {
                                 return menu_action[0] == (
@@ -576,7 +540,7 @@
                         if (buttons.length) {
                             menu.append(jQuery('<li/>', {
                                 'role': 'separator',
-                                'class': 'divider',
+                                'class': 'divider divider-button',
                             }));
                         }
                         buttons.forEach(function(button) {
@@ -614,7 +578,7 @@
                         if (kw_plugins.length) {
                             menu.append(jQuery('<li/>', {
                                 'role': 'separator',
-                                'class': 'divider',
+                                'class': 'divider divider-plugin',
                             }));
                         }
                         kw_plugins.forEach(function(plugin) {
@@ -631,7 +595,7 @@
                                 }).append(name))
                             .click(function(evt) {
                                 evt.preventDefault();
-                                var ids = screen.current_view.selected_records()
+                                var ids = screen.current_view.selected_records
                                     .map(function(record) {
                                         return record.id;
                                     });
@@ -669,7 +633,7 @@
                                     record_id = screen.current_record.id;
                                 }
                                 var record_ids = screen.current_view
-                                .selected_records().map(function(record) {
+                                .selected_records.map(function(record) {
                                     return record.id;
                                 });
                                 exec_action = Sao.Action.evaluate(exec_action,
@@ -680,11 +644,35 @@
                                     ids: record_ids
                                 };
                                 Sao.Action.exec_action(exec_action, data,
-                                    screen.context());
+                                    jQuery.extend({}, screen.group._context));
                             });
                         }.bind(this))
                         .appendTo(menu);
                     }.bind(this));
+
+                    if (menu_action[0] == 'print') {
+                        if (toolbars.exports.length && toolbars.print.length) {
+                            menu.append(jQuery('<li/>', {
+                                'role': 'separator',
+                                'class': 'divider',
+                            }));
+                        }
+                        toolbars.exports.forEach(function(export_) {
+                            var item = jQuery('<li/>', {
+                                'role': 'presentation',
+                            })
+                            .append(jQuery('<a/>', {
+                                'role': 'menuitem',
+                                'href': '#',
+                                'tabindex': -1,
+                            }).append(export_.name))
+                            .click(function(evt) {
+                                evt.preventDefault();
+                                this.do_export(export_);
+                            }.bind(this))
+                            .appendTo(menu);
+                        }.bind(this));
+                    }
                 }.bind(this));
             }.bind(this));
             this.buttons.attach
@@ -748,7 +736,11 @@
                 // TODO activate_save
             }.bind(this));
         },
-        save: function() {
+        save: function(tab) {
+            if (tab) {
+                // Called from button so we must save the tree state
+                this.screen.save_tree_state();
+            }
             var access = Sao.common.MODELACCESS.get(this.screen.model_name);
             if (!(access.write || access.create)) {
                 return jQuery.Deferred().reject();
@@ -787,7 +779,7 @@
                             .then(function() {
                                 this.screen.group.forEach(function(record) {
                                     if (record.id == record_id) {
-                                        this.screen.set_current_record(record);
+                                        this.screen.current_record = record;
                                         set_cursor = true;
                                     }
                                 }.bind(this));
@@ -893,7 +885,7 @@
             return this.screen.model.execute('read', [[record.id],
                     fields.map(function(field) {
                         return field[0];
-                    })], this.screen.context())
+                    })], this.screen.context)
             .then(function(result) {
                 result = result[0];
                 var message = '';
@@ -929,7 +921,7 @@
                             (revision < revisions[revisions.length - 1][0])) {
                         revision = revisions[revisions.length - 1][0];
                     }
-                    if (revision != this.screen.context()._datetime) {
+                    if (revision != this.screen.context._datetime) {
                         this.screen.clear();
                         // Update group context that will be propagated by
                         // recreating new group
@@ -947,19 +939,19 @@
                 }.bind(this);
             }.bind(this);
             return this.modified_save().then(function() {
-                var ids = this.screen.current_view.selected_records().map(
+                var ids = this.screen.current_view.selected_records.map(
                     function(record) {
                         return record.id;
                     });
                 return this.screen.model.execute('history_revisions',
-                    [ids], this.screen.context())
+                    [ids], this.screen.context)
                     .then(function(revisions) {
                         new Sao.Window.Revision(revisions, set_revision(revisions));
                     });
             }.bind(this));
         },
         update_revision: function() {
-            var revision = this.screen.context()._datetime;
+            var revision = this.screen.context._datetime;
             var label, title;
             if (revision) {
                 var date_format = Sao.common.date_format();
@@ -1207,7 +1199,7 @@
             if (count > 99) {
                 badge = '99+';
             }
-            var title= Sao.i18n.gettext("Attachment(%1)", count);
+            var title= Sao.i18n.gettext("Attachment (%1)", count);
             update('attach', title, badge, 1);
 
             count = resources.note_count || 0;
@@ -1226,7 +1218,7 @@
                     badge = unread + '/' + badge;
                 }
             }
-            title = Sao.i18n.gettext("Note(%1/%2)", unread, count);
+            title = Sao.i18n.gettext("Note (%1/%2)", unread, count);
             update('note', title, badge, color);
         },
         record_message: function(data) {
@@ -1270,13 +1262,47 @@
             }.bind(this));
         },
         export: function(){
-            new Sao.Window.Export(
-                this.title.text(), this.screen,
-                this.screen.current_view.selected_records().map(function(r) {
-                    return r.id;
-                }),
-                this.screen.current_view.get_fields(),
-                this.screen.context());
+            this.modified_save().then(function() {
+                new Sao.Window.Export(
+                    this.title.text(), this.screen,
+                    this.screen.current_view.selected_records.map(function(r) {
+                        return r.id;
+                    }),
+                    this.screen.current_view.get_fields(),
+                    this.screen.context);
+            }.bind(this));
+        },
+        do_export: function(export_) {
+            this.modified_save().then(function() {
+                var ids = this.screen.current_view.selected_records
+                    .map(function(r) {
+                        return r.id;
+                    });
+                var fields = export_['export_fields.'].map(function(field) {
+                    return field.name;
+                });
+                this.screen.model.execute(
+                    'export_data', [ids, fields], this.screen.context)
+                    .then(function(data) {
+                        var unparse_obj = {
+                            'fields': fields,
+                        };
+                        var delimiter = ',';
+                        var encoding = 'utf-8';
+                        if (navigator.platform &&
+                            navigator.platform.slice(0, 3) == 'Win') {
+                            delimiter = ';';
+                            encoding = 'cp1252';
+                        }
+                        var csv = Papa.unparse(unparse_obj, {
+                            quoteChar: '"',
+                            delimiter: delimiter,
+                        });
+                        Sao.common.download_file(
+                            csv, export_.name + '.csv',
+                            {'type': 'text/csv;charset=' + encoding});
+                    });
+            }.bind(this));
         },
         import: function(){
             new Sao.Window.Import(this.title.text(), this.screen);
@@ -1341,8 +1367,6 @@
                 action = this.board.actions[i];
                 action.update_domain(this.board.actions);
             }
-        },
-        note: function() {
         },
         refresh_resources: function() {
         },

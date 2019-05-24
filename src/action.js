@@ -77,7 +77,6 @@
                     {}, context,
                     decoder.decode( action.pyson_context || '{}'));
                 ctx = jQuery.extend(ctx, params.context);
-                ctx = jQuery.extend(ctx, context);
                 // [Coog Specific] handle extra_context
                 ctx = jQuery.extend(ctx, data.extra_context || {});
 

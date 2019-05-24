@@ -72,7 +72,7 @@
             }.bind(this));
 
             var readonly = (this.screen.attributes.readonly ||
-                    this.screen.group.get_readonly());
+                    this.screen.group.readonly);
 
             this._initial_value = null;
             if (view_type == 'form') {
@@ -254,7 +254,7 @@
         record_label: function(data) {
             var name = '_';
             var access = Sao.common.MODELACCESS.get(this.screen.model_name);
-            var readonly = this.screen.group.get_readonly();
+            var readonly = this.screen.group.readonly;
             if (data[0] >= 1) {
                 name = data[0];
                 if (this.domain) {
@@ -331,7 +331,7 @@
         response: function(response_id) {
             var result;
             this.screen.current_view.set_value();
-            var readonly = this.screen.group.get_readonly();
+            var readonly = this.screen.group.readonly;
             if (~['RESPONSE_OK', 'RESPONSE_ACCEPT'].indexOf(response_id) &&
                     !readonly &&
                     this.screen.current_record) {
@@ -472,7 +472,7 @@
         add_uri: function(uri) {
             var screen = this.screen;
             this.switch_prm.then(function() {
-                screen.set_current_record(null);
+                screen.current_record = null;
                 screen.switch_view('form').then(function() {
                     screen.new_().then(function(record) {
                         record.field_set_client('link', uri);
@@ -485,7 +485,7 @@
         add_text: function(text) {
             var screen = this.screen;
             this.switch_prm.then(function() {
-                screen.set_current_record(null);
+                screen.current_record = null;
                 screen.switch_view('form').then(function() {
                     screen.new_().then(function(record) {
                         record.field_set_client('description', text);
@@ -660,7 +660,7 @@
             var records;
             var value = [];
             if (response_id == 'RESPONSE_OK') {
-                records = this.screen.current_view.selected_records();
+                records = this.screen.current_view.selected_records;
             } else if (response_id == 'RESPONSE_APPLY') {
                 this.screen.search_filter();
                 return;
@@ -734,7 +734,7 @@
             });
             // Reset readonly set automaticly by MODELACCESS
             this.screen.attributes.readonly = false;
-            this.screen.group.set_readonly(false);
+            this.screen.group.readonly = false;
             this.screen.group.skip_model_access = true;
 
             var set_view = function(view) {
@@ -905,7 +905,7 @@
             "x-cp1255", "x-cp1256", "x-cp1257", "x-cp1258", "x-euc-jp", "x-gbk",
             "x-mac-cyrillic", "x-mac-roman", "x-mac-ukrainian", "x-sjis",
             "x-user-defined", "x-x-big5"];
-            this.dialog = new Sao.Dialog(title, 'csv', 'md');
+            this.dialog = new Sao.Dialog(title, 'csv', 'lg');
             this.el = this.dialog.modal;
 
             this.fields = {};
@@ -929,18 +929,21 @@
                 'class': 'row'
             }).appendTo(this.dialog.body);
 
-            jQuery('<hr/>').appendTo(this.dialog.body);
-
             var column_fields_all = jQuery('<div/>', {
-                'class': 'col-md-4 column-fields'
-            }).append(jQuery('<label/>', {
+                'class': 'col-md-5',
+            }).append(jQuery('<div/>', {
+                'class': 'panel panel-default',
+            }).append(jQuery('<div/>', {
+                'class': 'panel-heading',
+            }).append(jQuery('<h3/>', {
+                'class': 'panel-title',
                 'text': Sao.i18n.gettext('All Fields')
-            })).appendTo(row_fields);
+            })))).appendTo(row_fields);
 
             this.fields_all = jQuery('<ul/>', {
-                'class': 'list-unstyled'
+                'class': 'list-unstyled column-fields panel-body'
             }).css('cursor', 'pointer')
-            .appendTo(column_fields_all);
+                .appendTo(column_fields_all.find('.panel'));
 
             var prm = this.get_fields(this.screen.model_name)
                 .then(function(fields){
@@ -949,8 +952,8 @@
                 }.bind(this));
 
             this.column_buttons = jQuery('<div/>', {
-                'class': 'col-md-4'
-            }).append('<label/>').appendTo(row_fields);
+                'class': 'col-md-2'
+            }).appendTo(row_fields);
 
             var button_add = jQuery('<button/>', {
                 'class': 'btn btn-default btn-block',
@@ -985,18 +988,24 @@
             jQuery('<hr>').appendTo(this.column_buttons);
 
             var column_fields_selected = jQuery('<div/>', {
-                'class': 'col-md-4 column-fields'
-            }).append(jQuery('<label/>', {
+                'class': 'col-md-5',
+            }).append(jQuery('<div/>', {
+                'class': 'panel panel-default',
+            }).append(jQuery('<div/>', {
+                'class': 'panel-heading',
+            }).append(jQuery('<h3/>', {
+                'class': 'panel-title',
                 'text': Sao.i18n.gettext('Fields Selected')
-            })).appendTo(row_fields);
+            })))).appendTo(row_fields);
 
             // TODO: Make them draggable to re-order
             this.fields_selected = jQuery('<ul/>', {
-                'class': 'list-unstyled'
-            }).css('cursor', 'pointer').appendTo(column_fields_selected);
+                'class': 'list-unstyled column-fields panel-body',
+            }).css('cursor', 'pointer')
+                .appendTo(column_fields_selected.find('.panel'));
 
             this.chooser_form = jQuery('<div/>', {
-                'class': 'form-inline'
+                'class': 'row form-inline'
             }).appendTo(this.dialog.body);
 
             var row_csv_param = jQuery('<div/>', {
@@ -1020,12 +1029,12 @@
 
             this.expander_csv = jQuery('<div/>', {
                 'id': 'expander_csv',
-                'class': 'collapse'
+                'class': 'collapse col-md-12 form-inline'
             }).appendTo(row_csv_param);
 
             var delimiter_label = jQuery('<label/>', {
                 'text': Sao.i18n.gettext('Delimiter:'),
-                'class': 'col-sm-2 control-label',
+                'class': 'control-label',
                 'for': 'input-delimiter'
             });
 
@@ -1045,13 +1054,14 @@
 
             jQuery('<div/>', {
                 'class': 'form-group'
-            }).append(delimiter_label).append(jQuery('<div/>', {
-                'class': 'col-sm-4'
-            }).append(this.el_csv_delimiter)).appendTo(this.expander_csv);
+            }).append(delimiter_label)
+                .append(this.el_csv_delimiter)
+                .appendTo(this.expander_csv);
+            this.expander_csv.append(' ');
 
             var quotechar_label = jQuery('<label/>', {
                 'text': Sao.i18n.gettext('Quote Char:'),
-                'class': 'col-sm-2 control-label',
+                'class': 'control-label',
                 'for': 'input-quotechar'
             });
 
@@ -1066,14 +1076,14 @@
 
             jQuery('<div/>', {
                 'class': 'form-group'
-            }).append(quotechar_label).append(jQuery('<div/>', {
-                'class': 'col-sm-4'
-            }).append(this.el_csv_quotechar))
-            .appendTo(this.expander_csv);
+            }).append(quotechar_label)
+                .append(this.el_csv_quotechar)
+                .appendTo(this.expander_csv);
+            this.expander_csv.append(' ');
 
             var encoding_label = jQuery('<label/>', {
                 'text': Sao.i18n.gettext('Encoding:'),
-                'class': 'col-sm-2 control-label',
+                'class': 'control-label',
                 'for': 'input-encoding'
             });
 
@@ -1098,10 +1108,10 @@
 
             jQuery('<div/>', {
                 'class': 'form-group'
-            }).append(encoding_label).append(jQuery('<div/>', {
-                'class': 'col-sm-4'
-            }).append(this.el_csv_encoding))
-            .appendTo(this.expander_csv);
+            }).append(encoding_label)
+                .append(this.el_csv_encoding)
+                .appendTo(this.expander_csv);
+            this.expander_csv.append(' ');
 
             this.el.modal('show');
             this.el.on('hidden.bs.modal', function() {
@@ -1163,11 +1173,9 @@
             }).append(this.file_input))
             .appendTo(this.chooser_form);
 
-            jQuery('<hr>').insertAfter(this.chooser_form);
-
             var skip_label = jQuery('<label/>', {
                 'text': Sao.i18n.gettext('Lines to Skip:'),
-                'class': 'col-sm-2 control-label',
+                'class': 'control-label',
                 'for': 'input-skip'
             });
 
@@ -1180,10 +1188,10 @@
 
             jQuery('<div/>', {
                 'class': 'form-group'
-            }).append(skip_label).append(jQuery('<div/>', {
-                'class': 'col-sm-4'
-            }).append(this.el_csv_skip))
-            .appendTo(this.expander_csv);
+            }).append(skip_label)
+                .append(this.el_csv_skip)
+                .appendTo(this.expander_csv);
+            this.expander_csv.append(' ');
         },
         sig_sel_add: function(el_field) {
             el_field = jQuery(el_field);
@@ -1223,29 +1231,29 @@
                     }
                 }.bind(this)).appendTo(parent_view);
                 parent_node[field].view = node;
-
-                if (parent_node[field].relation) {
-                    node.prepend(' ');
-                    var expander_icon = Sao.common.ICONFACTORY
-                        .get_icon_img('tryton-arrow-right')
-                        .data('expanded', false)
-                        .click(function(e) {
-                            e.stopPropagation();
-                            var icon;
-                            var expanded = expander_icon.data('expanded');
-                            expander_icon.data('expanded', !expanded);
-                            if (expanded) {
-                                icon = 'tryton-arrow-right';
-                                node.next('ul').remove();
-                            } else {
-                                icon = 'tryton-arrow-down';
-                                this.on_row_expanded(parent_node[field]);
-                            }
-                            Sao.common.ICONFACTORY.get_icon_url(icon).then(function(url) {
+                var expander_icon = Sao.common.ICONFACTORY
+                    .get_icon_img('tryton-arrow-right')
+                    .data('expanded', false)
+                    .click(function(e) {
+                        e.stopPropagation();
+                        var icon;
+                        var expanded = expander_icon.data('expanded');
+                        expander_icon.data('expanded', !expanded);
+                        if (expanded) {
+                            icon = 'tryton-arrow-right';
+                            node.next('ul').remove();
+                        } else {
+                            icon = 'tryton-arrow-down';
+                            this.on_row_expanded(parent_node[field]);
+                        }
+                        Sao.common.ICONFACTORY.get_icon_url(icon)
+                            .then(function(url) {
                                 expander_icon.attr('src', url);
                             });
-                        }.bind(this)).prependTo(node);
-                }
+                    }.bind(this)).prependTo(node);
+                expander_icon.css(
+                    'visibility',
+                    parent_node[field].relation ? 'visible' : 'hidden');
             }.bind(this));
         },
         model_populate: function (fields, parent_node, prefix_field,
@@ -1255,7 +1263,7 @@
             prefix_name = prefix_name || '';
 
             Object.keys(fields).forEach(function(field) {
-                if(!fields[field].readonly) {
+                if(!fields[field].readonly || field == 'id') {
                     var name = fields[field].string || field;
                     name = prefix_name + name;
                     // Only One2Many can be nested for import
@@ -1470,15 +1478,30 @@
             .appendTo(this.column_buttons);
 
             var predefined_exports_column = jQuery('<div/>', {
-                'class': 'col-md-12'
-            }).append(jQuery('<label/>', {
+                'class': 'panel panel-default',
+            }).append(jQuery('<div/>', {
+                'class': 'panel-heading',
+            }).append(jQuery('<h3/>', {
+                'class': 'panel-title',
                 'text': Sao.i18n.gettext('Predefined Exports')
-            })).appendTo(this.column_buttons);
+            }))).appendTo(this.column_buttons);
 
             this.predef_exports_list = jQuery('<ul/>', {
-                'class': 'list-unstyled predef-exports'
+                'class': 'list-unstyled predef-exports panel-body'
             }).css('cursor', 'pointer')
             .appendTo(predefined_exports_column);
+
+            this.el_csv_locale = jQuery('<input/>', {
+                'type': 'checkbox',
+                'checked': 'checked',
+            });
+
+            jQuery('<div/>', {
+                'class': 'checkbox',
+            }).append(jQuery('<label/>', {
+                'text': ' ' + Sao.i18n.gettext("Use locale format"),
+            }).prepend(this.el_csv_locale)).appendTo(this.expander_csv);
+            this.expander_csv.append(' ');
 
             this.el_add_field_names = jQuery('<input/>', {
                 'type': 'checkbox',
@@ -1486,12 +1509,11 @@
             });
 
             jQuery('<div/>', {
-                'class': 'form-group'
-            }).append(jQuery('<div/>', {
-                'class': 'col-md-6'
+                'class': 'checkbox',
             }).append(jQuery('<label/>', {
                 'text': ' '+Sao.i18n.gettext('Add Field Names')
-            }).prepend(this.el_add_field_names))).appendTo(this.expander_csv);
+            }).prepend(this.el_add_field_names)).appendTo(this.expander_csv);
+            this.expander_csv.append(' ');
         },
         view_populate: function(parent_node, parent_view) {
             var names = Object.keys(parent_node).sort(function(a, b) {
@@ -1518,28 +1540,29 @@
                 }.bind(this)).appendTo(parent_view);
                 parent_node[name].view = node;
 
-                if (parent_node[name].children) {
-                    node.prepend(' ');
-                    var expander_icon = Sao.common.ICONFACTORY
-                        .get_icon_img('tryton-arrow-right')
-                        .data('expanded', false)
-                        .click(function(e) {
-                            e.stopPropagation();
-                            var icon;
-                            var expanded = expander_icon.data('expanded');
-                            expander_icon.data('expanded', !expanded);
-                            if (expanded) {
-                                icon = 'tryton-arrow-right';
-                                node.next('ul').remove();
-                            } else {
-                                icon = 'tryton-arrow-down';
-                                this.on_row_expanded(parent_node[name]);
-                            }
-                            Sao.common.ICONFACTORY.get_icon_url(icon).then(function(url) {
+                var expander_icon = Sao.common.ICONFACTORY
+                    .get_icon_img('tryton-arrow-right')
+                    .data('expanded', false)
+                    .click(function(e) {
+                        e.stopPropagation();
+                        var icon;
+                        var expanded = expander_icon.data('expanded');
+                        expander_icon.data('expanded', !expanded);
+                        if (expanded) {
+                            icon = 'tryton-arrow-right';
+                            node.next('ul').remove();
+                        } else {
+                            icon = 'tryton-arrow-down';
+                            this.on_row_expanded(parent_node[name]);
+                        }
+                        Sao.common.ICONFACTORY.get_icon_url(icon)
+                            .then(function(url) {
                                 expander_icon.attr('src', url);
                             });
-                        }.bind(this)).prependTo(node);
-                }
+                    }.bind(this)).prependTo(node);
+                expander_icon.css(
+                    'visibility',
+                    parent_node[name].children ? 'visible' : 'hidden');
             }.bind(this));
         },
         model_populate: function(fields, parent_node, prefix_field,
@@ -1616,37 +1639,16 @@
         },
         fill_predefwin: function() {
             Sao.rpc({
-                'method': 'model.ir.export.search',
-                'params': [['resource', '=', this.screen.model_name], {}]
-            }, this.session).done(function(export_ids) {
-                Sao.rpc({
-                    'method': 'model.ir.export.read',
-                    'params': [export_ids, {}]
-                }, this.session).done(function(exports) {
-                    var arr = [];
-                    exports.forEach(function(o) {
-                        for (var i = 0; i < o.export_fields.length;
-                            arr.push(o.export_fields[i++]));
-                    });
-                    Sao.rpc({
-                        'method': 'model.ir.export.line.read',
-                        'params': [arr, {}]
-                    }, this.session).done(function(lines) {
-                        var id2lines = {};
-                        lines.forEach(function(line) {
-                            id2lines[line.export] = id2lines[line.export] || [];
-                            id2lines[line.export].push(line);
-                        });
-                        exports.forEach(function(export_) {
-                            this.predef_exports[export_.id] =
-                                id2lines[export_.id].map(function(obj) {
-                                    if(obj.export == export_.id)
-                                        return obj.name;
-                                });
-                            this.add_to_predef(export_.id, export_.name);
-                        }.bind(this));
-                        this.predef_exports_list.children('li').first().focus();
-                    }.bind(this));
+                'method': 'model.ir.export.search_read',
+                'params': [
+                    [['resource', '=', this.screen.model_name]], 0, null, null,
+                    ['name', 'export_fields.name'], {}],
+            }, this.session).done(function(exports) {
+                exports.forEach(function(export_) {
+                    this.predef_exports[export_.id] = export_['export_fields.']
+                        .map(function(field) {return field.name;});
+                    this.add_to_predef(export_.id, export_.name);
+                    this.predef_exports_list.children('li').first().focus();
                 }.bind(this));
             }.bind(this));
         },
@@ -1718,6 +1720,8 @@
                     })]]
                 }], {}]
             }, this.session).then(function(new_id) {
+                this.session.cache.clear(
+                    'model.' + this.screen.model_name + '.view_toolbar_get');
                 this.predef_exports[new_id] = fields;
                 if (selection.length === 0) {
                     this.add_to_predef(new_id, name);
@@ -1738,6 +1742,8 @@
                 'method': 'model.ir.export.delete',
                 'params': [[export_id], {}]
             }, this.session).then(function() {
+                this.session.cache.clear(
+                    'model.' + this.screen.model_name + '.view_toolbar_get');
                 delete this.predef_exports[export_id];
                 selection.remove();
             }.bind(this));
@@ -1821,8 +1827,30 @@
         },
         export_csv: function(fields, data) {
             var encoding = this.el_csv_encoding.val();
+            var locale_format = this.el_csv_locale.prop('checked');
             var unparse_obj = {};
-            unparse_obj.data = data;
+            unparse_obj.data = [];
+            data.forEach(function(line) {
+                var row = [];
+                line.forEach(function(val) {
+                    if (locale_format) {
+                        if (val.isDateTime) {
+                            val = val.format(
+                                Sao.common.date_format() + ' ' +
+                                Sao.common.moment_format('%X'));
+                        } else if (val.isDate) {
+                            val = val.format(Sao.common.date_format());
+                        } else if (!isNaN(Number(val))) {
+                            val = val.toLocaleString(
+                                Sao.i18n.BC47(Sao.i18n.getlang()));
+                        }
+                    } else if (typeof(val) == 'boolean') {
+                        val += 0;
+                    }
+                    row.push(val);
+                });
+                unparse_obj.data.push(row);
+            });
             if (this.el_add_field_names.is(':checked')) {
                 unparse_obj.fields = fields;
             }

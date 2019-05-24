@@ -3,27 +3,37 @@
 (function() {
     'use strict';
 
-    Sao.View.Calendar = Sao.class_(Sao.View, {
-    /* Fullcalendar works with utc date, the default week start day depends on
-       the user language, the events dates are handled by moment object. */
-        init: function(screen, xml) {
-            Sao.View.Calendar._super.init.call(this, screen, xml);
-            // Used to check if the events are still processing
-            this.processing = true;
-            this.view_type = 'calendar';
-            this.el = jQuery('<div/>', {
-                'class': 'calendar'
-            });
-            var lang = Sao.i18n.getlang();
-            lang = lang.slice(0, 2);
+    Sao.View.CalendarXMLViewParser = Sao.class_(Sao.View.XMLViewParser, {
+        _parse_calendar: function(node, attributes) {
+            [].forEach.call(node.childNodes, function(child) {
+                this.parse(child);
+            }.bind(this));
+
+            var view_week;
+            if (this.view.screen.model.fields[attributes.dtstart]
+                .description.type == "datetime") {
+                view_week = 'agendaWeek';
+            } else {
+                view_week = 'basicWeek';
+            }
+            var view_day;
+            if (this.view.screen.model.fields[attributes.dtstart]
+                    .description.type == "datetime") {
+                view_day = 'agendaDay';
+            } else {
+                view_day =  'basicDay';
+            }
             var defaultview = 'month';
-            if (this.attributes.mode == 'week') {
-                defaultview = this.get_week_view();
+            if (attributes.mode == 'week') {
+                defaultview = view_week;
+            }
+            if (attributes.mode == 'day') {
+                defaultview = view_day;
             }
             var header = {
                 left: 'today prev,next',
                 center: 'title',
-                right: 'month,' + this.get_week_view(),
+                right: 'month,' + view_week + ',' + view_day,
             };
             if (Sao.i18n.rtl) {
                 var header_rtl = jQuery.extend({}, header);
@@ -31,12 +41,12 @@
                 header_rtl.right = header.left;
                 header = header_rtl;
             }
-            this.el.fullCalendar({
+            this.view.el.fullCalendar({
                 defaultView: defaultview,
                 header: header,
                 timeFormat: 'H:mm',
-                events: this.get_events.bind(this),
-                locale: lang,
+                events: this.view.get_events.bind(this.view),
+                locale: Sao.i18n.getlang().slice(0, 2),
                 isRTL: Sao.i18n.rtl,
                 themeSystem: 'bootstrap3',
                 bootstrapGlyphicons: {
@@ -47,20 +57,35 @@
                     'today': Sao.i18n.gettext("Today"),
                     'month': Sao.i18n.gettext("Month"),
                     'week': Sao.i18n.gettext("Week"),
+                    'day': Sao.i18n.gettext("Day"),
                 },
-                eventRender: this.event_render.bind(this),
-                eventResize: this.event_resize.bind(this),
-                eventDrop: this.event_drop.bind(this),
-                eventClick: this.event_click.bind(this),
-                dayClick: this.day_click.bind(this),
+                eventRender: this.view.event_render.bind(this.view),
+                eventResize: this.view.event_resize.bind(this.view),
+                eventDrop: this.view.event_drop.bind(this.view),
+                eventClick: this.view.event_click.bind(this.view),
+                dayClick: this.view.day_click.bind(this.view),
             });
+        },
+        _parse_field: function(node, attributes) {
+            this.view.fields.push(attributes.name);
+        },
+    });
+
+    Sao.View.Calendar = Sao.class_(Sao.View, {
+    /* Fullcalendar works with utc date, the default week start day depends on
+       the user language, the events dates are handled by moment object. */
+        editable: false,
+        view_type: 'calendar',
+        xml_parser: Sao.View.CalendarXMLViewParser,
+        init: function(view_id, screen, xml) {
+            // Used to check if the events are still processing
+            this.processing = true;
             this.fields = [];
-            xml.find('calendar').children().each(function(pos, child){
-                if (child.tagName == 'field') {
-                    this.fields.push(child.attributes.name.value);
-                }
-            }.bind(this));
-            this.el.fullCalendar('changeView', defaultview);
+            this.el = jQuery('<div/>', {
+                'class': 'calendar'
+            });
+            Sao.View.Calendar._super.init.call(this, view_id, screen, xml);
+            //this.el.fullCalendar('changeView', defaultview);
         },
         get_colors: function(record) {
             var colors = {};
@@ -140,7 +165,7 @@
             this.events =  [];
             var promisses = [];
             prm.then(function()  {
-                this.screen.group.forEach(function(record) {
+                this.group.forEach(function(record) {
                     var record_promisses = [];
                     this.fields.forEach(function(name) {
                         record_promisses.push(record.load(name));
@@ -158,20 +183,12 @@
                 }.bind(this));
             }.bind(this));
         },
-        get_week_view: function() {
-            if (this.screen.model.fields[this.attributes.dtstart]
-                    .description.type == "datetime") {
-                return 'agendaWeek';
-            } else {
-                return 'basicWeek';
-            }
-        },
         event_click: function(calEvent, jsEvent, view) {
             // Prevent opening the wrong event while the calendar event clicked
             // when loading
             if (!this.clicked_event) {
                 this.clicked_event = true;
-                this.screen.set_current_record(calEvent.record);
+                this.screen.current_record = calEvent.record;
                 this.screen.switch_view().always(function(){
                     this.clicked_event = false;
                 }.bind(this));
@@ -253,7 +270,7 @@
             if (model_access.create) {
                 // Set the calendar date to the clicked date
                 this.el.fullCalendar('gotoDate', date);
-                this.screen.set_current_record(null);
+                this.screen.current_record = null;
                 this.screen.new_();
             }
         },
