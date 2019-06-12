@@ -4253,7 +4253,7 @@ function eval_pyson(value){
             }
             return false;
         },
-        display_update_selection: function(record, field) {
+        display_update_selection: function() {
             var i, len, element;
             var record = this.record;
             var field = this.field;
