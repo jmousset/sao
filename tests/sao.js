@@ -1089,7 +1089,16 @@
             },
             'surname': {
                 'string': '(Sur)Name'
-            }
+            },
+            'relation': {
+                'string': "Relation",
+                'relation': 'relation',
+                'relation_fields': {
+                    'name': {
+                        'string': "Name",
+                    },
+                },
+            },
         });
         var udlex = function(input) {
             var lex = new Sao.common.udlex(input);
@@ -1169,7 +1178,10 @@
             ]],
         ['Name: "" <', [
             c(['Name', '', '<'])
-            ]]
+            ]],
+        ['Relation.Name: Test', [
+            c(['Relation.Name', null, 'Test']),
+        ]],
         ].forEach(function(test) {
             var value = test[0];
             var result = test[1];
@@ -1470,6 +1482,18 @@
                 'name': 'many2one',
                 'type': 'many2one',
             },
+            'relation': {
+                'string': "Relation",
+                'relation': 'relation',
+                'name': 'relation',
+                'relation_fields': {
+                    'name': {
+                        'string': "Name",
+                        'name': 'name',
+                        'type': 'char',
+                    },
+                },
+            },
         });
         var c = function(value) {
             value.clause = true;
@@ -1514,6 +1538,8 @@
         [[c(['Many2One', null, ['John', 'Jane']])],
             [['many2one.rec_name', 'in', ['John', 'Jane']]]],
         [[[c(['John'])]], [[['rec_name', 'ilike', '%John%']]]],
+        [[c(['Relation.Name', null, "Test"])],
+            [['relation.name', 'ilike', "%Test%"]]],
         ].forEach(function(test) {
             var value = test[0];
             var result = test[1];
@@ -1659,6 +1685,12 @@
             'relation': {
                 'string': 'Relation',
                 'type': 'many2one',
+                'relation_fields': {
+                    'name': {
+                        'string': "Name",
+                        'type': 'char',
+                    },
+                },
             },
             'relations': {
                 'string': 'Relations',
@@ -1680,6 +1712,7 @@
         QUnit.ok(parser.stringable([['relations', '=', 'Foo']]));
         QUnit.ok(parser.stringable([['relations', 'in', ['Foo']]]));
         QUnit.ok(!parser.stringable([['relations', 'in', [42]]]));
+        QUnit.ok(parser.stringable([['relation.name', '=', "Foo"]]));
     });
 
     QUnit.test('DomainParser.string', function() {
@@ -1716,6 +1749,12 @@
                 'string': "Many2One",
                 'name': 'many2one',
                 'type': 'many2one',
+                'relation_fields': {
+                    'name': {
+                        'string': "Name",
+                        'type': 'char',
+                    },
+                },
             },
         });
 
@@ -1764,6 +1803,7 @@
         [[['reference', 'in', ['foo', 'bar']]], 'Reference: foo;bar'],
         [[['many2one', 'ilike', '%John%']], 'Many2One: John'],
         [[['many2one.rec_name', 'in', ['John', 'Jane']]], 'Many2One: John;Jane'],
+        [[['many2one.name', 'ilike', '%Foo%']], 'Many2One.Name: Foo'],
         ].forEach(function(test) {
             var value = test[0];
             var result = test[1];
@@ -2488,6 +2528,23 @@
             QUnit.ok(compare(parser.completion(value), expected),
                 'completion(' + value + ')');
         });
+
+        parser = new Sao.common.DomainParser({
+            'relation': {
+                'name': 'relation',
+                'string': "Relation",
+                'type': 'many2one',
+                'relation_fields': {
+                    'name': {
+                        'name': 'name',
+                        'string': "Name",
+                        'type': 'char',
+                    },
+                },
+            },
+        });
+        QUnit.ok(compare(parser.completion('Relatio'),
+            ["Relation: ", "Relation.Name: "]));
     });
 
         /*
