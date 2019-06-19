@@ -2652,10 +2652,9 @@ function eval_pyson(value){
             value = field.get(record);
             if (this.has_target(value)) {
                 // Coog Override Icon
-                primary = 'glyphicon-pencil';
+                primary = 'material-pencil';
                 tooltip1 = Sao.i18n.gettext("Open the record <F2>");
-                // Coog Override Icon
-                secondary = 'glyphicon-trash';
+                secondary = 'tryton-clear';
                 tooltip2 = Sao.i18n.gettext("Clear the field <Del>");
             } else {
                 primary = null;
