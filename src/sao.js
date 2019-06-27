@@ -570,11 +570,11 @@ var Sao = {};
     Sao.logout = function() {
         var session = Sao.Session.current_session;
         Sao.Tab.tabs.close(true).done(function() {
-            jQuery('#user-preferences').children().remove();
-            jQuery('#user-logout').children().remove();
-            jQuery('#user-favorites').children().remove();
-            jQuery('#global-search').children().remove();
-            jQuery('#menu').children().remove();
+            jQuery('#user-preferences').empty();
+            jQuery('#user-logout').empty();
+            jQuery('#user-favorites').empty();
+            jQuery('#global-search').empty();
+            jQuery('#menu').empty();
             session.do_logout().always(Sao.login);
             Sao.set_title();
         });
@@ -582,10 +582,10 @@ var Sao = {};
 
     Sao.preferences = function() {
         Sao.Tab.tabs.close(true).done(function() {
-            jQuery('#user-preferences').children().remove();
-            jQuery('#user-favorites').children().remove();
-            jQuery('#user-logout').children().remove();
-            jQuery('#menu').children().remove();
+            jQuery('#user-preferences').empty();
+            jQuery('#user-favorites').empty();
+            jQuery('#user-logout').empty();
+            jQuery('#menu').empty();
             new Sao.Window.Preferences(function() {
                 Sao.get_preferences().then(function(preferences) {
                     Sao.menu(preferences);
@@ -661,9 +661,9 @@ var Sao = {};
     };
 
     Sao.user_menu = function(preferences) {
-        jQuery('#user-preferences').children().remove();
-        jQuery('#user-favorites').children().remove();
-        jQuery('#user-logout').children().remove();
+        jQuery('#user-preferences').empty();
+        jQuery('#user-favorites').empty();
+        jQuery('#user-logout').empty();
         jQuery('#user-preferences').append(jQuery('<a/>', {
             'href': '#',
             'title': preferences.status_bar,
@@ -735,9 +735,9 @@ var Sao = {};
             view.table.addClass('no-responsive');
             view.table.find('thead').hide();
             var gs = new Sao.GlobalSearch();
-            jQuery('#global-search').children().remove();
+            jQuery('#global-search').empty();
             jQuery('#global-search').append(gs.el);
-            jQuery('#menu').children().remove();
+            jQuery('#menu').empty();
             jQuery('#menu').append(
                 form.screen.screen_container.content_box.detach());
             var column = new FavoriteColumn(form.screen.model.fields.favorite);
