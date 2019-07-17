@@ -384,7 +384,7 @@
             expire = new Date(new Date().getTime() + expire * 1000);
             Sao.setdefault(this.store, prefix, {})[key] = {
                 'expire': expire,
-                'value': value,
+                'value': JSON.stringify(Sao.rpc.prepareObject(value)),
             };
         },
         get: function(prefix, key) {
@@ -397,7 +397,7 @@
                 delete this.store[prefix][key];
                 return undefined;
             }
-            return data.value;
+            return Sao.rpc.convertJSONObject(jQuery.parseJSON(data.value));
         },
         clear: function(prefix) {
             if (prefix) {
