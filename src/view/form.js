@@ -1986,7 +1986,11 @@ function eval_pyson(value){
                 this.record, this.get_value(), undefined, this.factor);
         },
         get_value: function() {
-            return this.input.val();
+            if (this.input[0].checkValidity()) {
+                return this.input.val();
+            } else {
+                return NaN;
+            }
         },
         get_client_value: function() {
             var value = '';
