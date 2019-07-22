@@ -2240,14 +2240,6 @@
             Sao.View.EditableTree.Many2One._super.init.call(
                 this, view, attributes);
         },
-        key_press: function(event_) {
-            if (event_.which == Sao.common.TAB_KEYCODE) {
-                this.focus_out();
-            } else {
-                Sao.View.EditableTree.Many2One._super.key_press.call(this,
-                    event_);
-            }
-        }
     });
 
     Sao.View.EditableTree.Reference = Sao.class_(Sao.View.Form.Reference, {
@@ -2256,14 +2248,6 @@
             Sao.View.EditableTree.Reference._super.init.call(
                 this, view, attributes);
         },
-        key_press: function(event_) {
-            if (event_.which == Sao.common.TAB_KEYCODE) {
-                this.focus_out();
-            } else {
-                Sao.View.EditableTree.Reference._super.key_press.call(this,
-                    event_);
-            }
-        }
     });
 
     Sao.View.EditableTree.One2One = Sao.class_(Sao.View.Form.One2One, {
@@ -2272,14 +2256,6 @@
             Sao.View.EditableTree.One2One._super.init.call(
                 this, view, attributes);
         },
-        key_press: function(event_) {
-            if (event_.which == Sao.common.TAB_KEYCODE) {
-                this.focus_out();
-            } else {
-                Sao.View.EditableTree.One2One._super.key_press.call(this,
-                    event_);
-            }
-        }
     });
 
     Sao.View.EditableTree.One2Many = Sao.class_(Sao.View.EditableTree.Char, {
@@ -2296,6 +2272,7 @@
             }
         },
         key_press: function(event_) {
+            // TODO: remove when key_press is implemented
             if (event_.which == Sao.common.TAB_KEYCODE) {
                 this.focus_out();
             }
