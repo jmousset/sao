@@ -3236,7 +3236,7 @@ function eval_pyson(value){
 
             function display_form(widget, record) {
                 return function () {
-                    widget.display(widget.record(), widget.field());
+                    widget.display(widget.record, widget.field);
                 };
             }
 
@@ -3280,7 +3280,7 @@ function eval_pyson(value){
                         var container = widget.view.containers[j];
                         container.resize();
                     }
-                    to_display.display(to_display.record(), to_display.field());
+                    to_display.display(to_display.record, to_display.field);
                 });
             }
         },
