@@ -865,6 +865,7 @@
             // [Coog specific] multi_mixed_view
             this.children_definitions = tree.children_definitions;
             this.expander = null;
+            this._drawed_record = null;
             var path = [];
             if (parent) {
                 path = jQuery.extend([], parent.path.split('.'));
@@ -1038,62 +1039,65 @@
                     break;
             }
 
-
-            for (var i = 0; i < this.tree.columns.length; i++) {
-                if ((i === 0) && this.children_field) {
-                    // [Coog Specific]  needed for multi_mixed_view
-                    // MAB: not sure we still need this
-                    if (!this.is_leaf())
-                        this.record.load(this.children_field).done(
-                            update_expander.bind(this));
-                    else
-                        this.record.load('*').done(
-                            update_expander.bind(this));
-                }
-                var column = this.tree.columns[i];
-                var td = this._get_column_td(i);
-                var tr = td.find('tr');
-                var cell;
-                if (column.prefixes) {
-                    for (var j = 0; j < column.prefixes.length; j++) {
-                        var prefix = column.prefixes[j];
-                        var prefix_el = jQuery(tr.children('.prefix')[j]);
-                        cell = prefix_el.children();
-                        if (cell.length) {
-                            prefix.render(this.record, cell);
-                        } else {
-                            prefix_el.html(prefix.render(this.record));
+            if (this._drawed_record !== this.record.identity) {
+                for (var i = 0; i < this.tree.columns.length; i++) {
+                    if ((i === 0) && this.children_field) {
+                        // [Coog Specific]  needed for multi_mixed_view
+                        // MAB: not sure we still need this
+                        if (!this.is_leaf())
+                            this.record.load(this.children_field).done(
+                                update_expander.bind(this));
+                        else
+                            this.record.load('*').done(
+                                update_expander.bind(this));
+                    }
+                    var column = this.tree.columns[i];
+                    var td = this._get_column_td(i);
+                    var tr = td.find('tr');
+                    var cell;
+                    if (column.prefixes) {
+                        for (var j = 0; j < column.prefixes.length; j++) {
+                            var prefix = column.prefixes[j];
+                            var prefix_el = jQuery(tr.children('.prefix')[j]);
+                            cell = prefix_el.children();
+                            if (cell.length) {
+                                prefix.render(this.record, cell);
+                            } else {
+                                prefix_el.html(prefix.render(this.record));
+                            }
                         }
                     }
-                }
-                var widget = tr.children('.widget');
-                cell = widget.children();
-                if (cell.length) {
-                    column.render(this.record, cell);
-                } else {
-                    widget.html(column.render(this.record));
-                }
-                if (column.suffixes) {
-                    for (var k = 0; k < column.suffixes.length; k++) {
-                        var suffix = column.suffixes[k];
-                        var suffix_el = jQuery(tr.children('.suffix')[k]);
-                        cell = suffix_el.children();
-                        if (cell.length) {
-                            suffix.render(this.record, cell);
-                        } else {
-                            suffix_el.html(suffix.render(this.record));
+                    var widget = tr.children('.widget');
+                    cell = widget.children();
+                    if (cell.length) {
+                        column.render(this.record, cell);
+                    } else {
+                        widget.html(column.render(this.record));
+                    }
+                    if (column.suffixes) {
+                        for (var k = 0; k < column.suffixes.length; k++) {
+                            var suffix = column.suffixes[k];
+                            var suffix_el = jQuery(tr.children('.suffix')[k]);
+                            cell = suffix_el.children();
+                            if (cell.length) {
+                                suffix.render(this.record, cell);
+                            } else {
+                                suffix_el.html(suffix.render(this.record));
+                            }
                         }
                     }
-                }
-                if ((column.header.is(':hidden') && thead_visible) ||
+                    if ((column.header.is(':hidden') && thead_visible) ||
                         column.header.css('display') == 'none') {
-                    td.hide();
-                    td.addClass('invisible');
-                } else {
-                    td.show();
-                    td.removeClass('invisible');
+                        td.hide();
+                        td.addClass('invisible');
+                    } else {
+                        td.show();
+                        td.removeClass('invisible');
+                    }
                 }
             }
+            this._drawed_record = this.record.identity;
+
             var row_id_path = this.get_id_path();
             this.set_selection(Sao.common.contains(selected, row_id_path));
             if (this.children_field) {
