@@ -1101,7 +1101,7 @@
             var row_id_path = this.get_id_path();
             this.set_selection(Sao.common.contains(selected, row_id_path));
             if (this.children_field) {
-                this.record.load(this.children_field).done(function() {
+                var update_expander = function() {
                     var children = this.record.field_get_client(
                         this.children_field);
                     if (this.is_expanded() ||
@@ -1116,7 +1116,12 @@
                             length ? 'visible' : 'hidden');
                         this.update_expander(false);
                     }
-                }.bind(this));
+                }.bind(this);
+                if (!this.record.is_loaded(this.children_field)) {
+                    this.record.load(this.children_field).done(update_expander);
+                } else {
+                    update_expander();
+                }
             }
             if (this.record.deleted || this.record.removed) {
                 this.el.css('text-decoration', 'line-through');
