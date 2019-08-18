@@ -1062,7 +1062,7 @@
             }
             var result;
             fieldnames = Object.keys(fieldnames);
-            if (fieldnames) {
+            if (fieldnames.length) {
                 try {
                     if (fieldnames.length == 1) {
                         fieldname = fieldnames[0];
