@@ -2464,8 +2464,8 @@ function eval_pyson(value){
         },
         get modified() {
             if (this.record && this.field) {
-                var value = this.field.get_client(this.record) || '';
-                this._normalize(this.input);
+                var value = this._normalize_markup(
+                    this.field.get_client(this.record));
                 return value != this.get_value();
             }
             return false;
