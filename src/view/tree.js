@@ -1072,7 +1072,7 @@
             }
             var row_id_path = this.get_id_path();
             this.set_selection(Sao.common.contains(selected, row_id_path));
-            if (!this.is_leaf() && this.children_field) {
+            if (this.children_field) {
                 this.record.load(this.children_field).done(function() {
                     if (this.is_expanded() ||
                         Sao.common.contains(expanded, row_id_path)) {
