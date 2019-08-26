@@ -893,7 +893,7 @@
                 if (this.current_record &&
                         !~this.current_record.group.indexOf(
                             this.current_record)) {
-                    this.current_record = null;
+                    this.set_current_record(null);
                 }
                 var fields = this.current_view.get_fields();
                 if (this.current_record && this.current_view.editable &&
@@ -1219,9 +1219,9 @@
             this.tree_states_done = [];
             this.group.load(ids, modified);
             if (ids.length && this.current_view.view_type != 'calendar') {
-                this.current_record = this.group.get(ids[0]);
+                this.set_current_record(this.group.get(ids[0]));
             } else {
-                this.current_record = null;
+                this.set_current_record(null);
             }
             return this.display().then(function() {
                 if (set_cursor) {
@@ -1235,9 +1235,9 @@
                     ~this.current_record.group.indexOf(this.current_record)) {
             } else if (this.group && this.group.length &&
                     (this.current_view.view_type != 'calendar')) {
-                this.current_record = this.group[0];
+                this.set_current_record(this.group[0]);
             } else {
-                this.current_record = null;
+                this.set_current_record(null);
             }
             if (this.views) {
                 var search_prm = this.search_active(
@@ -1325,7 +1325,7 @@
             view.display();
         },
         clear: function() {
-            this.current_record = null;
+            this.set_current_record(null);
             this.group.clear();
         },
         default_row_activate: function() {
