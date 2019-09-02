@@ -712,7 +712,8 @@
 
         var _model_evaluator = function(allowed_models) {
             return function(value) {
-                return ~allowed_models.indexOf(value[0]);
+                return ~allowed_models.indexOf(value[0]) ||
+                    jQuery.isEmptyObject(allowed_models);
             };
         };
 
@@ -1665,12 +1666,16 @@
                     var operator = clause[1];
                     var value = clause[2];
                     var field = this.strings[clause[0].toLowerCase()];
+                    var field_name = field.name;
 
                     var target = null;
                     if (field.type == 'reference') {
                         var split = this.split_target_value(field, value);
                         target = split[0];
                         value = split[1];
+                        if (target) {
+                            field_name += '.rec_name';
+                        }
                     }
 
                     if (!operator) {
@@ -1694,8 +1699,8 @@
                             var lvalue = this.convert_value(field, values[0]);
                             var rvalue = this.convert_value(field, values[1]);
                             result.push([
-                                    this._clausify([field.name, '>=', lvalue]),
-                                    this._clausify([field.name, '<=', rvalue])
+                                    this._clausify([field_name, '>=', lvalue]),
+                                    this._clausify([field_name, '<=', rvalue])
                                     ]);
                             return;
                         }
@@ -1704,6 +1709,10 @@
                         value = value.map(function(v) {
                             return this.convert_value(field, v);
                         }.bind(this));
+                        if (~['many2one', 'one2many', 'many2many', 'one2one',
+                            'many2many', 'one2one'].indexOf(field.type)) {
+                            field_name += '.rec_name';
+                        }
                     } else {
                         value = this.convert_value(field, value);
                     }
@@ -1711,11 +1720,11 @@
                         value = this.likify(value);
                     }
                     if (target) {
-                        result.push(this._clausify([field.name + '.rec_name',
-                                    operator, value, target]));
+                        result.push(this._clausify(
+                            [field_name, operator, value, target]));
                     } else {
                         result.push(this._clausify(
-                                    [field.name, operator, value]));
+                            [field_name, operator, value]));
                     }
                 }
             }.bind(this));
@@ -2339,13 +2348,22 @@
         },
         unique_value: function(domain) {
             if ((domain instanceof Array) &&
-                    (domain.length == 1) &&
-                    !domain[0][0].contains('.') &&
-                    (domain[0][1] == '=')) {
-                return [true, domain[0][1], domain[0][2]];
-            } else {
-                return [false, null, null];
+                    (domain.length == 1)) {
+                domain = domain[0];
+                var name = domain[0];
+                var value = domain[2];
+                var count = 0;
+                if (domain.length == 4 && name.endsWith('.id')) {
+                    count = 1;
+                    var model = domain[3];
+                    value = [model, value];
+                }
+                if ((name.split('.').length - 1) == count &&
+                        (domain[1] == '=')) {
+                    return [true, domain[1], value];
+                }
             }
+            return [false, null, null];
         },
         parse: function(domain) {
             var And = Sao.common.DomainInversion.And;
@@ -2765,7 +2783,7 @@
                 attrs['class'] = 'icon';
             }
             var img = jQuery('<img/>', attrs);
-            if (icon_name && !icon_name.includes('glyphicon')) {
+            if (icon_name) {
                 this.get_icon_url(icon_name).then(function(url) {
                     img.attr('src', url);
                 });
@@ -3122,7 +3140,7 @@
                 .append(jQuery('<p/>')
                     .append(jQuery('<a/>', {
                         'class': 'btn btn-link',
-                        href: Sao.config.roundup.url,
+                        href: Sao.config.bug_url,
                         target: '_blank'
                     }).text(Sao.i18n.gettext('Report Bug')))));
             jQuery('<button/>', {

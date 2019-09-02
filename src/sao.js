@@ -68,6 +68,13 @@ var Sao = {};
         };
     }
 
+    Sao.setdefault = function(object, key, value) {
+        if (!object.hasOwnProperty(key)) {
+            object[key] = value;
+        }
+        return object[key];
+    };
+
     // Ensure RichText doesn't use style with css
     try {
         document.execCommand('styleWithCSS', false, false);
@@ -118,7 +125,8 @@ var Sao = {};
         ClassConstructor._super = Parent.prototype;
         if (props) {
             for (var name in props) {
-                ClassConstructor.prototype[name] = props[name];
+                Object.defineProperty(ClassConstructor.prototype, name,
+                    Object.getOwnPropertyDescriptor(props, name));
             }
         }
         return ClassConstructor;
@@ -146,7 +154,8 @@ var Sao = {};
         return date;
     };
 
-    Sao.Date.min = moment(new Date(-100000000 * 86400000));
+    // Add 1 day to the limit because setting time make it out of the range
+    Sao.Date.min = moment(new Date((-100000000 + 1) * 86400000));
     Sao.Date.min.set({hour: 0, minute: 0, second: 0, millisecond: 0});
     Sao.Date.min.isDate = true;
     Sao.Date.max = moment(new Date(100000000 * 86400000));
@@ -236,8 +245,7 @@ var Sao = {};
     Sao.config = {};
     Sao.config.limit = 1000;
     Sao.config.display_size = 20;
-    Sao.config.roundup = {};
-    Sao.config.roundup.url = 'https://support.coopengo.com/';
+    Sao.config.bug_url = 'https://support.coopengo.com/';
     Sao.config.title = 'Coog';
     Sao.config.icon_colors = '#0094d2,#555753,#cc0000'.split(',');
     Sao.config.bus_timeout = 10 * 60 * 1000;
@@ -306,10 +314,11 @@ var Sao = {};
                         Sao.Action.execute(action_id, {}, null, {});
                     });
                     Sao.set_title();
+                    /* Coog: avoid icon filled with standard color
                     Sao.common.ICONFACTORY.get_icon_url('tryton-menu')
                         .then(function(url) {
                             jQuery('.navbar-brand > img').attr('src', url);
-                        });
+                        }); */
                     var new_lang = preferences.language != Sao.i18n.getLocale();
                     var prm = jQuery.Deferred();
                     Sao.i18n.setlang(preferences.language).always(function() {
@@ -414,6 +423,7 @@ var Sao = {};
                 attributes.domain = loads(params.domain || '[]');
                 attributes.context = loads(params.context || '{}');
                 attributes.context_model = params.context_model;
+                attributes.tab_domain = loads(params.tab_domain || '[]');
             } catch (e) {
                 return;
             }
@@ -877,7 +887,7 @@ var Sao = {};
             var ir_model = new Sao.Model('ir.model');
             return ir_model.execute('global_search',
                     [text, Sao.config.limit, Sao.main_menu_screen.model_name],
-                    Sao.main_menu_screen.context())
+                    Sao.main_menu_screen.context)
                 .then(function(s_results) {
                 var results = [];
                 for (var i=0, len=s_results.length; i < len; i++) {
@@ -977,13 +987,13 @@ var Sao = {};
                 label: Sao.i18n.gettext('Print'),
                 id: 'print',
             }, {
-                shortcut: 'ctrl+left',
+                shortcut: 'alt+shift+tab',
                 label: Sao.i18n.gettext('Previous tab'),
                 callback: function() {
                     Sao.Tab.previous_tab();
                 },
             }, {
-                shortcut: 'ctrl+right',
+                shortcut: 'alt+tab',
                 label: Sao.i18n.gettext('Next tab'),
                 callback: function() {
                     Sao.Tab.next_tab();
@@ -992,6 +1002,7 @@ var Sao = {};
                 shortcut: 'ctrl+k',
                 label: Sao.i18n.gettext('Global search'),
                 callback: function() {
+                    jQuery('#main_navbar:hidden').collapse('show');
                     jQuery('#global-search-entry').focus();
                 },
             }, {

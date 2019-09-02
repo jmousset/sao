@@ -45,6 +45,19 @@
     }
 }
 
+@media screen and (min-width: @screen-sm-min) {
+    #global-search-entry {
+        width: 10em;
+        -webkit-transition: width .5s ease;
+        -o-transition: width .5s ease;
+        transition: width .5s ease;
+
+        .global-search-container:focus-within & {
+            width: 20em;
+        }
+    }
+}
+
 #user-preferences > a {
     max-width: 20em;
     overflow: hidden;
@@ -52,9 +65,14 @@
     white-space: nowrap;
 }
 
+.table-row-variant(selected, @state-info-bg);
+.list-group-item-variant(selected, @state-info-bg, @state-info-text);
+
 .tab-form, .tab-board {
-    nav.toolbar.affix {
-        top: @navbar-height + 1px;
+    nav.toolbar {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0px;
         z-index: @zindex-navbar - 1;
     }
 
@@ -114,6 +132,11 @@
     }
 }
 
+input[type='number'] {
+    text-align: right;
+    text-align: end;
+}
+
 input[type='color'] {
     .btn {
         height: @line-height-base;
@@ -162,7 +185,23 @@ img.icon {
     margin: 5px 5px;
 }
 
+@media screen and (max-width: @screen-sm-max) {
+    .filter-box {
+        button[disabled] {
+            display: none;
+        }
+    }
+}
+
+.list-form {
+    overflow-y: auto;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+}
+
 .treeview {
+    -moz-user-select: none;
+    -webkit-user-select: none;
     overflow-x: auto;
 
     > table.tree {
@@ -233,7 +272,7 @@ img.icon {
     .editabletree-char, .editabletree-date, .editabletree-datetime,
     .editabletree-integer, .editabletree-float, .editabletree-selection,
     .editabletree-timedelta, .editabletree-boolean, .editabletree-many2one,
-    .editabletree-one2many {
+    .editabletree-one2many, .editabletree-reference {
         width: 100%;
 
         input[type='checkbox'] {
@@ -241,7 +280,20 @@ img.icon {
             margin-left: auto;
             margin-right: auto;
         }
+
+        > .input-group {
+            width: 100%;
+        }
     }
+
+    @media screen and (min-width: @screen-sm-min) {
+        .editabletree-reference {
+            > .input-sm, > .input-group {
+                width: 50%;
+            }
+        }
+    }
+
     td {
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -318,6 +370,22 @@ img.icon {
             min-width: 12em;
         }
     }
+
+    @media screen and (min-width: @screen-sm-min) {
+        .form-reference {
+            > .input-sm, > .input-group {
+                width: 50%;
+            }
+        }
+    }
+    @media screen and (max-width: @screen-xs-max) {
+        .form-reference {
+            > .input-sm, > .input-group {
+                width: 100%;
+            }
+        }
+    }
+
     .form-integer, .form-float {
         input {
             max-width: 8em;
@@ -365,7 +433,7 @@ img.icon {
         }
     }
     .form-one2many-content, .form-many2many-content {
-        .treeview {
+        .treeview, .list-form {
             min-height: 100px;
             max-height: 300px;
         }
@@ -438,7 +506,7 @@ input.column-boolean {
     .center-block();
 }
 
-.form-boolean, .editabletree-boolean {
+.form-boolean, .dict-boolean, .editabletree-boolean {
     input[type=checkbox] {
         width: initial;
     }
@@ -472,8 +540,9 @@ input.column-boolean {
 .csv {
     .modal-dialog {
         .column-fields {
-            height: 35vh;
-            overflow-y: scroll;
+            max-height: 400px;
+            overflow: auto;
+            white-space: nowrap;
         }
     }
 }
@@ -511,7 +580,7 @@ input.column-boolean {
             text-align: start !important;
             /* Force height to empty content */
             & > span:empty {
-                min-height: 20px;
+                min-height: calc(@line-height-computed + @table-condensed-cell-padding);
                 display: block;
             }
         }
@@ -545,14 +614,14 @@ input.column-boolean {
                 /* Now like a table header */
                 position: absolute;
                 /* Top/left values mimic padding */
-                top: 6px;
-                left: 6px;
-                padding-right: 10px;
+                top: @table-condensed-cell-padding;
+                left: @table-condensed-cell-padding;
+                padding-right: calc(@table-condensed-cell-padding * 2);
                 [dir="rtl"] & {
                     left: unset;
-                    right: 6px;
+                    right: @table-condensed-cell-padding;
                     padding-right: 0;
-                    padding-left: 10px;
+                    padding-left: calc(@table-condensed-cell-padding * 2);
                 }
                 text-align: left;
                 text-align: start;
