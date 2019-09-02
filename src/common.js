@@ -3470,7 +3470,8 @@
             return null;
         }
         if (~['input', 'select', 'textarea'].indexOf(
-                    element[0].tagName.toLowerCase())) {
+            element[0].tagName.toLowerCase()) &&
+            !element.prop('readonly')) {
             return element;
         }
 
