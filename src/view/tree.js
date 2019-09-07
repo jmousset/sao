@@ -1356,8 +1356,12 @@
                 tr = td.find('tr');
                 widget = jQuery(tr.children('.widget-editable')).data('widget');
                 if (widget) {
-                    this.record.load(column.attributes.name).done(
-                        display_callback(widget));
+                    var callback = display_callback(widget);
+                    if (!this.record.is_loaded(column.attributes.name)) {
+                        this.record.load(column.attributes.name).done(callback);
+                    } else {
+                        callback();
+                    }
                 }
             }
         },
