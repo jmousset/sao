@@ -1964,6 +1964,7 @@
                             '.fields_get',
                         'params': [Object.keys(field_names), context]
                     };
+                    var fields;
                     try {
                         fields = Sao.rpc(args, record.model.session, false);
                     } catch (e) {
