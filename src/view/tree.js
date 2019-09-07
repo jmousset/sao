@@ -1573,10 +1573,10 @@
                     this.tree.edit_row(null);
                     this.get_static_el().show().find('[tabindex=0]').focus();
                 }
-                event_.preventDefault();
             } else {
                 widget.display(this.record, column.field);
             }
+            event_.preventDefault();
         }
     });
 
