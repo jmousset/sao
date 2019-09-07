@@ -1431,9 +1431,8 @@
                 this.current_record.cancel();
                 if (this.current_record.id < 0) {
                     if (initial_value) {
-                        prms.push(
-                            this.current_record.reset(initial_value).then(
-                                this.display.bind(this)));
+                        this.current_record.reset(initial_value);
+                        this.display();
                     } else {
                         prms.push(this.remove(
                             false, false, false, [this.current_record]));
