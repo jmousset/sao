@@ -1421,6 +1421,8 @@
                 return Sao.field.Char;
             case 'selection':
                 return Sao.field.Selection;
+            case 'multiselection':
+                return Sao.field.MultiSelection;
             case 'datetime':
             case 'timestamp':
                 return Sao.field.DateTime;
@@ -1693,6 +1695,25 @@
 
     Sao.field.Selection = Sao.class_(Sao.field.Field, {
         _default: null
+    });
+
+    Sao.field.MultiSelection = Sao.class_(Sao.field.Field, {
+        _default: null,
+        get: function(record) {
+            var value = Sao.field.MultiSelection._super.get.call(this, record);
+            if (jQuery.isEmptyObject(value)) {
+                value = this._default;
+            }
+            return value;
+        },
+        get_eval: function(record) {
+            var value = Sao.field.MultiSelection._super.get_eval.call(
+                this, record);
+            if (value === null) {
+                value = [];
+            }
+            return value;
+        },
     });
 
     Sao.field.DateTime = Sao.class_(Sao.field.Field, {

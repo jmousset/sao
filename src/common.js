@@ -1096,6 +1096,10 @@
                         } else {
                             return test(value);
                         }
+                    } else if (field.type == 'multiselection') {
+                        return (!value ||
+                            jQuery.isEmptyObject(value) ||
+                            (value instanceof Array));
                     } else {
                         return true;
                     }
@@ -1455,6 +1459,7 @@
             var completes = {
                 'boolean': complete_boolean,
                 'selection': complete_selection,
+                'multiselection': complete_selection,
                 'reference': complete_reference,
                 'datetime': complete_datetime,
                 'date': complete_date,
@@ -1706,12 +1711,17 @@
                         if (target) {
                             field_name += '.rec_name';
                         }
+                    } else if (field.type == 'multiselection') {
+                        if ((value !== null) && !(value instanceof Array)) {
+                            value = [value];
+                        }
                     }
 
                     if (!operator) {
                         operator = this.default_operator(field);
                     }
-                    if (value instanceof Array) {
+                    if ((value instanceof Array) &&
+                        (field.type != 'multiselection')) {
                         if (operator == '!') {
                             operator = 'not in';
                         } else {
@@ -1721,6 +1731,13 @@
                     if (operator == '!') {
                         operator = this.negate_operator(
                                 this.default_operator(field));
+                    }
+                    if ((value === null) && operator.endsWith('in')) {
+                        if (operator.startsWith('not')) {
+                            operator = '!=';
+                        } else {
+                            operator = '=';
+                        }
                     }
                     if (~['integer', 'float', 'numeric', 'datetime', 'date',
                             'time'].indexOf(field.type)) {
@@ -1794,6 +1811,8 @@
             if (~['char', 'text', 'many2one', 'many2many', 'one2many',
                     'reference'].indexOf(field.type)) {
                 return 'ilike';
+            } else if (field.type == 'multiselection') {
+                return 'in';
             } else {
                 return '=';
             }
@@ -1890,6 +1909,7 @@
                     }
                 },
                 'selection': convert_selection,
+                'multiselection': convert_selection,
                 'reference': convert_selection,
                 'datetime': function() {
                     var result = Sao.common.parse_datetime(
@@ -1997,6 +2017,7 @@
                 'float': format_float,
                 'numeric': format_float,
                 'selection': format_selection,
+                'multiselection': format_selection,
                 'reference': format_reference,
                 'datetime': function() {
                     if (!value) {
