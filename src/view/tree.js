@@ -1274,6 +1274,18 @@
                     break;
             }
 
+            function apply_visual(el, visual) {
+                ['muted', 'success', 'warning', 'danger'].forEach(
+                    function(name) {
+                        var klass = name == 'muted' ? 'text-muted' : name;
+                        if (name == visual) {
+                            el.addClass(klass);
+                        } else {
+                            el.removeClass(klass);
+                        }
+                    });
+            }
+
             if (this._drawed_record !== this.record.identity) {
                 for (var i = 0; i < this.tree.columns.length; i++) {
                     if ((i === 0) && this.children_field) {
@@ -1321,6 +1333,8 @@
                             }
                         }
                     }
+                    apply_visual(
+                        td, this.record.expr_eval(column.attributes.visual));
                     if ((column.header.is(':hidden') && thead_visible) ||
                         column.header.css('display') == 'none') {
                         td.hide();
@@ -1365,6 +1379,8 @@
                     update_expander();
                 }
             }
+            apply_visual(
+                this.el, this.record.expr_eval(this.tree.attributes.visual));
             if (this.record.deleted || this.record.removed) {
                 this.el.css('text-decoration', 'line-through');
             } else {
