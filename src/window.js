@@ -1305,7 +1305,7 @@
             var fname = this.file_input.val();
             if(!fname) {
                 Sao.common.message.run(
-                    Sao.i18n.gettext('You must select an import file first'));
+                    Sao.i18n.gettext('You must select an import file first.'));
                 return;
             }
             this.fields_selected.empty();
@@ -1317,7 +1317,8 @@
                 encoding: this.el_csv_encoding.val(),
                 error: function(err, file, inputElem, reason) {
                     Sao.common.warning(
-                        Sao.i18n.gettext('Error occured in loading the file'));
+                        Sao.i18n.gettext(
+                            'An error occured in loading the file.'));
                 },
                 complete: function(results) {
                     results.data[0].forEach(function(word) {
