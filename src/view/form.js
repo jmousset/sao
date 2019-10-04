@@ -3189,11 +3189,11 @@ function eval_pyson(value){
                 return;
 
             function is_compatible(screen, record){
-                if (screen.current_view === undefined)
+                if (!screen.current_view)
                     return false;
 
                 return (!(screen.current_view.view_type == 'form' &&
-                    record !== undefined &&
+                    record &&
                     screen.model_name != record.model.name));
             }
 
@@ -3243,11 +3243,11 @@ function eval_pyson(value){
                 record = to_sync[i].record;
                 record_load_promises = [];
 
-                if (widget.screen.current_view === undefined)
+                if (!widget.screen.current_view)
                     continue;
 
                 if (widget.screen.current_view.view_type == 'form' &&
-                    record !== undefined && record !== null &&
+                    record &&
                     widget.screen.group.model.name == record.group.model.name){
                     var fields = widget.screen.group.model.fields;
                     var ret = [];
