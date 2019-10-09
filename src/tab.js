@@ -283,7 +283,10 @@
                 }
                 tab.remove();
                 content.remove();
-                Sao.Tab.tabs.splice(Sao.Tab.tabs.indexOf(this), 1);
+                var i = Sao.Tab.tabs.indexOf(this);
+                if (i >= 0) {
+                    Sao.Tab.tabs.splice(i, 1);
+                }
                 if (next.length) {
                     next.find('a').tab('show');
                 } else {
@@ -336,9 +339,7 @@
         return jQuery.when();
     };
     Sao.Tab.tabs.get_current = function() {
-        var tabs = jQuery('#tablist');
-        var i = tabs.find('li').index(tabs.find('li.active'));
-        return Sao.Tab.tabs[i];
+        return jQuery('#tablist').find('li.active').data('tab');
     };
     Sao.Tab.tabs.close_current = function() {
         var tab = this.get_current();
@@ -396,7 +397,8 @@
             'data-placement': 'bottom',
             id: 'nav-' + tab.id
         }).append(tab_link)
-        .appendTo(tablist);
+        .appendTo(tablist)
+        .data('tab', tab);
         jQuery('<div/>', {
             role: 'tabpanel',
             'class': 'tab-pane',
@@ -646,7 +648,7 @@
                                     ids: record_ids
                                 };
                                 Sao.Action.exec_action(exec_action, data,
-                                    jQuery.extend({}, screen.group._context));
+                                    jQuery.extend({}, screen.local_context));
                             });
                         }.bind(this))
                         .appendTo(menu);
@@ -888,15 +890,20 @@
                     fields.map(function(field) {
                         return field[0];
                     })], this.screen.context)
-            .then(function(result) {
-                result = result[0];
+            .then(function(data) {
+                data = data[0];
                 var message = '';
                 fields.forEach(function(field) {
                     var key = field[0];
                     var label = field[1];
-                    var value = result[key] || '/';
-                    if (result[key] &&
-                        ~['create_date', 'write_date'].indexOf(key)) {
+                    var value = data;
+                    var keys = key.split('.');
+                    var name = keys.splice(-1);
+                    keys.forEach(function(key) {
+                        value = value[key + '.'] || {};
+                    });
+                    value = (value || {})[name] || '/';
+                    if (value && value.isDateTime) {
                         value = Sao.common.format_datetime(
                             Sao.common.date_format(),
                             '%H:%M:%S',
@@ -1288,6 +1295,7 @@
                     .then(function(data) {
                         var unparse_obj = {
                             'fields': fields,
+                            'data': data,
                         };
                         var delimiter = ',';
                         var encoding = 'utf-8';
@@ -1347,7 +1355,7 @@
             this.title.html(this.name_el.text());
         },
         compare: function(attributes) {
-            if (!value) {
+            if (!attributes) {
                 return false;
             }
             var compare = Sao.common.compare;

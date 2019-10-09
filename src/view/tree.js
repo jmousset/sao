@@ -741,7 +741,7 @@
                 return;
             }
             path = this.record.get_index_path(this.group);
-            if (this.rows.length < path[0]) {
+            if (this.rows.length <= path[0]) {
                 this.display_size = this.group.length;
                 this.display();
             }
@@ -1074,15 +1074,16 @@
             this.set_selection(Sao.common.contains(selected, row_id_path));
             if (this.children_field) {
                 this.record.load(this.children_field).done(function() {
-                    if (this.is_expanded() ||
-                        Sao.common.contains(expanded, row_id_path)) {
+                    var length = this.record.field_get_client(
+                        this.children_field).length;
+                    if (length && (
+                        this.is_expanded() ||
+                        Sao.common.contains(expanded, row_id_path))) {
                         this.expander.css('visibility', 'visible');
                         this.tree.expanded[this.path] = this;
                         this.expand_children(selected, expanded);
                         this.update_expander(true);
                     } else {
-                        var length = this.record.field_get_client(
-                            this.children_field).length;
                         this.expander.css('visibility',
                             length ? 'visible' : 'hidden');
                         this.update_expander(false);
@@ -1306,15 +1307,24 @@
 
             Sao.View.Tree.RowEditable._super.redraw.call(this, selected,
                     expanded);
+            var display_callback = function(widget) {
+                var record = this.record;
+                return function() {
+                    var field = record.model.fields[widget.field_name];
+                    field.set_state(record);
+                    widget.display(record, field);
+                };
+            }.bind(this);
             // The autocompletion widget do not call display thus we have to
             // call it when redrawing the row
             for (i = 0; i < this.tree.columns.length; i++) {
+                var column = this.tree.columns[i];
                 td = this._get_column_td(i);
                 tr = td.find('tr');
                 widget = jQuery(tr.children('.widget-editable')).data('widget');
                 if (widget) {
-                    field = this.record.model.fields[widget.field_name];
-                    widget.display(this.record, field);
+                    this.record.load(column.attributes.name).done(
+                        display_callback(widget));
                 }
             }
         },
@@ -1378,18 +1388,9 @@
                 if (!col.field) {
                     continue;
                 }
-                var state_attrs = col.field.get_state_attrs(this.record);
-                var readonly = col.attributes.readonly;
-                if (readonly === undefined) {
-                    readonly = state_attrs.readonly;
-                    if (readonly === undefined) {
-                        readonly = false;
-                    }
-                }
-
                 var EditableBuilder = Sao.View.EditableTree.WIDGETS[
                     col.attributes.widget];
-                if (!readonly && EditableBuilder) {
+                if (!col.attributes.readonly && EditableBuilder) {
                     var widget = new EditableBuilder(
                         this.tree, col.attributes);
                     widget.el.on('keydown', this.key_press.bind(this));
@@ -1437,11 +1438,12 @@
             var current_td, selector, next_column, next_idx, i, next_row;
             var states;
 
-            if ((event_.which != Sao.common.TAB_KEYCODE) &&
+            if (((event_.which != Sao.common.TAB_KEYCODE) &&
                     (event_.which != Sao.common.UP_KEYCODE) &&
                     (event_.which != Sao.common.DOWN_KEYCODE) &&
                     (event_.which != Sao.common.ESC_KEYCODE) &&
-                    (event_.which != Sao.common.RETURN_KEYCODE)) {
+                    (event_.which != Sao.common.RETURN_KEYCODE)) ||
+                jQuery(event_.currentTarget).find('.dropdown-menu').length) {
                 return;
             }
             var td = this._get_column_td(this.edited_column);

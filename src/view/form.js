@@ -334,8 +334,8 @@ function eval_pyson(value){
             var widgets, error_el, pages, is_ancestor;
 
             var currently_focused = jQuery(document.activeElement);
-            var has_focus = currently_focused.closest(this.el) > 0;
-            if (reset_view || has_focus) {
+            var has_focus = currently_focused.closest(this.el).length > 0;
+            if (reset_view || !has_focus) {
                 if (reset_view) {
                     for (i = 0; i < this.notebooks.length; i++) {
                         notebook = this.notebooks[i];
@@ -1405,18 +1405,10 @@ function eval_pyson(value){
             dialog.modal.modal('hide');
         },
         read: function(widget, dialog) {
+            function field_value(result) {
+                return result[0][widget.field_name] || '';
+            }
             this.languages.forEach(function(lang){
-                var context = {};
-                context.language = lang.code;
-                var params = [
-                    [widget.record.id],
-                    [widget.field_name],
-                    context
-                ];
-                var args = {
-                    'method': 'model.' + widget.model.name  + '.read',
-                    'params': params
-                };
                 var value;
                 var row = jQuery('<div/>', {
                     'class':'row form-group'
@@ -1435,32 +1427,31 @@ function eval_pyson(value){
                     'disabled': true,
                     'title': Sao.i18n.gettext('Fuzzy')
                 });
-                var prm = Sao.rpc(args, widget.model.session)
-                        .then(function(result) {
-                    value = result[0][widget.field_name];
-                }.bind(this));
-                params = [
-                    [widget.record.id],
-                    [widget.field_name],
-                    context
-                ];
-                context.fuzzy_translation = true;
-                args = {
+                var prm1 = Sao.rpc({
                     'method': 'model.' + widget.model.name  + '.read',
-                    'params': params
-                };
-                prm.then(function() {
-                    Sao.rpc(args, widget.model.session)
-                            .then(function(fuzzy_value) {
-                        value = fuzzy_value[0][widget.field_name] || '';
-                        widget.translate_widget_set(
-                            input, value);
-                        widget.translate_widget_set_readonly(
-                            input, true);
-                        fuzzy_box.attr('checked',
-                               fuzzy_value[0].name != value);
-                    }.bind(this));
-                }.bind(this));
+                    'params': [
+                        [widget.record.id],
+                        [widget.field_name],
+                        {language: lang.code},
+                    ],
+                }, widget.model.session).then(field_value);
+                var prm2 = Sao.rpc({
+                    'method': 'model.' + widget.model.name  + '.read',
+                    'params': [
+                        [widget.record.id],
+                        [widget.field_name],
+                        {
+                            language: lang.code,
+                            fuzzy_translation: true,
+                        },
+                    ],
+                }, widget.model.session).then(field_value);
+
+                jQuery.when(prm1, prm2).done(function(value, fuzzy_value) {
+                    widget.translate_widget_set(input, fuzzy_value);
+                    widget.translate_widget_set_readonly( input, true);
+                    fuzzy_box.attr('checked', value !== fuzzy_value);
+                });
                 checkbox.click(function() {
                     widget.translate_widget_set_readonly(
                         input, !jQuery(this).prop('checked'));
@@ -1481,7 +1472,6 @@ function eval_pyson(value){
             }.bind(this));
         },
         write: function(widget, dialog) {
-            var promises = [];
             this.languages.forEach(function(lang) {
                 var input = jQuery('[data-lang-id=' + lang.id + ']');
                 if (!input.attr('readonly')) {
@@ -1501,15 +1491,12 @@ function eval_pyson(value){
                         'method': 'model.' + widget.model.name  + '.write',
                         'params': params
                     };
-                    var prm = Sao.rpc(args, widget.model.session);
-                    promises.push(prm);
+                    Sao.rpc(args, widget.model.session, false);
                 }
             }.bind(this));
+            widget.record.cancel();
+            widget.view.display();
             this.close(dialog);
-            jQuery.when.apply(jQuery, promises).then(function() {
-                widget.record.cancel();
-                widget.view.display();
-            });
         }
     });
 
@@ -1603,6 +1590,9 @@ function eval_pyson(value){
                 this.datalist = jQuery('<datalist/>').appendTo(this.el);
                 this.datalist.uniqueId();
                 this.input.attr('list', this.datalist.attr('id'));
+                // workaround for
+                // https://bugzilla.mozilla.org/show_bug.cgi?id=1474137
+                this.input.attr('autocomplete', 'off');
             }
             this.el.change(this.focus_out.bind(this));
 
@@ -1902,8 +1892,10 @@ function eval_pyson(value){
         input.attr('lang', Sao.i18n.getlang());
 
         input.hide().on('focusout', function() {
-            input.hide();
-            input_text.show();
+            if (input[0].checkValidity()) {
+                input.hide();
+                input_text.show();
+            }
         });
         input_text.on('focusin', function() {
             if (!input.prop('readonly')) {
@@ -1927,7 +1919,14 @@ function eval_pyson(value){
         },
         set_value: function() {
             this.field.set_client(
-                this.record, this.input.val(), undefined, this.factor);
+                this.record, this.get_value(), undefined, this.factor);
+        },
+        get_value: function() {
+            if (this.input[0].checkValidity()) {
+                return this.input.val();
+            } else {
+                return NaN;
+            }
         },
         get_client_value: function() {
             var value = '';
@@ -2345,17 +2344,22 @@ function eval_pyson(value){
         focus: function() {
             this.input.focus();
         },
+        get_value: function() {
+            return this._normalize_markup(this.input.html());
+        },
         set_value: function() {
             // avoid modification of not normalized value
-            this._normalize(this.input);
-            var value = this.input.html() || '';
-            var previous = this.field.get_client(this.record);
-            var previous_el = jQuery('<div/>').html(previous || '');
-            this._normalize(previous_el);
-            if (value == previous_el.html()) {
-                value = previous;
+            var value = this.get_value();
+            var prev_value  = this.field.get_client(this.record);
+            if (value == this._normalize_markup(prev_value)) {
+                value = prev_value;
             }
             this.field.set_client(this.record, value);
+        },
+        _normalize_markup: function(content) {
+            var el = jQuery('<div/>').html(content || '');
+            this._normalize(el);
+            return el.html();
         },
         _normalize: function(el) {
             // TODO order attributes
@@ -4021,6 +4025,7 @@ function eval_pyson(value){
             }.bind(this));
         },
         clear: function() {
+            this.input_select.val(null);
             var filename_field = this.filename_field;
             if (filename_field) {
                 filename_field.set_client(this.record, null);
@@ -4865,6 +4870,7 @@ function eval_pyson(value){
         create_widget: function() {
             Sao.View.Form.Dict.Date._super.create_widget.call(this);
             this.date = this.input.parent();
+            this.date.addClass('input-icon input-icon-primary');
             Sao.common.ICONFACTORY.get_icon_img('tryton-date')
                 .appendTo(jQuery('<div/>', {
                     'class': 'datepickerbutton icon-input icon-primary',
