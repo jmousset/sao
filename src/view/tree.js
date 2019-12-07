@@ -1191,11 +1191,16 @@
 
             for (var i = 0; i < this.tree.columns.length; i++) {
                 var column = this.tree.columns[i];
-                td = jQuery('<td/>', {
-                    'data-title': column.attributes.string + Sao.i18n.gettext(': ')
-                }).append(jQuery('<span/>', { // For responsive min-height
-                    'aria-hidden': true
-                }));
+                if (column instanceof Sao.View.Tree.ButtonColumn) {
+                    td = jQuery('<td>');
+                } else {
+                    td = jQuery('<td/>', {
+                        'data-title': column.attributes.string +
+                        Sao.i18n.gettext(': ')
+                    }).append(jQuery('<span/>', { // For responsive min-height
+                        'aria-hidden': true
+                    }));
+                }
                 td.on('click keypress', {'index': i}, on_click);
                 if (!this.tree.editable) {
                     td.dblclick(this.switch_row.bind(this));
@@ -1363,6 +1368,10 @@
                     } else {
                         td.show();
                         td.removeClass('invisible');
+                    }
+                    if (!td.find('.widget,.widget-editable,.prefix,.suffix')
+                        .find(':visible').length) {
+                        td.addClass('invisible');
                     }
                 }
             }
