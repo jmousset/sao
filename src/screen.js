@@ -34,7 +34,10 @@
             this.filter_button.click(this.search_box.bind(this));
             this.search_entry = jQuery('<input/>', {
                 'class': 'form-control mousetrap',
-                'placeholder': Sao.i18n.gettext('Search')
+                'placeholder': Sao.i18n.gettext('Search'),
+                // workaround for
+                // https://bugzilla.mozilla.org/show_bug.cgi?id=1474137
+                'autocomplete': 'off',
             });
             this.search_list = jQuery('<datalist/>');
             this.search_list.uniqueId();
@@ -988,8 +991,8 @@
                     this.context_screen.display(true);
                     return jQuery.when();
                 }
-                this.new_group(jQuery.extend({},
-                    this.group._context,
+                this.new_group(jQuery.extend(
+                    this.local_context,
                     this.context_screen.get_on_change_value()));
             }
 
@@ -1119,6 +1122,13 @@
         get context() {
             var context = this.group.context;
             if ( this.context_screen ){
+                context.context_model = this.context_screen.model_name;
+            }
+            return context;
+        },
+        get local_context() {
+            var context = this.group.local_context;
+            if (this.context_screen) {
                 context.context_model = this.context_screen.model_name;
             }
             return context;
@@ -1335,7 +1345,7 @@
                     'model': this.model_name,
                     'id': this.get_id(),
                     'ids': [this.get_id()]
-                    }, jQuery.extend({}, this.group._context), false);
+                }, this.local_context, false);
             } else {
                 if (!this.modified()) {
                     this.switch_view('form');
@@ -1769,13 +1779,16 @@
         },
         reload: function(ids, written) {
             this.group.reload(ids);
+            var promises = [];
             if (written) {
-                this.group.written(ids);
+                promises.push(this.group.written(ids));
             }
             if (this.group.parent) {
-                this.group.parent.root_parent.reload();
+                promises.push(this.group.parent.root_parent.reload());
             }
-            return this.display();
+            return jQuery.when.apply(jQuery, promises).then(function() {
+                this.display();
+            }.bind(this));
         },
         get_buttons: function() {
             var selected_records = this.current_view.selected_records;
@@ -1811,7 +1824,7 @@
                 }
                 // end
 
-                this.reload(ids, true).then(function() {
+                return this.reload(ids, true).then(function() {
                     if (typeof action == 'string') {
                         this.client_action(action);
                     }
@@ -1869,7 +1882,7 @@
                         return record.model.execute(attributes.name, [values],
                             this.context).then(function(changes) {
                             record.set_on_change(changes).then(function() {
-                                record.group.root_group().screens.forEach(
+                                record.group.root_group.screens.forEach(
                                     function(screen) {
                                         screen.display();
                                     });
@@ -1948,7 +1961,7 @@
             if (!jQuery.isEmptyObject(this.domain)) {
                 query_string.push(['domain', dumps(this.domain)]);
             }
-            var context = this.group._context;  // Avoid rpc context
+            var context = this.local_context;  // Avoid rpc context
             if (!jQuery.isEmptyObject(context)) {
                 query_string.push(['context', dumps(context)]);
             }
@@ -2105,8 +2118,8 @@
             this.tree_states_done.push(view);
             return state_prm.done(function(state) {
                 var expanded_nodes, selected_nodes, record;
-                expanded_nodes = state[1];
-                selected_nodes = state[2];
+                expanded_nodes = state[0];
+                selected_nodes = state[1];
                 if (view.view_type == 'tree') {
                     return view.display(selected_nodes, expanded_nodes);
                 } else {

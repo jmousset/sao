@@ -1481,14 +1481,13 @@
             var _group = function(parts) {
                 var result = [];
                 var push_result = function(part) {
-                    result.push([part]);
+                    var clause = [part];
+                    clause.clause = true;
+                    result.push(clause);
                 };
                 var i = parts.indexOf(':');
                 if (!~i) {
                     parts.forEach(push_result);
-                    result.forEach(function (e) {
-                        e.clause = true;
-                    });
                     return result;
                 }
                 var sub_group = function(name, lvalue) {
@@ -2168,7 +2167,7 @@
             if (~['AND', 'OR'].indexOf(domain)) {
                 return domain;
             } else if (this.is_leaf(domain)) {
-                if (domain[1].contains('child_of')) {
+                if (domain[1].contains('child_of') && !domain[0].contains('.')) {
                     if (domain.length == 3) {
                         return domain;
                     } else {
@@ -3237,6 +3236,7 @@
                 } else if (evt.which == Sao.common.DOWN_KEYCODE) {
                     if (this.dropdown.hasClass('open')) {
                         evt.preventDefault();
+                        evt.stopPropagation();
                         this.menu.find('li > a').first().focus();
                     }
                 }
