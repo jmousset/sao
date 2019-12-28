@@ -3270,7 +3270,6 @@ function eval_pyson(value){
             ).appendTo(buttons);
             this.but_undel.click(disable_during(this.undelete.bind(this)));
 
-
             // [Coog specific]
             //      > attribute expand_toolbar (hide toolbar)
             if (attributes.expand_toolbar)
