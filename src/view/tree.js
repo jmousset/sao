@@ -89,6 +89,7 @@
         view_type: 'tree',
         xml_parser: Sao.View.TreeXMLViewParser,
         draggable: false,
+        display_size: Sao.config.display_size,
         init: function(view_id, screen, xml, children_field, children_definitions) {
             this.children_field = children_field;
             this.sum_widgets = {};
@@ -219,7 +220,8 @@
             this.table.append(this.tbody);
 
             this.set_drag_and_drop();
-
+        },
+        reset: function() {
             this.display_size = Sao.config.display_size;
         },
         get editable() {
