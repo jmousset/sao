@@ -4961,7 +4961,6 @@ function eval_pyson(value){
                     return a[1].localeCompare(b[1]);
                 });
             }
-            selection.splice(0, 0, [null, '']);
             selection.forEach(function(e) {
                 select.append(jQuery('<option/>', {
                     'value': JSON.stringify(e[0]),
