@@ -603,6 +603,7 @@
             this.sel_multi = kwargs.sel_multi;
             this.callback = callback;
             this.title = kwargs.title || '';
+            this.exclude_field = kwargs.exclude_field || null;
             var dialog = new Sao.Dialog(Sao.i18n.gettext(
                 'Search %1', this.title), '', 'lg');
             this.el = dialog.modal;
@@ -691,6 +692,7 @@
                     mode: ['form'],
                     view_ids: view_ids,
                     views_preload: this.views_preload,
+                    exclude_field: this.exclude_field,
                 });
 
                 var callback = function(result) {
