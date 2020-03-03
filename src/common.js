@@ -395,7 +395,7 @@
                         j ++) {
                     var t = subparts[j];
                     var v = subconverter[j];
-                    sec = Math.abs(Number(t)) * v;
+                    sec = Math.abs(parseFloat(t)) * v;
                     if (!isNaN(sec)) {
                         seconds += sec;
                     }
@@ -406,7 +406,7 @@
                     separator =separators[key];
                     if (part.endsWith(separator)) {
                         part = part.slice(0, -separator.length);
-                        sec = Math.abs(parseInt(part, 10)) * converter[key];
+                        sec = Math.abs(parseFloat(part)) * converter[key];
                         if (!isNaN(sec)) {
                             seconds += sec;
                         }
@@ -415,7 +415,7 @@
                     }
                 }
                 if (!found) {
-                    sec = Math.abs(Number(part));
+                    sec = Math.abs(parseFloat(part));
                     if (!isNaN(sec)) {
                         seconds += sec;
                     }
@@ -1653,7 +1653,7 @@
             tokens.forEach(function(clause) {
                 if (this.is_generator(clause)) {
                     result.push(this.parse_clause(clause));
-                } else if ((clause == 'OR') || (clause == 'AND')) {
+                } else if ((clause === 'OR') || (clause === 'AND')) {
                     result.push(clause);
                 } else if ((clause.length == 1) &&
                     !(clause[0] instanceof Array)) {
@@ -1693,7 +1693,7 @@
                     }
                     if (~['integer', 'float', 'numeric', 'datetime', 'date',
                             'time'].indexOf(field.type)) {
-                        if (value && value.contains('..')) {
+                        if ((typeof value == 'string') && value.contains('..')) {
                             var values = value.split('..', 2);
                             var lvalue = this.convert_value(field, values[0]);
                             var rvalue = this.convert_value(field, values[1]);
@@ -2899,21 +2899,19 @@
 
     Sao.common.UserWarningDialog = Sao.class_(Sao.common.WarningDialog, {
         class_: 'user-warning-dialog',
-        always: false,
-        _set_always: function() {
-            this.always = jQuery(this).prop('checked');
-        },
         build_dialog: function(message, title, prm) {
             var dialog = Sao.common.UserWarningDialog._super.build_dialog.call(
                 this, message, title, prm);
             // Coog specific : do not display this warning cf bug #9035
-            //dialog.body.append(jQuery('<div/>')
-            //    .append(jQuery('<input/>', {
-            //        'type': 'checkbox'
-            //    }).change(this._set_always.bind(this)))
-            //    .append(jQuery('<span/>')
-            //        .text(Sao.i18n.gettext('Always ignore this warning.')))
-            //    );
+            // var always = jQuery('<input/>', {
+            //     'type': 'checkbox'
+            // });
+            // dialog.body.append(jQuery('<div/>', {
+            //     'class': 'checkbox',
+            // }).append(jQuery('<label/>')
+            //     .append(always)
+            //     .append(Sao.i18n.gettext('Always ignore this warning.')))
+            // );
             dialog.body.append(jQuery('<p/>')
                     .text(Sao.i18n.gettext('Do you want to proceed?')));
             dialog.footer.children().remove();
@@ -2929,7 +2927,7 @@
                 'type': 'button'
             }).append(Sao.i18n.gettext('Yes')).click(function() {
                 this.close(dialog);
-                if (this.always) {
+                if (always.prop('checked')) {
                     prm.resolve('always');
                 }
                 prm.resolve('ok');
