@@ -1922,11 +1922,7 @@ function eval_pyson(value){
                 this.record, this.get_value(), undefined, this.factor);
         },
         get_value: function() {
-            if (this.input[0].checkValidity()) {
-                return this.input.val();
-            } else {
-                return NaN;
-            }
+            return this.input.val();
         },
         get_client_value: function() {
             var value = '';
@@ -1973,7 +1969,7 @@ function eval_pyson(value){
             if (record) {
                 var digits = field.digits(record, this.factor);
                 if (digits) {
-                    step = Math.pow(10, -digits[1]);
+                    step = Math.pow(10, -digits[1]).toFixed(digits[1]);
                 }
             }
             this.input.attr('step', step);
@@ -4202,7 +4198,6 @@ function eval_pyson(value){
                     'class': 'text-center'
                 }).append(group).appendTo(this.el);
             }
-            this.update_img();
         },
         set_readonly: function(readonly) {
             this.but_select.prop('disable', readonly);
@@ -4859,7 +4854,7 @@ function eval_pyson(value){
                 options = {};
             var digits = this.digits;
             if (digits) {
-                step = Math.pow(10, -digits[1]);
+                step = Math.pow(10, -digits[1]).toFixed(digits[1]);
                 options.minimumFractionDigits = digits[1];
                 options.maximumFractionDigits = digits[1];
             }

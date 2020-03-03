@@ -2,7 +2,7 @@
   "name": "tryton-sao",
   "title": "sao",
   "description": "Tryton webclient",
-  "version": "5.2.7",
+  "version": "5.2.11",
   "homepage": "http://www.tryton.org/",
   "author": {
     "name": "Tryton"
@@ -21,7 +21,7 @@
     "CHANGELOG",
     "Gruntfile.js",
     "LICENSE",
-    "README.rst",
+    "README.md",
     "bower.json",
     "dist",
     "images",
