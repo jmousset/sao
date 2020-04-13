@@ -549,6 +549,7 @@
             this._timestamp = null;
             this.resources = null;
             this.button_clicks = {};
+            this.links_counts = {};
             this.state_attrs = {};
             this.autocompletion = {};
             this.exception = false;
@@ -1260,6 +1261,7 @@
             this._changed = {};
             this._timestamp = null;
             this.button_clicks = {};
+            this.links_counts = {};
         },
         _check_load: function(fields) {
             if (!this.get_loaded(fields)) {
