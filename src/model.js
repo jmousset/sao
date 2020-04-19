@@ -2077,7 +2077,7 @@
                 for (var i = 0, len = group.length; i < len; i++) {
                     var old_record = group[i];
                     if (!~value.indexOf(old_record.id)) {
-                        group.remove(old_record, true);
+                        group.remove(old_record, true, true, false, false);
                     }
                 }
                 group.load(value, modified);
@@ -2257,7 +2257,7 @@
                 value.delete.forEach(function(record_id) {
                     var record2 = group.get(record_id);
                     if (record2) {
-                        group.remove(record2, false, true, false);
+                        group.remove(record2, false, true, false, false);
                     }
                 }.bind(this));
             }
@@ -2265,7 +2265,7 @@
                 value.remove.forEach(function(record_id) {
                     var record2 = group.get(record_id);
                     if (record2) {
-                        group.remove(record2, true, true, false);
+                        group.remove(record2, true, true, false, false);
                     }
                 }.bind(this));
             }
