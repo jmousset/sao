@@ -1568,7 +1568,8 @@
             var cell;
             if (this.protocol) {
                 cell = jQuery('<a/>', {
-                    'target': '_new'
+                    'target': '_blank',
+                    'rel': 'noreferrer noopener',
                 });
                 cell.append(jQuery('<img/>'));
                 cell.click({'cell': cell}, this.clicked.bind(this));
@@ -1609,7 +1610,7 @@
                                 break;
                         }
                     }
-                    cell.attr('src', value);
+                    cell.attr('href', value);
                 }
                 if (this.icon) {
                     if (this.icon in record.model.fields) {
@@ -1642,8 +1643,7 @@
             return cell;
         },
         clicked: function(event) {
-            event.preventDefault();  // prevent edition
-            window.open(event.data.cell.attr('src'), '_blank');
+            event.stopPropagation();  // prevent edition
         }
     });
 
@@ -1658,6 +1658,12 @@
             this.suffixes = [];
             this.header = null;
             this.footers = [];
+        },
+        get field_name() {
+            return this.attributes.name;
+        },
+        get model_name() {
+            return model.name;
         },
         get_cell: function() {
             var cell = jQuery('<div/>', {

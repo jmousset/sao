@@ -694,13 +694,14 @@
                 (compare(
                     this.attributes.domain || [], attributes.domain || [])) &&
                 (compare(
-                    this.attributes.mode || [], attributes.mode || [])) &&
-                (compare(
                     this.attributes.view_ids || [],
                     attributes.view_ids || [])) &&
-                (JSON.stringify(this.attributes.context) ===
+                (attributes.view_ids ||
+                    (compare(
+                        this.attributes.mode || ['tree', 'form'],
+                        attributes.mode || ['tree', 'form']))) &&
+                (JSON.stringify(this.screen.local_context) ===
                     JSON.stringify(attributes.context)) &&
-                (this.attributes.limit == attributes.limit) &&
                 (compare(
                     this.attributes.search_value || [],
                     attributes.search_value || []))
@@ -762,8 +763,8 @@
                     }.bind(this));
         },
         switch_: function() {
-            return this.modified_save().done(function() {
-                this.screen.switch_view();
+            return this.modified_save().then(function() {
+                return this.screen.switch_view();
             }.bind(this));
         },
         reload: function(test_modified) {
@@ -847,16 +848,18 @@
         },
         previous: function() {
             return this.modified_save().then(function() {
-                this.screen.display_previous();
+                var prm = this.screen.display_previous();
                 this.info_bar.message();
                 // TODO activate_save
+                return prm;
             }.bind(this));
         },
         next: function() {
             return this.modified_save().then(function() {
-                this.screen.display_next();
+                var prm = this.screen.display_next();
                 this.info_bar.message();
                 // TODO activate_save
+                return prm;
             }.bind(this));
         },
         search: function() {

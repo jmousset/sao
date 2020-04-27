@@ -1733,6 +1733,7 @@ function eval_pyson(value){
             this.date.datetimepicker({
                 'locale': moment.locale(),
                 'keyBinds': null,
+                'useCurrent': false,
             });
             this.date.css('max-width', this._width);
             this.date.on('dp.change', this.focus_out.bind(this));
@@ -3025,6 +3026,17 @@ function eval_pyson(value){
                 'class': 'input-group-btn'
             }).appendTo(group);
 
+            var disable_during = function(callback) {
+                return function(evt) {
+                    var button = jQuery(evt.target);
+                    button.prop('disabled', true);
+                    (callback(evt) || jQuery.when())
+                        .always(function() {
+                            button.prop('disabled', false);
+                        });
+                };
+            };
+
             this.but_switch = jQuery('<button/>', {
                 'class': 'btn btn-default btn-sm',
                 'type': 'button',
@@ -3035,7 +3047,7 @@ function eval_pyson(value){
                 // Coog Override Icon
                 'class': 'glyphicon glyphicon-resize-full'
             })).appendTo(buttons);
-            this.but_switch.click(this.switch_.bind(this));
+            this.but_switch.click(disable_during(this.switch_.bind(this)));
 
             this.but_previous = jQuery('<button/>', {
                 'class': 'btn btn-default btn-sm',
@@ -3045,7 +3057,7 @@ function eval_pyson(value){
                 'title': Sao.i18n.gettext("Previous"),
             }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-back')
             ).appendTo(buttons);
-            this.but_previous.click(this.previous.bind(this));
+            this.but_previous.click(disable_during(this.previous.bind(this)));
 
             this.label = jQuery('<span/>', {
                 'class': 'badge',
@@ -3061,7 +3073,7 @@ function eval_pyson(value){
                 'title': Sao.i18n.gettext("Next"),
             }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-forward')
             ).appendTo(buttons);
-            this.but_next.click(this.next.bind(this));
+            this.but_next.click(disable_during(this.next.bind(this)));
 
             if (attributes.add_remove) {
                 this.wid_text = jQuery('<input/>', {
@@ -3085,7 +3097,7 @@ function eval_pyson(value){
                     // Coog Override Icon
                     'class': 'glyphicon glyphicon-search'
                 })).appendTo(buttons);
-                this.but_add.click(this.add.bind(this));
+                this.but_add.click(disable_during(this.add.bind(this)));
 
                 this.but_remove = jQuery('<button/>', {
                     'class': 'btn btn-default btn-sm',
@@ -3097,7 +3109,7 @@ function eval_pyson(value){
                     // Coog Override Icon
                     'class': 'glyphicon glyphicon-remove'
                 })).appendTo(buttons);
-                this.but_remove.click(this.remove.bind(this));
+                this.but_remove.click(disable_during(this.remove.bind(this)));
             }
 
             this.but_new = jQuery('<button/>', {
@@ -3110,7 +3122,7 @@ function eval_pyson(value){
                 // Coog Override Icon
                 'class': 'glyphicon glyphicon-plus'
             })).appendTo(buttons);
-            this.but_new.click(this.new_.bind(this));
+            this.but_new.click(disable_during(this.new_.bind(this)));
 
             this.but_open = jQuery('<button/>', {
                 'class': 'btn btn-default btn-sm',
@@ -3122,7 +3134,7 @@ function eval_pyson(value){
                 // Coog Override Icon
                 'class': 'glyphicon glyphicon-pencil'
             })).appendTo(buttons);
-            this.but_open.click(this.open.bind(this));
+            this.but_open.click(disable_during(this.open.bind(this)));
 
             this.but_del = jQuery('<button/>', {
                 'class': 'btn btn-default btn-sm',
@@ -3132,7 +3144,7 @@ function eval_pyson(value){
                 'title': Sao.i18n.gettext("Delete"),
             }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-delete')
             ).appendTo(buttons);
-            this.but_del.click(this.delete_.bind(this));
+            this.but_del.click(disable_during(this.delete_.bind(this)));
 
             this.but_undel = jQuery('<button/>', {
                 'class': 'btn btn-default btn-sm',
@@ -3142,7 +3154,7 @@ function eval_pyson(value){
                 'title': Sao.i18n.gettext("Undelete"),
             }).append(Sao.common.ICONFACTORY.get_icon_img('tryton-undo')
             ).appendTo(buttons);
-            this.but_undel.click(this.undelete.bind(this));
+            this.but_undel.click(disable_during(this.undelete.bind(this)));
 
 
             // [Coog specific]
@@ -3555,7 +3567,7 @@ function eval_pyson(value){
             }.bind(this));
         },
         open: function(event_) {
-            this.edit();
+            return this.edit();
         },
         delete_: function(event_) {
             if (!Sao.common.MODELACCESS.get(this.screen.model_name)['delete']) {
@@ -3567,23 +3579,23 @@ function eval_pyson(value){
             this.screen.unremove();
         },
         previous: function(event_) {
-            this.validate().done(function() {
-                this.screen.display_previous();
+            return this.validate().then(function() {
+                return this.screen.display_previous();
             }.bind(this));
         },
         next: function(event_) {
-            this.validate().done(function() {
-                this.screen.display_next();
+            return this.validate().then(function() {
+                return this.screen.display_next();
             }.bind(this));
         },
         switch_: function(event_) {
-            this.screen.switch_view();
+            return this.screen.switch_view();
         },
         edit: function() {
             if (!Sao.common.MODELACCESS.get(this.screen.model_name).read) {
                 return;
             }
-            this.validate().done(function() {
+            return this.validate().then(function() {
                 var record = this.screen.current_record;
                 if (record) {
                     var win = new Sao.Window.Form(this.screen, function() {},
@@ -4247,7 +4259,8 @@ function eval_pyson(value){
             Sao.View.Form.URL._super.init.call(this, view, attributes);
             this.button = jQuery('<a/>', {
                 'class': 'btn btn-default',
-                'target': '_new'
+                'target': '_blank',
+                'rel': 'noreferrer noopener',
             }).appendTo(jQuery('<span/>', {
                 'class': 'input-group-btn'
             }).appendTo(this.group));
@@ -4329,6 +4342,7 @@ function eval_pyson(value){
             this.button = jQuery('<a/>', {
                 'class': 'btn btn-lnk',
                 'target': '_blank',
+                'rel': 'noreferrer noopener',
             }).text(attributes.string).appendTo(this.el);
             if (attributes.translate) {
                 var button = jQuery('<button/>', {
@@ -4367,7 +4381,7 @@ function eval_pyson(value){
             });
             Sao.common.selection(Sao.i18n.gettext("Choose a language"), options)
             .done(function(language) {
-                window.open(this.uri(language), '_blank');
+                window.open(this.uri(language), '_blank', 'noreferrer,noopener');
             }.bind(this));
         },
     });
@@ -4909,6 +4923,7 @@ function eval_pyson(value){
                 'format': Sao.common.moment_format(this.format),
                 'locale': moment.locale(),
                 'keyBinds': null,
+                'useCurrent': false,
             });
             this.date.on('dp.change',
                     this.parent_widget.focus_out.bind(this.parent_widget));

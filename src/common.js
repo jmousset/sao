@@ -344,10 +344,11 @@
         }
         if (jQuery(values.slice(-3)).is(function(i, v) { return v; }) ||
                 jQuery.isEmptyObject(text)) {
-            var time = values.slice(-3, -1);
-            time = ('00' + time[0]).slice(-2) + ':' + ('00' + time[1]).slice(-2);
-            if (values.slice(-1)[0] || value) {
-                time += ':' + ('00' + values.slice(-1)[0]).slice(-2);
+            var time_values = values.slice(-3);
+            var time = time_values[0].toString().padStart(2, "0");
+            time += ":" + time_values[1].toString().padStart(2, "0");
+            if (time_values[2] || value) {
+                time += ':' + time_values[2].toString().padStart(2, "0");
             }
             text.push(time);
         }
@@ -1695,8 +1696,8 @@
                             'time'].indexOf(field.type)) {
                         if ((typeof value == 'string') && value.contains('..')) {
                             var values = value.split('..', 2);
-                            var lvalue = this.convert_value(field, values[0]);
-                            var rvalue = this.convert_value(field, values[1]);
+                            var lvalue = this.convert_value(field, values[0], this.context);
+                            var rvalue = this.convert_value(field, values[1], this.context);
                             result.push([
                                     this._clausify([field_name, '>=', lvalue]),
                                     this._clausify([field_name, '<=', rvalue])
@@ -1706,14 +1707,14 @@
                     }
                     if (value instanceof Array) {
                         value = value.map(function(v) {
-                            return this.convert_value(field, v);
+                            return this.convert_value(field, v, this.context);
                         }.bind(this));
                         if (~['many2one', 'one2many', 'many2many', 'one2one',
                             'many2many', 'one2one'].indexOf(field.type)) {
                             field_name += '.rec_name';
                         }
                     } else {
-                        value = this.convert_value(field, value);
+                        value = this.convert_value(field, value, this.context);
                     }
                     if (operator.contains('like')) {
                         value = this.likify(value);
@@ -1797,7 +1798,10 @@
             }
             return [target, value];
         },
-        convert_value: function(field, value) {
+        convert_value: function(field, value, context) {
+            if (!context) {
+                context = {};
+            }
             var convert_selection = function() {
                 if (typeof value == 'string') {
                     for (var i = 0; i < field.selection.length; i++) {
@@ -1860,14 +1864,14 @@
                 'reference': convert_selection,
                 'datetime': function() {
                     var result = Sao.common.parse_datetime(
-                            Sao.common.date_format(),
+                            Sao.common.date_format(context.date_format),
                             this.time_format(field),
                             value);
                     return result;
                 }.bind(this),
                 'date': function() {
                     return Sao.common.parse_date(
-                            Sao.common.date_format(),
+                            Sao.common.date_format(context.date_format),
                             value);
                 },
                 'time': function() {
@@ -1900,9 +1904,12 @@
                 return value;
             }
         },
-        format_value: function(field, value, target) {
+        format_value: function(field, value, target, context) {
             if (target === undefined) {
                 target = null;
+            }
+            if (!context) {
+                context = {};
             }
             var format_float = function() {
                 if (!value && value !== 0 && value !== new Sao.Decimal(0)) {
@@ -1969,17 +1976,17 @@
                                 value.minute() ||
                                 value.second())) {
                         return Sao.common.format_date(
-                                Sao.common.date_format(),
+                                Sao.common.date_format(context.date_format),
                                 value);
                     }
                     return Sao.common.format_datetime(
-                            Sao.common.date_format(),
+                            Sao.common.date_format(context.date_format),
                             this.time_format(field),
                             value);
                 }.bind(this),
                 'date': function() {
                     return Sao.common.format_date(
-                            Sao.common.date_format(),
+                            Sao.common.date_format(context.date_format),
                             value);
                 },
                 'time': function() {
@@ -2490,6 +2497,9 @@
                 if (part instanceof DomainInversion.And) {
                     var part_inversion = part.inverse(symbol, context);
                     var evaluated = typeof part_inversion == 'boolean';
+                    if (!~part.variables.indexOf(symbol)) {
+                        continue;
+                    }
                     if (!evaluated) {
                         result.push(part_inversion);
                     } else if (part_inversion) {
@@ -2528,11 +2538,10 @@
         inverse: function(symbol, context) {
             var DomainInversion = Sao.common.DomainInversion;
             var result = [];
-            if (!~this.variables.indexOf(symbol) &&
-                !jQuery.isEmptyObject(this.variables.filter(function(e) {
-                    return !(e in context);
+            if (!jQuery.isEmptyObject(this.variables.filter(function(e) {
+                    return (!(e in context)) && (e != symbol);
                 }))) {
-                // In this case we don't know anything about this OR part, we
+                // In this case we don't know enough about this OR part, we
                 // consider it to be True (because people will have the
                 // constraint on this part later).
                 return true;
@@ -2542,7 +2551,7 @@
                 if (part instanceof DomainInversion.And) {
                     var part_inversion = part.inverse(symbol, context);
                     var evaluated = typeof part_inversion == 'boolean';
-                    if (!~this.variables.indexOf(symbol)) {
+                    if (!~part.variables.indexOf(symbol)) {
                         if (evaluated && part_inversion) {
                             return true;
                         }
@@ -3138,7 +3147,8 @@
                     .append(jQuery('<a/>', {
                         'class': 'btn btn-link',
                         href: Sao.config.bug_url,
-                        target: '_blank'
+                        target: '_blank',
+                        rel: 'noreferrer noopener',
                     }).text(Sao.i18n.gettext('Report Bug')))));
             jQuery('<button/>', {
                 'class': 'btn btn-primary',

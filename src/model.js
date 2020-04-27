@@ -180,9 +180,12 @@
             }
             return record;
         };
-        array.remove = function(record, remove, modified, force_remove) {
+        array.remove = function(record, remove, modified, force_remove, signal) {
             if (modified === undefined) {
                 modified = true;
+            }
+            if (signal === undefined) {
+                signal = true;
             }
             var idx = this.indexOf(record);
             if (record.id >= 0) {
@@ -209,7 +212,9 @@
             if ((record.id < 0) || force_remove) {
                 this._remove(record);
             }
-            record.group.changed();
+            if (signal) {
+                record.group.changed();
+            }
         };
         array._remove = function(record) {
             var idx = this.indexOf(record);
@@ -1448,7 +1453,7 @@
             record._changed[this.name] = true;
         },
         set_on_change: function(record, value) {
-            record._values[this.name] = value;
+            this.set(record, value);
             record._changed[this.name] = true;
         },
         changed: function(record) {
@@ -1991,7 +1996,7 @@
                     for (var i = 0, len = group.length; i < len; i++) {
                         var old_record = group[i];
                         if (!~value.indexOf(old_record.id)) {
-                            group.remove(old_record, true);
+                            group.remove(old_record, true, true, false, false);
                         }
                     }
                     group.load(value, modified);
@@ -2184,7 +2189,7 @@
                 }.bind(this));
             }
             to_remove.forEach(function(record2) {
-                group.remove(record2, false, true, false);
+                group.remove(record2, false, true, false, false);
             }.bind(this));
 
             if (value.add || value.update) {
@@ -2462,17 +2467,19 @@
             var screen_domain = domains[0];
             var attr_domain = domains[1];
             var inversion = new Sao.common.DomainInversion();
+            screen_domain = inversion.filter_leaf(
+                screen_domain, this.name, model);
             screen_domain = inversion.prepare_reference_domain(
                 screen_domain, this.name);
-            return inversion.concat([inversion.localize_domain(
-                        inversion.filter_leaf(screen_domain, this.name, model),
-                        undefined, true), attr_domain]);
+            return inversion.concat([
+                inversion.localize_domain(screen_domain, undefined, true),
+                attr_domain]);
         },
         get_models: function(record) {
             var domains = this.get_domains(record);
             var inversion = new Sao.common.DomainInversion();
             return inversion.extract_reference_models(
-                inversion.concat(domains[0], domains[1]),
+                inversion.concat([domains[0], domains[1]]),
                 this.name);
         },
         _is_empty: function(record) {
