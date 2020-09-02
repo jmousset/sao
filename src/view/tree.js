@@ -1313,7 +1313,7 @@
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
-            var update_expander = function() {
+            var coog_update_expander = function() {
                 // [Coog Specific]  needed for multi_mixed_view
                 // MAB: not sure we still need this
                 if (this.is_leaf()  || !this.record.field_get_client(
@@ -1356,10 +1356,10 @@
                         // MAB: not sure we still need this
                         if (!this.is_leaf())
                             this.record.load(this.children_field).done(
-                                update_expander.bind(this));
+                                coog_update_expander.bind(this));
                         else
                             this.record.load('*').done(
-                                update_expander.bind(this));
+                                coog_update_expander.bind(this));
                     }
                     var column = this.tree.columns[i];
                     var td = this._get_column_td(i);
