@@ -25,6 +25,7 @@ this repository contains the full copyright notices and license terms. -->
         <script type="text/javascript" src="bower_components/codemirror/mode/python/python.js"></script>
         <script type="text/javascript" src="bower_components/codemirror/addon/lint/lint.js"></script>
         <script type="text/javascript" src="bower_components/codemirror/addon/display/autorefresh.js"></script>
+        <script type="text/javascript" src="bower_components/Sortable/Sortable.js"></script>
 
         <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
         <link rel="stylesheet" href="bower_components/bootstrap-rtl-ondemand/dist/css/bootstrap-rtl-ondemand.min.css">
@@ -79,13 +80,10 @@ this repository contains the full copyright notices and license terms. -->
                 style="height: calc(100vh - 50px - 1px - 20px); margin: 0px;">
                 <!-- !!!> Carefull here ! If bootstrap columns changes, offcanvas.css must be edited as well -->
                 <!-- MAB: offcanvas.css does not exist anymore, there is offcanvas.less -->
-                <div class="navbar-default col-xs-12 col-sm-3 col-lg-2 sidebar-offcanvas" id="menu" role="navigation"
+                <div class="navbar-default col-xs-12 col-sm-4 col-lg-3 sidebar-offcanvas" id="menu" role="navigation"
                     style="overflow-y: auto; height: 100%;"></div>
-                <div class="col-xs-12 col-md-9 col-lg-10 main-offcanvas" style="overflow-y: auto; height: 100%;">
-                    <div id="tabs" role="tabpanel">
-                        <div id="tabcontent" class="tab-content">
-                        </div>
-                    </div>
+                <div class="col-xs-12 col-sm-8 col-lg-9 main-offcanvas" style="overflow-y: auto; height: 100%;" id="tabs" role="tabpanel">
+                    <div id="tabcontent" class="tab-content"></div>
                 </div>
             </div>
         </div>

@@ -16,18 +16,7 @@
             this.prm = jQuery.when();  // renew promise
             this.database = database;
             this.login = login;
-            if (this.database) {
-                var session_data = localStorage.getItem(
-                    'sao_session_' + database);
-                if (session_data !== null) {
-                    session_data = JSON.parse(session_data);
-                    if (!this.login || this.login == session_data.login) {
-                        this.login = session_data.login;
-                        this.user_id = session_data.user_id;
-                        this.session = session_data.session;
-                    }
-                }
-            }
+            this.restore();
             this.context = {
                 client: Sao.Bus.id,
             };
@@ -38,8 +27,9 @@
         get_auth: function() {
             return utoa(this.login + ':' + this.user_id + ':' + this.session);
         },
-        do_login: function(login, parameters) {
+        do_login: function(parameters) {
             var dfd = jQuery.Deferred();
+            var login = this.login;
             var func = function(parameters) {
                 return {
                     'method': 'common.db.login',
@@ -102,6 +92,20 @@
                 jQuery.extend(this.context, context);
             }.bind(this));
         },
+        restore: function() {
+            if (this.database && !this.session) {
+                var session_data = localStorage.getItem(
+                    'sao_session_' + this.database);
+                if (session_data !== null) {
+                    session_data = JSON.parse(session_data);
+                    if (!this.login || this.login == session_data.login) {
+                        this.login = session_data.login;
+                        this.user_id = session_data.user_id;
+                        this.session = session_data.session;
+                    }
+                }
+            }
+        },
         store: function() {
             var session = {
                 'login': this.login,
@@ -136,7 +140,7 @@
         }).append(jQuery('<label/>', {
             'class': 'control-label',
             'for': 'database'
-        }).append(Sao.i18n.gettext('Database')))
+        }).text(Sao.i18n.gettext('Database')))
         .append(dialog.database_select)
         .append(dialog.database_input)
         ).append(jQuery('<div/>', {
@@ -144,13 +148,13 @@
         }).append(jQuery('<label/>', {
             'class': 'control-label',
             'for': 'login'
-        }).append(Sao.i18n.gettext('User name')))
+        }).text(Sao.i18n.gettext('User name')))
         .append(dialog.login_input)
         );
         dialog.button = jQuery('<button/>', {
             'class': 'btn btn-primary',
             'type': 'submit'
-        }).append(' ' + Sao.i18n.gettext("Login")).appendTo(dialog.footer);
+        }).text(' ' + Sao.i18n.gettext("Login")).appendTo(dialog.footer);
         return dialog;
     };
 
@@ -190,7 +194,9 @@
             dialog.button.prop('disabled', true);
             dialog.modal.modal('hide');
             session.database = database;
-            session.do_login(login)
+            session.login = login;
+            session.restore();
+            (session.session ? jQuery.when() : session.do_login())
                 .then(function() {
                     dfd.resolve(session);
                     dialog.modal.remove();
@@ -247,7 +253,7 @@
         }
         var dfd = jQuery.Deferred();
         session.prm = dfd.promise();
-        session.do_login(session.login).then(dfd.resolve, function() {
+        session.do_login().then(dfd.resolve, function() {
             Sao.logout();
             dfd.reject();
         }).done(function () {
@@ -296,6 +302,10 @@
                 } else if (data.error) {
                     if (data.error[0].startsWith('401')) {
                         return this.run({}).then(dfd.resolve, dfd.reject);
+                    } else if (data.error[0].startsWith('429')) {
+                        Sao.common.message.run(
+                            Sao.i18n.gettext('Too many requests. Try again later.'),
+                            'tryton-error').always(dfd.resolve);
                     } else if (data.error[0].startsWith('404')) {
                         dfd.reject();
                     } else if (data.error[0] != 'LoginException') {
@@ -320,6 +330,10 @@
                 if (query.status == 401) {
                     // Retry
                     this.run({}).then(dfd.resolve, dfd.reject);
+                } else if (query.status == 429) {
+                    Sao.common.message.run(
+                        Sao.i18n.gettext('Too many requests. Try again later.'),
+                        'tryton-error').always(dfd.resolve);
                 } else {
                     Sao.common.error.run(status_, error);
                     dfd.reject();

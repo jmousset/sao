@@ -108,13 +108,15 @@
         },
         create_tabcontent: function() {
             this.el = jQuery('<div/>', {
-                'class': this.class_
+                'class': 'panel panel-default ' + this.class_,
             });
 
             var toolbar = this.create_toolbar().appendTo(this.el);
             this.title = toolbar.find('.title');
 
-            this.content = jQuery('<div/>').appendTo(this.el);
+            this.content = jQuery('<div/>', {
+                'class': 'panel-body',
+            }).appendTo(this.el);
 
             if (this.info_bar) {
                 this.el.append(this.info_bar.el);
@@ -136,9 +138,10 @@
                         'role': 'menuitem',
                         'href': '#',
                         'tabindex': -1
-                    }).append(Sao.common.ICONFACTORY.get_icon_img(item.icon, {
-                        'aria-hidden': 'true',
-                    })).append(' ' + item.label).appendTo(menuitem);
+                    }).text(' ' + item.label).prepend(
+                        Sao.common.ICONFACTORY.get_icon_img(item.icon, {
+                            'aria-hidden': 'true',
+                        })).appendTo(menuitem);
                     this.menu_buttons[item.id] = menuitem;
                     link.click(function(evt) {
                         evt.preventDefault();
@@ -158,7 +161,7 @@
         },
         create_toolbar: function() {
             var toolbar = jQuery('<nav/>', {
-                'class': 'toolbar navbar navbar-default',
+                'class': 'toolbar panel-heading',
                 'role': 'toolbar'
             }).append(jQuery('<div/>', {
                 'class': 'container-fluid'
@@ -387,7 +390,7 @@
             'aria-hidden': true
         }).append('&times;')).append(jQuery('<span/>', {
             'class': 'sr-only'
-        }).append(Sao.i18n.gettext('Close'))).click(function(evt) {
+        }).text(Sao.i18n.gettext('Close'))).click(function(evt) {
             evt.preventDefault();
             tab.close();
         }))
@@ -403,7 +406,7 @@
             role: 'tabpanel',
             'class': 'tab-pane',
             id: tab.id
-        }).html(tab.el)
+        }).append(tab.el)
         .appendTo(tabcontent);
         tab_link.tab('show');
         tabs.trigger('ready');
@@ -557,7 +560,7 @@
                                     'role': 'menuitem',
                                     'href': '#',
                                     'tabindex': -1
-                                }).append(
+                                }).text(
                                     button.attributes.string || ''))
                             .click(function(evt) {
                                 evt.preventDefault();
@@ -596,7 +599,7 @@
                                     'role': 'menuitem',
                                     'href': '#',
                                     'tabindex': -1,
-                                }).append(name))
+                                }).text(name))
                             .click(function(evt) {
                                 evt.preventDefault();
                                 var ids = screen.current_view.selected_records
@@ -623,7 +626,7 @@
                             'role': 'menuitem',
                             'href': '#',
                             'tabindex': -1
-                        }).append(action.name))
+                        }).text(action.name))
                         .click(function(evt) {
                             evt.preventDefault();
                             var prm = jQuery.when();
@@ -647,7 +650,7 @@
                                     id: record_id,
                                     ids: record_ids
                                 };
-                                Sao.Action.exec_action(exec_action, data,
+                                Sao.Action.execute(exec_action, data,
                                     jQuery.extend({}, screen.local_context));
                             });
                         }.bind(this))
@@ -669,7 +672,7 @@
                                 'role': 'menuitem',
                                 'href': '#',
                                 'tabindex': -1,
-                            }).append(export_.name))
+                            }).text(export_.name))
                             .click(function(evt) {
                                 evt.preventDefault();
                                 this.do_export(export_);
@@ -882,11 +885,11 @@
             var fields = [
                 ['id', Sao.i18n.gettext('ID:')],
                 ['create_uid.rec_name',
-                    Sao.i18n.gettext('Creation User:')],
-                ['create_date', Sao.i18n.gettext('Creation Date:')],
+                    Sao.i18n.gettext('Created by:')],
+                ['create_date', Sao.i18n.gettext('Created at:')],
                 ['write_uid.rec_name',
-                    Sao.i18n.gettext('Latest Modification by:')],
-                ['write_date', Sao.i18n.gettext('Latest Modification Date:')]
+                    Sao.i18n.gettext('Edited by:')],
+                ['write_date', Sao.i18n.gettext('Edited at:')]
                 ];
 
             return this.screen.model.execute('read', [[record.id],
@@ -990,10 +993,10 @@
                 ['copy', access.create],
                 ['import', access.create],
                 ].forEach(function(e) {
-                    var button = e[0];
+                    var name = e[0];
                     var access = e[1];
-                    if (this.buttons[button]) {
-                        this.buttons[button].toggleClass('disabled', !access);
+                    if (this.buttons[name]) {
+                        this.buttons[name].toggleClass('disabled', !access);
                     }
                     if (this.menu_buttons[name]) {
                         this.menu_buttons[name]
@@ -1027,7 +1030,7 @@
             }
             var record = this.screen.current_record;
             var menu = dropdown.find('.dropdown-menu');
-            menu.children().remove();
+            menu.empty();
             Sao.Window.Attachment.get_attachments(record)
                 .then(function(attachments) {
                     attachments.forEach(function(value) {
@@ -1037,7 +1040,7 @@
                             'role': 'menuitem',
                             'href': '#',
                             'tabindex': -1,
-                        }).append(name).appendTo(jQuery('<li/>', {
+                        }).text(name).appendTo(jQuery('<li/>', {
                             'role': 'presentation',
                         }).appendTo(menu));
                         if (typeof callback == 'string') {
@@ -1072,14 +1075,14 @@
                         'role': 'menuitem',
                         'href': '#',
                         'tabindex': -1,
-                    }).append(Sao.i18n.gettext('Add...'))));
+                    }).text(Sao.i18n.gettext('Add...'))));
                     menu.append(jQuery('<li/>', {
                         'role': 'presentation',
                     }).append(jQuery('<a/>', {
                         'role': 'menuitem',
                         'href': '#',
                         'tabindex': -1,
-                    }).append(Sao.i18n.gettext('Manage...'))
+                    }).text(Sao.i18n.gettext('Manage...'))
                         .click(function(evt) {
                             evt.preventDefault();
                             window_();
@@ -1277,11 +1280,7 @@
             this.modified_save().then(function() {
                 new Sao.Window.Export(
                     this.title.text(), this.screen,
-                    this.screen.current_view.selected_records.map(function(r) {
-                        return r.id;
-                    }),
-                    this.screen.current_view.get_fields(),
-                    this.screen.context);
+                    this.screen.current_view.get_fields());
             }.bind(this));
         },
         do_export: function(export_) {
@@ -1300,6 +1299,9 @@
                             'fields': fields,
                             'data': data,
                         };
+                        unparse_obj.data = data.map(function(row) {
+                            return Sao.Window.Export.format_row(row);
+                        });
                         var delimiter = ',';
                         var encoding = 'utf-8';
                         if (navigator.platform &&
@@ -1318,6 +1320,9 @@
             }.bind(this));
         },
         import: function(){
+            if (!Sao.common.MODELACCESS.get(this.screen.model_name).create) {
+                return;
+            }
             new Sao.Window.Import(this.title.text(), this.screen);
         },
         get_url: function() {
@@ -1350,12 +1355,13 @@
                         action = this.board.actions[i];
                         action.screen.tab = this;
                     }
+                    this.board.reload();
                 }.bind(this));
-                this.el.append(this.board.el);
+                this.content.append(this.board.el);
             }.bind(this));
             this.create_tabcontent();
             this.set_name(this.name);
-            this.title.html(this.name_el.text());
+            this.title.text(this.name_el.text());
         },
         compare: function(attributes) {
             if (!attributes) {
@@ -1395,7 +1401,7 @@
             this.set_name(wizard.name);
             wizard.tab = this;
             this.create_tabcontent();
-            this.title.html(this.name_el.text());
+            this.title.text(this.name_el.text());
             this.el.append(wizard.form);
         },
         create_toolbar: function() {

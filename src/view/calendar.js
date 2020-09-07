@@ -46,6 +46,7 @@
                 header: header,
                 timeFormat: 'H:mm',
                 events: this.view.get_events.bind(this.view),
+                contentHeight: 'auto',
                 locale: Sao.i18n.getlang().slice(0, 2),
                 isRTL: Sao.i18n.rtl,
                 themeSystem: 'bootstrap3',
@@ -65,6 +66,13 @@
                 eventClick: this.view.event_click.bind(this.view),
                 dayClick: this.view.day_click.bind(this.view),
             });
+
+            if (attributes.height !== undefined) {
+                this.view.el.css('min-height', attributes.height + 'px');
+            }
+            if (attributes.width !== undefined) {
+                this.view.el.css('min-width', attributes.width + 'px');
+            }
         },
         _parse_field: function(node, attributes) {
             this.view.fields.push(attributes.name);
@@ -111,11 +119,23 @@
         insert_event: function(record) {
             var title = this.screen.model.fields[this.fields[0]].get_client(
                 record);
-            var date_start = record.field_get_client(this.attributes.dtstart);
+            var field_start = record.model.fields[this.attributes.dtstart];
+            var date_start = field_start.get_client(record);
+            field_start.set_state(record);
             var date_end = null;
+            var field_end;
             if (this.attributes.dtend) {
-                date_end = record.field_get_client(this.attributes.dtend);
+                field_end = record.model.fields[this.attributes.dtend];
+                date_end = field_end.get_client(record);
+                field_end.set_state(record);
             }
+
+            var model_access = Sao.common.MODELACCESS.get(
+                this.screen.model_name);
+            var editable = (
+                parseInt(this.attributes.editable || 1, 10) &&
+                model_access.write);
+
             var description = [];
             for (var i = 1; i < this.fields.length; i++) {
                 description.push(
@@ -136,13 +156,17 @@
                 if (date_end && date_start > date_end) {
                     return;
                 }
+                var event_editable = (
+                    editable &&
+                    !field_start.get_state_attrs(record).readonly &&
+                    (!date_end || !field_end.get_state_attrs(record).readonly));
                 var colors = this.get_colors(record);
                 var values = {
                     title: title,
                     start: date_start,
                     end: date_end,
                     allDay: allDay,
-                    editable: true,
+                    editable: event_editable,
                     color: colors.background_color,
                     textColor: colors.text_color,
                     record: record,
@@ -255,18 +279,22 @@
                    this.screen.view_name == 'calendar') {
                 element.find('.fc-time').remove();
             }
-            element.append(event.description);
-            element.css('white-space', 'pre');
-            var model_access = Sao.common.MODELACCESS.get(
-            	this.screen.model_name);
-            if (!model_access.write) {
-                event.editable = false;
-            }
+            element.find('.fc-content')
+                .append(jQuery('<div/>', {'class': 'fc-description'})
+                    .text(event.description));
+            element.css('white-space', 'pre')
+                .css('overflow', 'hidden')
+                .css('text-overflow', 'ellipsis')
+                .attr('title', [event.title, event.description]
+                    .filter(function(e) {
+                        return e;
+                    }).join('\n'));
         },
         day_click: function(date, jsEvent, view){
             var model_access = Sao.common.MODELACCESS.get(
                 this.screen.model_name);
-            if (model_access.create) {
+            if (parseInt(this.attributes.editable || 1, 10) &&
+                model_access.create) {
                 // Set the calendar date to the clicked date
                 this.el.fullCalendar('gotoDate', date);
                 this.screen.current_record = null;
@@ -305,9 +333,8 @@
                 selected_date = Sao.Date(selected_date);
             }
             field.set(record, selected_date);
-            return record.on_change([dtstart]).then(function() {
-                return record.on_change_with([dtstart]);
-            });
+            record.on_change([dtstart]);
+            record.on_change_with([dtstart]);
         },
         get_selected_date: function(){
             return this.el.fullCalendar('getDate');

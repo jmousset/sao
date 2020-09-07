@@ -29,7 +29,12 @@
                 return jQuery.when(name);
             }
             var max_records = 5;
-            var ids = data.ids.slice(0, max_records);
+            var ids = data.ids.filter(function(id){
+                return id >= 0;
+            }).slice(0, max_records);
+            if (!ids.length) {
+                return jQuery.when(name);
+            }
             return Sao.rpc({
                 'method': 'model.' + data.model + '.read',
                 'params': [ids, ['rec_name'], context]
@@ -38,7 +43,7 @@
                     return record.rec_name;
                 }).join(Sao.i18n.gettext(', '));
 
-                if (data.ids.length > max_records) {
+                if (data.ids.length > ids.length) {
                     name_suffix += Sao.i18n.gettext(',\u2026');
                 }
                 return Sao.i18n.gettext('%1 (%2)', name, name_suffix);
@@ -209,33 +214,24 @@
         });
     };
 
-    Sao.Action.execute = function(id, data, type, context, keyword) {
-        if (!type) {
-            Sao.rpc({
-                'method': 'model.ir.action.read',
-                'params': [[id], ['type'], context]
-            }, Sao.Session.current_session).done(function(result) {
-                Sao.Action.execute(id, data, result[0].type, context, keyword);
-            });
-        } else {
-            Sao.rpc({
-                'method': 'model.' + type + '.search_read',
-                'params': [[['action', '=', id]], 0, 1, null, null, context]
-            }, Sao.Session.current_session).done(function(result) {
-                var action = result[0];
-                if (keyword) {
-                    var keywords = {
-                        'ir.action.report': 'form_report',
-                        'ir.action.wizard': 'form_action',
-                        'ir.action.act_window': 'form_relate'
-                    };
-                    if (!action.keyword) {
-                        action.keyword = keywords[type];
-                    }
-                }
-                Sao.Action.exec_action(action, data, context);
-            });
+    Sao.Action.execute = function(action, data, context, keyword) {
+        if (typeof action == 'number') {
+            action = Sao.rpc({
+                'method': 'model.ir.action.get_action_value',
+                'params': [action, context],
+            }, Sao.Session.current_session, false);
         }
+        if (keyword) {
+            var keywords = {
+                'ir.action.report': 'form_report',
+                'ir.action.wizard': 'form_action',
+                'ir.action.act_window': 'form_relate'
+            };
+            if (!action.keyword) {
+                action.keyword = keywords[action.type];
+            }
+        }
+        Sao.Action.exec_action(action, data, context);
     };
 
     Sao.Action.evaluate = function(action, atype, record) {

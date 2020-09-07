@@ -33,7 +33,7 @@
         var ajax_success = function(data, status_, query) {
             if (data === null) {
                 Sao.common.warning.run('',
-                        Sao.i18n.gettext('Unable to reach the server'));
+                        Sao.i18n.gettext('Unable to reach the server.'));
                 dfd.reject();
             } else if (data.error) {
                 var name, msg, description;
@@ -63,13 +63,23 @@
                 } else if (data.error[0] == 'UserError') {
                     msg = data.error[1][0];
                     description = data.error[1][1];
+                    var domain = data.error[1][2];
+                    if (!jQuery.isEmptyObject(domain)) {
+                        var fields = domain[1];
+                        domain = domain[0];
+                        var domain_parser = new Sao.common.DomainParser(fields);
+                        if (domain_parser.stringable(domain)) {
+                            description += '\n' + domain_parser.string(domain);
+                        }
+                    }
                     Sao.common.warning.run(description, msg)
                         .always(dfd.reject);
                     return;
                 } else if (data.error[0] == 'ConcurrencyException') {
                     if (args.method.startsWith('model.') &&
-                            (args.method.endsWith('.write') ||
-                             args.method.endsWith('.delete'))) {
+                        (args.method.endsWith('.write') ||
+                            args.method.endsWith('.delete')) &&
+                        (args.params[0].length == 1)) {
                         var model = args.method.split('.').slice(1, -1).join('.');
                         Sao.common.concurrency.run(model, args.params[0][0],
                                 args.params.slice(-1)[0])
@@ -121,6 +131,10 @@
                     Sao.rpc(args, session).then(dfd.resolve, dfd.reject);
                 }, dfd.reject);
                 return;
+            } else if (query.status == 429) {
+                Sao.common.message.run(
+                    Sao.i18n.gettext('Too many requests. Try again later.'),
+                    'tryton-error').always(dfd.reject);
             } else {
                 Sao.common.error.run(status_, error);
                 dfd.reject();

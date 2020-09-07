@@ -48,10 +48,18 @@
         var date = Sao.Date(2002, 0, 1);
         var datetime = Sao.DateTime(2002, 0, 1, 12, 30, 0, 0);
         var pyson_date = new Sao.PYSON.Date(2002, 1, 1).pyson();
+        pyson_date.start = null;
         var pyson_datetime = new Sao.PYSON.DateTime(
             2002, 1, 1, 12, 30, 0, 0).pyson();
+        pyson_datetime.start = null;
         var array = ["create_date", '>=', date];
         var pyson_array = ["create_date", '>=', pyson_date];
+        var statement = new Sao.PYSON.Equal(date, date);
+        var pyson_statement = {
+            '__class__': 'Equal',
+            's1': pyson_date,
+            's2': pyson_date,
+        };
         QUnit.strictEqual(encoder.encode(), 'null', "encode()");
         QUnit.strictEqual(encoder.encode(none), 'null', "encode(none)");
         QUnit.strictEqual(encoder.encode(null), 'null', "encode()");
@@ -61,6 +69,8 @@
             JSON.stringify(pyson_datetime), "encode(datetime)");
         QUnit.strictEqual(encoder.encode(array),
             JSON.stringify(pyson_array), "encode(array)");
+        QUnit.strictEqual(encoder.encode(statement),
+            JSON.stringify(pyson_statement), "encode(statement)");
     });
 
     QUnit.test('PYSON.Eval', function() {
@@ -401,6 +411,9 @@
         QUnit.throws(function() {
             new Sao.PYSON.Greater(1, 'test');
         }, 'statement must be an integer or a float');
+        QUnit.throws(function() {
+            new Sao.PYSON.Greater(new Sao.PYSON.Eval('foo'), 0);
+        }, 'statement must be an integer of float');
 
         QUnit.ok(Sao.common.compare(new Sao.PYSON.Greater(1, 0).types(),
                 ['boolean']), 'Greater(1, 0).types()');
@@ -442,6 +455,11 @@
                 'decode(Greater(1, null))');
         QUnit.strictEqual(new Sao.PYSON.Greater(1, 0).toString(),
                 "Greater(1, 0, false)");
+
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.Greater(new Sao.PYSON.Eval('i', 0), 0));
+        QUnit.strictEqual(new Sao.PYSON.Decoder({i: 1}).decode(eval_), true,
+            "decode(Greater(Eval('i', 0)))");
     });
 
     QUnit.test('PYSON Less', function() {
@@ -707,7 +725,42 @@
 
         QUnit.strictEqual(
             new Sao.PYSON.Date(2010, 1, 12, -1, 12, -7).toString(),
-            'Date(2010, 1, 12, -1, 12, -7)');
+            'Date(2010, 1, 12, -1, 12, -7, null)');
+    });
+
+    QUnit.test('PYSON Date start', function() {
+        var eval_;
+
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.Date(
+                undefined, undefined, undefined,
+                undefined, undefined, undefined,
+                new Sao.PYSON.Eval('date')));
+        var date = Sao.Date(2000, 1, 1);
+
+        QUnit.strictEqual(new Sao.PYSON.Decoder(
+            {'date': date}).decode(eval_).valueOf(), date.valueOf());
+
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.Date(
+                undefined, undefined, undefined,
+                undefined, undefined, undefined,
+                new Sao.PYSON.Eval('datetime')));
+        var datetime = Sao.DateTime(2000, 1, 1, 12, 0);
+
+        QUnit.strictEqual(new Sao.PYSON.Decoder(
+            {'datetime': datetime}).decode(eval_).valueOf(),
+            Sao.Date(2000, 1, 1).valueOf());
+
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.Date(
+                undefined, undefined, undefined,
+                undefined, undefined, undefined,
+                new Sao.PYSON.Eval('foo')));
+
+        QUnit.strictEqual(new Sao.PYSON.Decoder(
+            {'foo': 'bar'}).decode(eval_).valueOf(),
+            Sao.Date().valueOf());
     });
 
     QUnit.test('PYSON DateTime', function() {
@@ -874,7 +927,48 @@
 
         QUnit.strictEqual(new Sao.PYSON.DateTime(2010, 1, 12, 10, 30, 20, 0,
                 -1, 12, -7, 2, 15, 30, 1).toString(),
-            'DateTime(2010, 1, 12, 10, 30, 20, 0, -1, 12, -7, 2, 15, 30, 1)');
+            'DateTime(2010, 1, 12, 10, 30, 20, 0, -1, 12, -7, 2, 15, 30, 1, null)');
+    });
+
+    QUnit.test('PYSON DateTime start', function() {
+        var eval_;
+
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.DateTime(
+                undefined, undefined, undefined,
+                undefined, undefined, undefined, undefined,
+                undefined, undefined, undefined,
+                undefined, undefined, undefined, undefined,
+                new Sao.PYSON.Eval('datetime')));
+        var datetime = Sao.DateTime(2000, 1, 1, 12, 0);
+
+        QUnit.strictEqual(new Sao.PYSON.Decoder(
+            {'datetime': datetime}).decode(eval_).valueOf(),
+            datetime.valueOf());
+
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.DateTime(
+                undefined, undefined, undefined,
+                undefined, undefined, undefined, undefined,
+                undefined, undefined, undefined,
+                undefined, undefined, undefined, undefined,
+                new Sao.PYSON.Eval('date')));
+        var date = Sao.DateTime(2000, 1, 1);
+
+        QUnit.strictEqual(new Sao.PYSON.Decoder(
+            {'date': date}).decode(eval_).valueOf(),
+            Sao.DateTime(2000, 1, 1, 0, 0).valueOf());
+
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.DateTime(
+                undefined, undefined, undefined,
+                undefined, undefined, undefined, undefined,
+                undefined, undefined, undefined,
+                undefined, undefined, undefined, undefined,
+                new Sao.PYSON.Eval('foo')));
+
+        QUnit.ok(new Sao.PYSON.Decoder(
+            {'foo': 'bar'}).decode(eval_).isDateTime);
     });
 
     QUnit.test('PYSON TimeDelta', function() {
@@ -989,6 +1083,38 @@
             '{"test": ["foo", "bar"], "pyson": Eval("test", "")}');
     });
 
+    QUnit.test('PYSON.Eval dot notation', function() {
+        var eval_;
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.Eval('foo.bar', 0));
+        [[{'foo': {'bar': 1}}, 1],
+            [{'foo': {'foo': 1}}, 0],
+            [{'bar': {'bar': 1}}, 0],
+        ].forEach(function(params){
+            var ctx = params[0];
+            var result = params[1];
+            QUnit.strictEqual(
+                new Sao.PYSON.Decoder(ctx).decode(eval_), result,
+                "decode(" + JSON.stringify(ctx) + ")");
+        });
+    });
+
+    QUnit.test('PYSON.Eval dot notation nested', function() {
+        var eval_;
+        eval_ = new Sao.PYSON.Encoder().encode(
+            new Sao.PYSON.Eval('foo.bar.test', 0));
+        [[{'foo': {'bar': {'test': 1}}}, 1],
+            [{'foo': {'foo': 1}}, 0],
+            [{'bar': {'bar': 1}}, 0],
+        ].forEach(function(params){
+            var ctx = params[0];
+            var result = params[1];
+            QUnit.strictEqual(
+                new Sao.PYSON.Decoder(ctx).decode(eval_), result,
+                "decode(" + JSON.stringify(ctx) + ")");
+        });
+    });
+
     QUnit.test('DomainParser.group_operator', function() {
         var parser = new Sao.common.DomainParser();
         QUnit.ok(Sao.common.compare(parser.group_operator(['a', '>', '=']),
@@ -1049,6 +1175,30 @@
                 'timedelta.format(' + JSON.stringify(timedelta) + ')');
         });
     });
+    var time_only_converter_values = [
+        [null, ''],
+        [Sao.TimeDelta(5, 0, 0, 30, 5), '125:30'],
+        [Sao.TimeDelta(0, 10, 0, 5, 2), '02:05:10'],
+        [Sao.TimeDelta(0, 0, 42, 15), '00:15:00.042000'],
+        [Sao.TimeDelta(1, 0, 42), '24:00:00.042000'],
+        [Sao.TimeDelta(0, -1), '-00:00:01'],
+        [Sao.TimeDelta(-1, 0, 0, -30, -5), '-29:30']
+        ];
+
+    var converter_time_only =  {};
+    converter_time_only.s = Sao.common.timedelta.DEFAULT_CONVERTER.s;
+    converter_time_only.m = Sao.common.timedelta.DEFAULT_CONVERTER.m;
+    converter_time_only.h = Sao.common.timedelta.DEFAULT_CONVERTER.h;
+
+    QUnit.test('timedelta.format time only converter', function() {
+        time_only_converter_values.forEach(function(test) {
+            var timedelta = test[0];
+            var text = test[1];
+            QUnit.equal(Sao.common.timedelta.format(
+                timedelta, converter_time_only), text,
+                'timedelta.format(' + JSON.stringify(timedelta) + ')');
+        });
+    });
 
     var timedelta_tests_parse = [
         [Sao.TimeDelta(), '  '],
@@ -1079,6 +1229,23 @@
         });
     });
 
+    QUnit.test('timedelta.parse time only converter', function() {
+        function asSeconds(timedelta) {
+            if (timedelta) {
+                return timedelta.asSeconds();
+            } else {
+                return timedelta;
+            }
+        }
+        time_only_converter_values.forEach(function(test) {
+            var timedelta = test[0];
+            var text = test[1];
+            QUnit.equal(asSeconds(Sao.common.timedelta.parse(text)),
+                asSeconds(timedelta),
+                'timedelta.parse(' + JSON.stringify(timedelta) + ')');
+        });
+    });
+
     QUnit.test('DomainParser.group', function() {
         var parser = new Sao.common.DomainParser({
             'name': {
@@ -1089,7 +1256,16 @@
             },
             'surname': {
                 'string': '(Sur)Name'
-            }
+            },
+            'relation': {
+                'string': "Relation",
+                'relation': 'relation',
+                'relation_fields': {
+                    'name': {
+                        'string': "Name",
+                    },
+                },
+            },
         });
         var udlex = function(input) {
             var lex = new Sao.common.udlex(input);
@@ -1169,7 +1345,10 @@
             ]],
         ['Name: "" <', [
             c(['Name', '', '<'])
-            ]]
+            ]],
+        ['Relation.Name: Test', [
+            c(['Relation.Name', null, 'Test']),
+        ]],
         ].forEach(function(test) {
             var value = test[0];
             var result = test[1];
@@ -1308,7 +1487,7 @@
         ['False', false],
         ['no', false],
         ['0', false],
-        [null, false]
+        [null, null],
         ].forEach(test_func, field);
 
         field = {
@@ -1456,6 +1635,15 @@
                     ['female', 'Female']
                 ]
             },
+            'multiselection': {
+                'string': "MultiSelection",
+                'type': 'multiselection',
+                'selection': [
+                    ['foo', "Foo"],
+                    ['bar', "Bar"],
+                    ['baz', "Baz"],
+                ],
+            },
             'reference': {
                 'string': 'Reference',
                 'name': 'reference',
@@ -1469,6 +1657,18 @@
                 'string': "Many2One",
                 'name': 'many2one',
                 'type': 'many2one',
+            },
+            'relation': {
+                'string': "Relation",
+                'relation': 'relation',
+                'name': 'relation',
+                'relation_fields': {
+                    'name': {
+                        'string': "Name",
+                        'name': 'name',
+                        'type': 'char',
+                    },
+                },
             },
         });
         var c = function(value) {
@@ -1491,6 +1691,24 @@
         [[c(['Selection', null, ''])], [c(['selection', '=', ''])]],
         [[c(['Selection', null, ['Male', 'Female']])],
             [c(['selection', 'in', ['male', 'female']])]],
+        [[c(['MultiSelection', null, null])],
+            [c(['multiselection', '=', null])]],
+        [[c(['MultiSelection', null, ''])],
+            [c(['multiselection', 'in', ['']])]],
+        [[c(['MultiSelection', '=', ''])],
+            [c(['multiselection', '=', ['']])]],
+        [[c(['MultiSelection', '!', ''])],
+            [c(['multiselection', 'not in', ['']])]],
+        [[c(['MultiSelection', '!=', ''])],
+            [c(['multiselection', '!=', ['']])]],
+        [[c(['MultiSelection', null, ['Foo', 'Bar']])],
+            [c(['multiselection', 'in', ['foo', 'bar']])]],
+        [[c(['MultiSelection', '=', ['Foo', 'Bar']])],
+            [c(['multiselection', '=', ['foo', 'bar']])]],
+        [[c(['MultiSelection', '!', ['Foo', 'Bar']])],
+            [c(['multiselection', 'not in', ['foo', 'bar']])]],
+        [[c(['MultiSelection', '!=', ['Foo', 'Bar']])],
+            [c(['multiselection', '!=', ['foo', 'bar']])]],
         [[c(['Integer', null, null])], [c(['integer', '=', null])]],
         [[c(['Integer', null, '3..5'])], [[
             c(['integer', '>=', 3]),
@@ -1514,6 +1732,10 @@
         [[c(['Many2One', null, ['John', 'Jane']])],
             [['many2one.rec_name', 'in', ['John', 'Jane']]]],
         [[[c(['John'])]], [[['rec_name', 'ilike', '%John%']]]],
+        [[c(['Relation.Name', null, "Test"])],
+            [['relation.name', 'ilike', "%Test%"]]],
+        [[c(['OR'])], [['rec_name', 'ilike', "%OR%"]]],
+        [[c(['AND'])], [['rec_name', 'ilike', "%AND%"]]],
         ].forEach(function(test) {
             var value = test[0];
             var result = test[1];
@@ -1539,7 +1761,7 @@
         [
         [true, 'True'],
         [false, 'False'],
-        [null, 'False']
+        [null, '']
         ].forEach(test_func, field);
 
         field = {
@@ -1656,9 +1878,24 @@
                 'string': 'Name',
                 'type': 'char',
             },
+            'multiselection': {
+                'string': "MultiSelection",
+                'type': 'multiselection',
+                'selection': [
+                    ['foo', "Foo"],
+                    ['bar', "Bar"],
+                    ['baz', "Baz"],
+                ],
+            },
             'relation': {
                 'string': 'Relation',
                 'type': 'many2one',
+                'relation_fields': {
+                    'name': {
+                        'string': "Name",
+                        'type': 'char',
+                    },
+                },
             },
             'relations': {
                 'string': 'Relations',
@@ -1673,6 +1910,10 @@
         QUnit.ok(!parser.stringable(['AND', valid, invalid]));
         QUnit.ok(parser.stringable([[valid]]));
         QUnit.ok(!parser.stringable([[valid], [invalid]]));
+        QUnit.ok(parser.stringable([['multiselection', '=', null]]));
+        QUnit.ok(parser.stringable([['multiselection', '=', '']]));
+        QUnit.ok(!parser.stringable([['multiselection', '=', 'foo']]));
+        QUnit.ok(parser.stringable([['multiselection', '=', ['foo']]]));
         QUnit.ok(parser.stringable([['relation', '=', null]]));
         QUnit.ok(parser.stringable([['relation', '=', 'Foo']]));
         QUnit.ok(parser.stringable([['relation.rec_name', '=', 'Foo']]));
@@ -1680,6 +1921,7 @@
         QUnit.ok(parser.stringable([['relations', '=', 'Foo']]));
         QUnit.ok(parser.stringable([['relations', 'in', ['Foo']]]));
         QUnit.ok(!parser.stringable([['relations', 'in', [42]]]));
+        QUnit.ok(parser.stringable([['relation.name', '=', "Foo"]]));
     });
 
     QUnit.test('DomainParser.string', function() {
@@ -1704,6 +1946,15 @@
                     ['femal', 'Femal']
                 ]
             },
+            'multiselection': {
+                'string': "MultiSelection",
+                'type': 'multiselection',
+                'selection': [
+                    ['foo', "Foo"],
+                    ['bar', "Bar"],
+                    ['baz', "Baz"],
+                ],
+            },
             'reference': {
                 'string': 'Reference',
                 'type': 'reference',
@@ -1716,6 +1967,12 @@
                 'string': "Many2One",
                 'name': 'many2one',
                 'type': 'many2one',
+                'relation_fields': {
+                    'name': {
+                        'string': "Name",
+                        'type': 'char',
+                    },
+                },
             },
         });
 
@@ -1759,11 +2016,23 @@
         [[['selection', '!=', '']], 'Selection: !""'],
         [[['selection', '=', 'male']], 'Selection: Male'],
         [[['selection', '!=', 'male']], 'Selection: !Male'],
+        [[['multiselection', '=', null]], "MultiSelection: ="],
+        [[['multiselection', '=', '']], "MultiSelection: ="],
+        [[['multiselection', '!=', '']], "MultiSelection: !="],
+        [[['multiselection', '=', ['foo']]], "MultiSelection: =Foo"],
+        [[['multiselection', '!=', ['foo']]], "MultiSelection: !=Foo"],
+        [[['multiselection', '=', ['foo', 'bar']]], "MultiSelection: =Foo;Bar"],
+        [[['multiselection', '!=', ['foo', 'bar']]], "MultiSelection: !=Foo;Bar"],
+        [[['multiselection', 'in', ['foo']]], "MultiSelection: Foo"],
+        [[['multiselection', 'not in', ['foo']]], "MultiSelection: !Foo"],
+        [[['multiselection', 'in', ['foo', 'bar']]], "MultiSelection: Foo;Bar"],
+        [[['multiselection', 'not in', ['foo', 'bar']]], "MultiSelection: !Foo;Bar"],
         [[['reference', 'ilike', '%foo%']], 'Reference: foo'],
         [[['reference', 'ilike', '%bar%', 'spam']], 'Reference: Spam,bar'],
         [[['reference', 'in', ['foo', 'bar']]], 'Reference: foo;bar'],
         [[['many2one', 'ilike', '%John%']], 'Many2One: John'],
         [[['many2one.rec_name', 'in', ['John', 'Jane']]], 'Many2One: John;Jane'],
+        [[['many2one.name', 'ilike', '%Foo%']], 'Many2One.Name: Foo'],
         ].forEach(function(test) {
             var value = test[0];
             var result = test[1];
@@ -1783,6 +2052,15 @@
                     'complete_value(' + JSON.stringify(this) +
                         ', ' + JSON.stringify(value) + ')');
         };
+
+        field = {
+            'type': 'boolean',
+        };
+        [
+            [null, [true, false]],
+            [true, [false]],
+            [false, [true]],
+        ].forEach(test_func, field);
 
         field = {
             'type': 'selection',
@@ -2488,6 +2766,57 @@
             QUnit.ok(compare(parser.completion(value), expected),
                 'completion(' + value + ')');
         });
+
+        parser = new Sao.common.DomainParser({
+            'relation': {
+                'name': 'relation',
+                'string': "Relation",
+                'type': 'many2one',
+                'relation_fields': {
+                    'name': {
+                        'name': 'name',
+                        'string': "Name",
+                        'type': 'char',
+                    },
+                },
+            },
+        });
+        QUnit.ok(compare(parser.completion('Relatio'),
+            ["Relation: ", "Relation.Name: "]));
+
+        parser = new Sao.common.DomainParser({
+            'name': {
+                'string': "Active",
+                'name': 'active',
+                'type': 'boolean',
+            },
+        });
+        QUnit.ok(compare(parser.completion("Act"), ["Active: "]));
+        QUnit.ok(compare(parser.completion("Active:"),
+            ["Active: ", "Active: True", "Active: False"]));
+        QUnit.ok(compare(parser.completion("Active: t"),
+            ["Active: True", "Active: False"]));
+        QUnit.ok(compare(parser.completion("Active: f"),
+            ["Active: False", "Active: True"]));
+    });
+
+    QUnit.test('HTML Sanitization', function() {
+        var examples = [
+            ["Test", "Test"],
+            ["<b>Test</b>", "<b>Test</b>"],
+            ["<div><b>Test</b></div>", "<div><b>Test</b></div>"],
+            ["<script>window.alert('insecure')</script>", ""],
+            ["<b><script>window.alert('insecure')</script>Test</b>",
+                "<b>Test</b>"],
+            ['<div align="left">Test</div>', '<div align="left">Test</div>'],
+            ['<font href="test" size="1">Test</font>',
+                '<font size="1">Test</font>'],
+        ];
+        for (var i = 0; i < examples.length; i++) {
+            var input = examples[i][0], output = examples[i][1];
+            QUnit.strictEqual(Sao.HtmlSanitizer.sanitize(input), output,
+                'Sao.HtmlSanitizer.sanitize(' + input + ')');
+        }
     });
 
         /*

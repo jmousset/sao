@@ -3,7 +3,6 @@
 @import "src/coopengo.less";
 
 #tablist > li > a {
-    border: 0;
     > span {
         max-width: 9em;
         overflow: hidden;
@@ -20,13 +19,19 @@
 }
 
 #menu, #tabs {
-    padding-top: 5px;
+    margin-top: 5px;
 }
 
 #menu {
-    border-width: 1px;
+    background-color: @navbar-default-bg;
+    border-color: @panel-default-border;
     border-style: solid;
-    border-top: none;
+    border-radius: 0 @panel-border-radius @panel-border-radius 0;
+    border-width: 1px;
+    margin-top: 5px;
+    .treeview {
+        height: auto;
+    }
 }
 [dir="rtl"] #menu {
     border-right: none;
@@ -65,8 +70,12 @@
     white-space: nowrap;
 }
 
-.table-row-variant(selected, @state-info-bg);
-.list-group-item-variant(selected, @state-info-bg, @state-info-text);
+.list-group-item-variant(selected; @state-info-bg; @state-info-text);
+.table-row-variant(selected; @state-info-bg);
+/* Duplicate bootstrap variant to have precedence over selected */
+.table-row-variant(success; @state-success-bg);
+.table-row-variant(warning; @state-warning-bg);
+.table-row-variant(danger; @state-danger-bg);
 
 .tab-form, .tab-board {
     nav.toolbar {
@@ -105,17 +114,27 @@
     }
 }
 
-@media screen and (max-width: @screen-xs-max) {
+@media screen and (max-height: 750px) {
     .tab-form, .tab-board {
-        .navbar-header > ul > li {
-            float: left;
-            width: 50%;
+        .navbar-header > ul {
+            min-width: 320px;
+            > li {
+                float: left;
+                width: 50%;
+            }
         }
     }
 }
 
 .modal-body {
     overflow-x: auto;
+    max-height: calc(100vh - 200px);
+}
+
+@media screen and (max-height: 500px) {
+    .modal-body {
+        max-height: 300px;
+    }
 }
 
 .modal-lg {
@@ -164,6 +183,12 @@ input[type='color'] {
         li& {
             top: auto;
             height: auto;
+
+            &:hover + a, &:focus + a {
+                background-color: @dropdown-link-hover-bg;
+                color: @dropdown-link-hover-color;
+                text-decoration: none;
+            }
         }
     }
 }
@@ -182,7 +207,7 @@ img.icon {
 }
 
 .filter-box {
-    margin: 5px 5px;
+    margin: 5px 0;
 }
 
 @media screen and (max-width: @screen-sm-max) {
@@ -191,6 +216,10 @@ img.icon {
             display: none;
         }
     }
+}
+
+.content-box {
+    overflow-y: auto;
 }
 
 .list-form {
@@ -203,15 +232,22 @@ img.icon {
     -moz-user-select: none;
     -webkit-user-select: none;
     overflow-x: auto;
+    height: calc(100vh - 300px);
 
     > table.tree {
         width: 100%;
         table-layout: fixed;
 
-        col.selection-state, col.favorite {
+        col.selection-state, col.favorite, col.draggable-handle {
             width: 30px;
         }
 
+        td.draggable-handle {
+            cursor: grab;
+            > img {
+                .center-block();
+            }
+        }
         th.selection-state, td.selection-state {
             > input {
                 .center-block();
@@ -234,27 +270,21 @@ img.icon {
                 text-align: end;
             }
         }
+        > thead > tr:first-child th {
+            background-color: @body-bg;
+            position: sticky;
+            top: 0;
+        }
         > tbody > tr > td {
             cursor: pointer;
             > * {
                 vertical-align: middle;
             }
         }
+        > tbody > tr.dragged-row {
+            background-color: @state-info-bg;
+        }
 
-        td.prefix {
-            padding-right: @table-cell-padding;
-            [dir="rtl"] & {
-                padding-right: 0;
-                padding-left: @table-cell-padding;
-            }
-        }
-        td.suffix {
-            padding-left: @table-cell-padding;
-            [dir="rtl"] & {
-                padding-left: 0;
-                padding-right: @table-cell-padding;
-            }
-        }
         img.column-affix, a.column-affix > img {
             width: unit(@line-height-base, em);
             height: unit(@line-height-base, em);
@@ -308,6 +338,39 @@ img.icon {
             white-space: pre;
         }
     }
+    .cell {
+        display: flex;
+        justify-content: space-between;
+
+        .widget, .widget-editable {
+            min-width: 0;
+            flex-grow: 2;
+
+            > * {
+                width: 100%;
+            }
+        }
+        .widget {
+            > * {
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
+       .prefix {
+            padding-right: @table-cell-padding;
+            [dir="rtl"] & {
+                padding-right: 0;
+                padding-left: @table-cell-padding;
+            }
+        }
+        .suffix {
+            padding-left: @table-cell-padding;
+            [dir="rtl"] & {
+                padding-left: 0;
+                padding-right: @table-cell-padding;
+            }
+        }
+    }
     .expander {
         cursor: pointer;
         > img {
@@ -333,13 +396,14 @@ img.icon {
     .btn {
         padding-top: 0;
         padding-bottom: 0;
-        margin-top: -@table-condensed-cell-padding;
-        margin-bottom: -@table-condensed-cell-padding;
     }
 }
 
 .form {
     width: 100%;
+    .form-container, .form-hcontainer, .form-vcontainer {
+        display: inline-table;
+    }
     table.form-container > tbody > tr > td {
         padding: 1px;
     }
@@ -386,11 +450,6 @@ img.icon {
         }
     }
 
-    .form-integer, .form-float {
-        input {
-            max-width: 8em;
-        }
-    }
     .form-url, .form-email, .form-callto, .form-sip {
         a > img {
             width: 1em;
@@ -434,8 +493,14 @@ img.icon {
     }
     .form-one2many-content, .form-many2many-content {
         .treeview, .list-form {
-            min-height: 100px;
+            height: auto;
+            min-height: 150px;
             max-height: 300px;
+        }
+    }
+    .form-text, .form-richtext {
+        > textarea {
+            min-height: inherit;
         }
     }
     .form-richtext {
@@ -477,14 +542,22 @@ img.icon {
     .panel-heading {
         padding: 1px 1px;
     }
-    fieldset.form-group_ > legend {
-        font-size: @font-size-base;
-        margin-bottom: 5px;
+    fieldset.form-group_ {
+        overflow: auto;
+        > legend {
+            font-size: @font-size-base;
+            margin-bottom: 5px;
+        }
     }
 }
 
 .form-binary, .editabletree-binary {
     min-width: calc(5 * 2.4em);
+
+    input:last-of-type {
+        text-align: right;
+        text-align: end;
+    }
 }
 
 .form-integer, .form-float, .form-timedelta,
@@ -495,7 +568,7 @@ img.icon {
         text-align: end;
     }
 }
-.column-integer, .column-float, .column-timedelta {
+.column-integer, .column-float, .column-timedelta, .column-binary {
     text-align: right;
     text-align: end;
 }
@@ -548,13 +621,24 @@ input.column-boolean {
 }
 
 @media screen and (max-width: @screen-xs-max) {
+    .treeview {
+        height: calc(100vh - 370px);
+    }
     .dict-label {
         text-align: left;
         text-align: start;
     }
+    .form-link {
+        display: none;
+    }
 }
 
 @media screen and (max-width: @screen-xs-max) {
+    .responsive.scrollbar {
+        > div {
+            min-width: unset !important;
+        }
+    }
     table.responsive,
     table.responsive > thead,
     table.responsive > thead > tr,
@@ -567,7 +651,13 @@ input.column-boolean {
     table.responsive > tfoot > tr > td:not(.invisible) {
         display: block !important;
     }
+    table.responsive > thead > tr > th.invisible,
+    table.responsive > tbody > tr > td.invisible,
+    table.responsive > tfoot > tr > td.invisible {
+        display: none;
+    }
     table.responsive {
+        min-width: unset !important;
         /* Hide table headers (but not display: none; for accessiblity) */
         > thead > tr {
             position: absolute;
@@ -576,12 +666,22 @@ input.column-boolean {
         }
         > thead > tr,
         > tbody > tr > td {
+            max-width: unset !important;
             text-align: left !important;
             text-align: start !important;
             /* Force height to empty content */
             & > span:empty {
                 min-height: calc(@line-height-computed + @table-condensed-cell-padding);
                 display: block;
+            }
+        }
+
+        .more-row,
+        .cell {
+            .btn {
+                display: block;
+                width: 100%;
+                font-size: @font-size-base;
             }
         }
 
@@ -610,7 +710,7 @@ input.column-boolean {
         }
         > tbody > tr,
         > tfoot > tr {
-            > td:before {
+            > td[data-title]:before {
                 /* Now like a table header */
                 position: absolute;
                 /* Top/left values mimic padding */
@@ -645,6 +745,14 @@ input.column-boolean {
     top: 0px;
     width: 100%;
     z-index: 2000;
+}
+
+.scrollbar {
+    overflow: auto;
+
+    > div {
+        height: 1rem;
+    }
 }
 
 .infobar {

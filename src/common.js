@@ -65,6 +65,17 @@
         return result;
     };
 
+    Sao.common.scrollIntoViewIfNeeded = function(element) {
+        element = element[0];
+        var rect = element.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight) {
+            element.scrollIntoView(false);
+        }
+        if (rect.top < 0) {
+            element.scrollIntoView();
+        }
+    };
+
     // Handle click and Return press event
     // If one, the handler is executed at most once for both events
     Sao.common.click_press = function(func, one) {
@@ -124,12 +135,12 @@
             jQuery('<div/>', {
                 'class': 'checkbox'
             }).append(jQuery('<label/>')
-                .append(jQuery('<input/>', {
+                .text(' ' + k)
+                .prepend(jQuery('<input/>', {
                     'type': 'radio',
                     'name': 'selection',
                     'value': i
-                }))
-                .append(' ' + k))
+                })))
             .appendTo(dialog.body);
         });
         dialog.body.find('input').first().prop('checked', true);
@@ -137,14 +148,14 @@
         jQuery('<button/>', {
             'class': 'btn btn-link',
             'type': 'button'
-        }).append(Sao.i18n.gettext('Cancel')).click(function() {
+        }).text(Sao.i18n.gettext('Cancel')).click(function() {
             dialog.modal.modal('hide');
             prm.fail();
         }).appendTo(dialog.footer);
         jQuery('<button/>', {
             'class': 'btn btn-primary',
             'type': 'button'
-        }).append(Sao.i18n.gettext('OK')).click(function() {
+        }).text(Sao.i18n.gettext('OK')).click(function() {
             var i = dialog.body.find('input:checked').attr('value');
             dialog.modal.modal('hide');
             prm.resolve(values[keys[i]]);
@@ -748,13 +759,15 @@
     };
 
     Sao.common.Button = Sao.class_(Object, {
-        init: function(attributes, el) {
+        init: function(attributes, el, size) {
             this.attributes = attributes;
             if (el) {
                 this.el = el;
             } else {
-                this.el = jQuery('<button/>');
-                this.el.append(attributes.string || '');
+                this.el = jQuery('<button/>', {
+                    title: attributes.string || '',
+                });
+                this.el.text(attributes.string || '');
                 if (this.attributes.rule) {
                     this.el.append(' ').append(jQuery('<span/>', {
                         'class': 'badge'
@@ -768,7 +781,7 @@
                 }).prependTo(this.el);
                 this.icon.hide();
             }
-            this.el.addClass('btn btn-default');
+            this.el.addClass('btn btn-default ' + (size || ''));
             this.el.attr('type', 'button');
             this.icon.attr('aria-hidden', true);
             this.set_icon(attributes.icon);
@@ -995,15 +1008,28 @@
         init: function(fields, context) {
             this.fields = {};
             this.strings = {};
-            this.update_fields(fields);
             this.context = context;
+            this.update_fields(fields);
         },
-        update_fields: function(fields) {
+        update_fields: function(fields, prefix, string_prefix) {
+            prefix = prefix || '';
+            string_prefix = string_prefix || '';
             for (var name in fields) {
                 var field = fields[name];
-                if (field.searchable || (field.searchable === undefined)) {
-                    this.fields[name] = field;
+                if ((field.searchable || (field.searchable === undefined)) &&
+                    (name !== 'rec_name')) {
+                    field = jQuery.extend({}, field);
+                    var fullname = prefix ? prefix + '.' + name : name;
+                    var string = string_prefix ?
+                        string_prefix + '.' + field.string : field.string;
+                    field.string = string;
+                    field.name = fullname;
+                    this.fields[fullname] = field;
                     this.strings[field.string.toLowerCase()] = field;
+                    var rfields = field.relation_fields;
+                    if (rfields) {
+                        this.update_fields(rfields, fullname, string);
+                    }
                 }
             }
         },
@@ -1072,6 +1098,10 @@
                         } else {
                             return test(value);
                         }
+                    } else if (field.type == 'multiselection') {
+                        return (!value ||
+                            jQuery.isEmptyObject(value) ||
+                            (value instanceof Array));
                     } else {
                         return true;
                     }
@@ -1363,7 +1393,13 @@
         },
         complete_value: function(field, value) {
             var complete_boolean = function() {
-                return value ? [true] : [false];
+                if ((value === null) || (value === undefined)) {
+                    return [true, false];
+                } else if (value) {
+                    return [false];
+                } else {
+                    return [true];
+                }
             };
 
             var complete_selection = function() {
@@ -1425,6 +1461,7 @@
             var completes = {
                 'boolean': complete_boolean,
                 'selection': complete_selection,
+                'multiselection': complete_selection,
                 'reference': complete_reference,
                 'datetime': complete_datetime,
                 'date': complete_date,
@@ -1676,12 +1713,17 @@
                         if (target) {
                             field_name += '.rec_name';
                         }
+                    } else if (field.type == 'multiselection') {
+                        if ((value !== null) && !(value instanceof Array)) {
+                            value = [value];
+                        }
                     }
 
                     if (!operator) {
                         operator = this.default_operator(field);
                     }
-                    if (value instanceof Array) {
+                    if ((value instanceof Array) &&
+                        (field.type != 'multiselection')) {
                         if (operator == '!') {
                             operator = 'not in';
                         } else {
@@ -1691,6 +1733,13 @@
                     if (operator == '!') {
                         operator = this.negate_operator(
                                 this.default_operator(field));
+                    }
+                    if ((value === null) && operator.endsWith('in')) {
+                        if (operator.startsWith('not')) {
+                            operator = '!=';
+                        } else {
+                            operator = '=';
+                        }
                     }
                     if (~['integer', 'float', 'numeric', 'datetime', 'date',
                             'time'].indexOf(field.type)) {
@@ -1764,6 +1813,8 @@
             if (~['char', 'text', 'many2one', 'many2many', 'one2many',
                     'reference'].indexOf(field.type)) {
                 return 'ilike';
+            } else if (field.type == 'multiselection') {
+                return 'in';
             } else {
                 return '=';
             }
@@ -1828,9 +1879,8 @@
                                     return test.toLowerCase().startsWith(
                                         value.toLowerCase());
                                 });
-                    } else {
-                        return Boolean(value);
                     }
+                    return null;
                 },
                 'float': function() {
                     var factor = Number(field.factor || 1);
@@ -1861,6 +1911,7 @@
                     }
                 },
                 'selection': convert_selection,
+                'multiselection': convert_selection,
                 'reference': convert_selection,
                 'datetime': function() {
                     var result = Sao.common.parse_datetime(
@@ -1949,10 +2000,12 @@
 
             var converts = {
                 'boolean': function() {
-                    if (value) {
+                    if (value === false) {
+                        return Sao.i18n.gettext('False');
+                    } else if (value) {
                         return Sao.i18n.gettext('True');
                     } else {
-                        return Sao.i18n.gettext('False');
+                        return '';
                     }
                 },
                 'integer': function() {
@@ -1966,6 +2019,7 @@
                 'float': format_float,
                 'numeric': format_float,
                 'selection': format_selection,
+                'multiselection': format_selection,
                 'reference': format_reference,
                 'datetime': function() {
                     if (!value) {
@@ -2770,7 +2824,7 @@
         },
         get_icon_url: function(icon_name) {
             if (!icon_name) {
-                return;
+                return jQuery.when('');
             }
             return this.register_icon(icon_name).then(function() {
                 if (icon_name in this.loaded_icons) {
@@ -2807,7 +2861,7 @@
             this.running = false;
         },
         build_dialog: function() {
-            var dialog = new Sao.Dialog('', this.class_);
+            var dialog = new Sao.Dialog('', this.class_, undefined, false);
             return dialog;
         },
         run: function() {
@@ -2828,6 +2882,12 @@
                 dialog.modal.find('input,select')
                     .filter(':visible').first().focus();
             });
+            dialog.modal.on('keydown', function(e) {
+                if (e.which == Sao.common.ESC_KEYCODE) {
+                    this.close(dialog);
+                    prm.reject();
+                }
+            }.bind(this));
             return prm;
         },
         close: function(dialog) {
@@ -2852,14 +2912,14 @@
                 'aria-hidden': true,
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
-            }).append(Sao.i18n.gettext('Message: '))
+            }).text(Sao.i18n.gettext('Message: '))
             ).append(jQuery('<span/>')
-                .append(message)
+                .text(message)
                 .css('white-space', 'pre-wrap')));
             jQuery('<button/>', {
                 'class': 'btn btn-primary',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('OK')).click(function() {
+            }).text(Sao.i18n.gettext('OK')).click(function() {
                 this.close(dialog);
                 prm.resolve('ok');
             }.bind(this)).appendTo(dialog.footer);
@@ -2884,20 +2944,20 @@
                 'aria-hidden': true,
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
-            }).append(Sao.i18n.gettext('Warning: '))
+            }).text(Sao.i18n.gettext('Warning: '))
             ).append(jQuery('<h4/>')
-                .append(title)
+                .text(title)
                 .css('white-space', 'pre-wrap'));
             if (message) {
                 content.append(jQuery('<span/>')
-                    .append(message)
+                    .text(message)
                     .css('white-space', 'pre-wrap'));
             }
             dialog.body.append(content);
             jQuery('<button/>', {
                 'class': 'btn btn-primary',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('OK')).click(function() {
+            }).text(Sao.i18n.gettext('OK')).click(function() {
                 this.close(dialog);
                 prm.resolve('ok');
             }.bind(this)).appendTo(dialog.footer);
@@ -2923,18 +2983,18 @@
             // );
             dialog.body.append(jQuery('<p/>')
                     .text(Sao.i18n.gettext('Do you want to proceed?')));
-            dialog.footer.children().remove();
+            dialog.footer.empty();
             jQuery('<button/>', {
                 'class': 'btn btn-link',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('No')).click(function() {
+            }).text(Sao.i18n.gettext('No')).click(function() {
                 this.close(dialog);
                 prm.reject();
             }.bind(this)).appendTo(dialog.footer);
             jQuery('<button/>', {
                 'class': 'btn btn-primary',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Yes')).click(function() {
+            }).text(Sao.i18n.gettext('Yes')).click(function() {
                 this.close(dialog);
                 if (always.prop('checked')) {
                     prm.resolve('always');
@@ -2959,9 +3019,9 @@
                 'aria-hidden': true,
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
-            }).append(Sao.i18n.gettext('Confirmation: '))
+            }).text(Sao.i18n.gettext('Confirmation: '))
             ).append(jQuery('<span/>')
-                .append(message)
+                .text(message)
                 .css('white-space', 'pre-wrap')));
             return dialog;
         }
@@ -2974,14 +3034,14 @@
             jQuery('<button/>', {
                 'class': 'btn btn-link',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Cancel')).click(function() {
+            }).text(Sao.i18n.gettext('Cancel')).click(function() {
                 this.close(dialog);
                 prm.reject();
             }.bind(this)).appendTo(dialog.footer);
             jQuery('<button/>', {
                 'class': 'btn btn-primary',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('OK')).click(function() {
+            }).text(Sao.i18n.gettext('OK')).click(function() {
                 this.close(dialog);
                 prm.resolve();
             }.bind(this)).appendTo(dialog.footer);
@@ -2997,21 +3057,21 @@
             jQuery('<button/>', {
                 'class': 'btn btn-link',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Cancel')).click(function() {
+            }).text(Sao.i18n.gettext('Cancel')).click(function() {
                 this.close(dialog);
                 prm.resolve('cancel');
             }.bind(this)).appendTo(dialog.footer);
             jQuery('<button/>', {
                 'class': 'btn btn-default',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('No')).click(function() {
+            }).text(Sao.i18n.gettext('No')).click(function() {
                 this.close(dialog);
                 prm.resolve('ko');
             }.bind(this)).appendTo(dialog.footer);
             jQuery('<button/>', {
                 'class': 'btn btn-primary',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Yes')).click(function() {
+            }).text(Sao.i18n.gettext('Yes')).click(function() {
                 this.close(dialog);
                 prm.resolve('ok');
             }.bind(this)).appendTo(dialog.footer);
@@ -3041,18 +3101,18 @@
                 'class': 'form-group'
             }).append(jQuery('<label/>', {
                 'for': 'ask-dialog-entry'
-            }).append(question)).append(entry));
+            }).text(question)).append(entry));
             jQuery('<button/>', {
                 'class': 'btn btn-link',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Cancel')).click(function() {
+            }).text(Sao.i18n.gettext('Cancel')).click(function() {
                 this.close(dialog);
                 prm.reject();
             }.bind(this)).appendTo(dialog.footer);
             jQuery('<button/>', {
                 'class': 'btn btn-primary',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('OK')).click(function() {
+            }).text(Sao.i18n.gettext('OK')).click(function() {
                 this.close(dialog);
                 prm.resolve(entry.val());
             }.bind(this)).appendTo(dialog.footer);
@@ -3077,8 +3137,8 @@
                     'aria-hidden': true,
                 })).append(jQuery('<span/>', {
                     'class': 'sr-only'
-                }).append(Sao.i18n.gettext('Write Concurrency Warning: '))
-                ).append(Sao.i18n.gettext('This record has been modified ' +
+                }).text(Sao.i18n.gettext('Write Concurrency Warning: '))
+                ).text(Sao.i18n.gettext('This record has been modified ' +
                 'while you were editing it.')))
                 .append(jQuery('<p/>').text(Sao.i18n.gettext('Choose:')))
                 .append(jQuery('<ul/>')
@@ -3094,28 +3154,35 @@
             jQuery('<button/>', {
                 'class': 'btn btn-link',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Cancel')).click(function() {
+            }).text(Sao.i18n.gettext('Cancel')).click(function() {
                 this.close(dialog);
                 prm.reject();
             }.bind(this)).appendTo(dialog.footer);
             jQuery('<button/>', {
                 'class': 'btn btn-default',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Compare')).click(function() {
+            }).text(Sao.i18n.gettext('Compare')).click(function() {
                 this.close(dialog);
-                Sao.Tab.create({
-                    'model': model,
-                    'res_id': record_id,
-                    'domain': [['id', '=', record_id]],
-                    'context': context,
-                    'mode': ['form', 'tree']
+                Sao.rpc({
+                    'method': 'model.' + model + '.read',
+                    'params': [[record_id], ['rec_name'], context],
+                }, Sao.Session.current_session).then(function(result) {
+                    var name = result[0].rec_name;
+                    Sao.Tab.create({
+                        'model': model,
+                        'res_id': record_id,
+                        name: Sao.i18n.gettext("Compare: %1", name),
+                        'domain': [['id', '=', record_id]],
+                        'context': context,
+                        'mode': ['form'],
+                    });
+                    prm.reject();
                 });
-                prm.reject();
             }.bind(this)).appendTo(dialog.footer);
             jQuery('<button/>', {
                 'class': 'btn btn-default',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Write Anyway')).click(function() {
+            }).text(Sao.i18n.gettext('Write Anyway')).click(function() {
                 this.close(dialog);
                 prm.resolve();
             }.bind(this)).appendTo(dialog.footer);
@@ -3139,7 +3206,7 @@
                 'aria-hidden': true,
             })).append(jQuery('<span/>', {
                 'class': 'sr-only'
-            }).append(Sao.i18n.gettext('Warning: '))
+            }).text(Sao.i18n.gettext('Warning: '))
             ).append(jQuery('<p/>')
                 .append(jQuery('<pre/>')
                     .text(details)))
@@ -3153,7 +3220,7 @@
             jQuery('<button/>', {
                 'class': 'btn btn-primary',
                 'type': 'button'
-            }).append(Sao.i18n.gettext('Close')).click(function() {
+            }).text(Sao.i18n.gettext('Close')).click(function() {
                 this.close(dialog);
                 prm.resolve();
             }.bind(this)).appendTo(dialog.footer);
@@ -3263,14 +3330,22 @@
             // (see http://www.w3.org/TR/css-overflow-3/#overflow-properties)
             this.dropdown.on('hide.bs.dropdown', function() {
                 this.input.focus();
-                this.input.closest('.treeview').css('overflow', '');
+                this.input.closest('.treeview')
+                    .css('overflow', '')
+                    .css('max-height', '');
                 this.input.closest('.modal-body').css('overflow', '');
                 this.input.closest('.navbar-collapse.in').css('overflow-y', '');
+                this.input.closest('.content-box').css('overflow-y', '');
+                Sao.common.scrollIntoViewIfNeeded(this.input);
             }.bind(this));
             this.dropdown.on('show.bs.dropdown', function() {
-                this.input.closest('.treeview').css('overflow', 'visible');
+                this.input.closest('.treeview')
+                    .css('overflow', 'visible')
+                    .css('max-height', 'none');
                 this.input.closest('.modal-body').css('overflow', 'visible');
                 this.input.closest('.navbar-collapse.in').css('overflow-y', 'visible');
+                this.input.closest('.content-box').css('overflow-y', 'visible');
+                Sao.common.scrollIntoViewIfNeeded(this.input);
             }.bind(this));
         },
         set_actions: function(actions, action_activated) {
@@ -3290,7 +3365,7 @@
                     'class': 'action action-' + action_id
                 }).append(jQuery('<a/>', {
                     'href': '#'
-                }).append(this._format_action(content)))
+                }).text(this._format_action(content)))
                 .click(function(evt) {
                     evt.preventDefault();
                     if (this.action_activated) {
@@ -3305,7 +3380,7 @@
             if (this.format) {
                 return this.format(content);
             }
-            return content;
+            return jQuery('<span/>').text(content);
         },
         _format_action: function(content) {
             if (this.format_action) {
@@ -3451,7 +3526,8 @@
             return null;
         }
         if (~['input', 'select', 'textarea'].indexOf(
-                    element[0].tagName.toLowerCase())) {
+            element[0].tagName.toLowerCase()) &&
+            !element.prop('readonly')) {
             return element;
         }
 
@@ -3529,7 +3605,7 @@
         var button = jQuery('<button/>', {
             'class': 'btn btn-default',
             'type': 'button'
-        }).append(Sao.i18n.gettext('Close')).click(close)
+        }).text(Sao.i18n.gettext('Close')).click(close)
             .appendTo(dialog.footer);
         dialog.modal.on('shown.bs.modal', function() {
             // Force the click trigger

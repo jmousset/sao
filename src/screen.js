@@ -30,7 +30,7 @@
             this.filter_button = jQuery('<button/>', {
                 type: 'button',
                 'class': 'btn btn-default'
-            }).append(Sao.i18n.gettext('Filters'));
+            }).text(Sao.i18n.gettext('Filters'));
             this.filter_button.click(this.search_box.bind(this));
             this.search_entry = jQuery('<input/>', {
                 'class': 'form-control mousetrap',
@@ -99,7 +99,7 @@
                 'aria-labelledby': 'bookmarks'
             });
             this.but_bookmark.click(function() {
-                dropdown_bookmark.children().remove();
+                dropdown_bookmark.empty();
                 var bookmarks = this.bookmarks();
                 for (var i=0; i < bookmarks.length; i++) {
                     var name = bookmarks[i][1];
@@ -111,7 +111,7 @@
                         'role': 'menuitem',
                         'href': '#',
                         'tabindex': -1
-                    }).append(name)
+                    }).text(name)
                         .click(domain, this.bookmark_activate.bind(this)))
                     .appendTo(dropdown_bookmark);
                 }
@@ -203,7 +203,7 @@
                         role: 'tab',
                         'data-toggle': 'tab',
                         'href': '#' + i
-                    }).append(name + ' ').append(counter)).appendTo(nav);
+                    }).text(name + ' ').append(counter)).appendTo(nav);
                     this.tab_counter.push(counter);
                 }.bind(this));
                 nav.find('a:first').tab('show');
@@ -226,7 +226,7 @@
         update: function() {
             var completions = this.screen.domain_parser.completion(
                     this.get_text());
-            this.search_list.children().remove();
+            this.search_list.empty();
             completions.forEach(function(e) {
                 jQuery('<option/>', {
                     'value': e.trim()
@@ -444,7 +444,8 @@
                 var field;
                 for (var f in domain_parser.fields) {
                     field = domain_parser.fields[f];
-                    if (field.searchable || field.searchable === undefined) {
+                    if ((field.searchable || field.searchable === undefined) &&
+                        !field.name.contains('.')) {
                         fields.push(field);
                     }
                 }
@@ -492,6 +493,7 @@
                                     boolean_option(input));
                             break;
                         case 'selection':
+                        case 'multiselection':
                             entry = new Sao.ScreenContainer.Selection(
                                     field.selection, prefix + field.name);
                             input = entry.el;
@@ -542,7 +544,7 @@
                 jQuery('<button/>', {
                     'class': 'btn btn-primary',
                     type: 'submit'
-                }).append(Sao.i18n.gettext('Find'))
+                }).text(Sao.i18n.gettext('Find'))
                 .click(search).appendTo(dialog.footer);
             }
             this.search_modal.modal('show');
@@ -815,6 +817,7 @@
             // end
             this.message_callback = null;
             this.switch_callback = null;
+            this.group_changed_callback = null;
             // count_tab_domain is called in Sao.Tab.Form.init after
             // switch_view to avoid unnecessary call to fields_view_get by
             // domain_parser.
@@ -885,7 +888,8 @@
         get number_of_views() {
             return this.views.length + this.view_to_load.length;
         },
-        switch_view: function(view_type, view_id) {
+        switch_view: function(view_type, view_id, display) {
+            display = display === undefined ? true : display;
             if ((view_id !== undefined) && (view_id !== null)) {
                 view_id = Number(view_id);
             } else {
@@ -924,12 +928,19 @@
             var _switch = function() {
                 var set_container = function() {
                     this.screen_container.set(this.current_view.el);
-                    return this.display().done(function() {
-                        this.set_cursor();
-                        if (this.switch_callback) {
-                            this.switch_callback();
-                        }
-                    }.bind(this));
+                    var prm;
+                    if (display) {
+                        prm = this.display().done(function() {
+                            this.set_cursor();
+                        }.bind(this));
+                    } else {
+                        prm = jQuery.when();
+                    }
+                    return prm.done(function() {
+                            if (this.switch_callback) {
+                                this.switch_callback();
+                            }
+                        }.bind(this));
                 }.bind(this);
                 var continue_loop = function() {
                     if (!view_type && (view_id === null)) {
@@ -998,14 +1009,7 @@
             }
 
             var domain = this.search_domain(search_string, true);
-            if (this.context_domain) {
-                var decoder = new Sao.PYSON.Decoder(this.context);
-                domain = ['AND', domain, decoder.decode(this.context_domain)];
-            }
-            var tab_domain = this.screen_container.get_tab_domain();
-            if (!jQuery.isEmptyObject(tab_domain)) {
-                domain = ['AND', domain, tab_domain];
-            }
+
             var context = this.context;
             if (this.screen_container.but_active.hasClass('active')) {
                 context.active_test = false;
@@ -1057,8 +1061,9 @@
                     }.bind(this));
                 }.bind(this));
         },
-        search_domain: function(search_string, set_text) {
+        search_domain: function(search_string, set_text, with_tab) {
             set_text = set_text || false;
+            with_tab = with_tab === undefined ? true : with_tab;
             var domain = [];
 
             // Test first parent to avoid calling unnecessary domain_parser
@@ -1103,11 +1108,21 @@
                     domain = this.current_view.current_domain();
                 }
             }
+            if (this.context_domain) {
+                var decoder = new Sao.PYSON.Decoder(this.context);
+                domain = ['AND', domain, decoder.decode(this.context_domain)];
+            }
+            if (with_tab) {
+                var tab_domain = this.screen_container.get_tab_domain();
+                if (!jQuery.isEmptyObject(tab_domain)) {
+                    domain = ['AND', domain, tab_domain];
+                }
+            }
             return domain;
         },
         count_tab_domain: function() {
             var screen_domain = this.search_domain(
-                this.screen_container.get_text());
+                this.screen_container.get_text(), false, false);
             this.screen_container.tab_domain.forEach(function(tab_domain, i) {
                 if (tab_domain[2]) {
                     var domain = ['AND', tab_domain[1], screen_domain];
@@ -1156,6 +1171,9 @@
             }
             group.screens.push(this);
             this.tree_states_done = [];
+            this.views.map(function(view) {
+                view.reset();
+            });
             this.order = null;
             this.group = group;
             this.model = group.model;
@@ -1338,6 +1356,9 @@
         clear: function() {
             this.current_record = null;
             this.group.clear();
+            this.views.map(function(view) {
+                view.reset();
+            });
         },
         default_row_activate: function() {
             if ((this.current_view.view_type == 'tree') &&
@@ -1366,15 +1387,18 @@
             var prm = jQuery.when();
             if (this.current_view.view_type == 'calendar') {
                 var selected_date = this.current_view.get_selected_date();
-                prm = this.switch_view('form');
+                prm = this.switch_view('form', undefined, false);
             }
             if (this.current_view &&
                     ((this.current_view.view_type == 'tree' &&
                       !this.current_view.editable) ||
                      this.current_view.view_type == 'graph')) {
-                prm = this.switch_view('form');
+                prm = this.switch_view('form', undefined, false);
             }
             return prm.then(function() {
+                if (!this.current_view.editable) {
+                    return;
+                }
                 var group;
                 if (this.current_record) {
                     group = this.current_record.group;
@@ -1389,29 +1413,37 @@
                     prm = jQuery.when();
                 }
                 return prm.then(function() {
-                    group.add(record, this.new_model_position());
+                    group.add(record, this.new_position);
                     this.current_record = record;
-                    var prm = jQuery.when();
                     if (previous_view.view_type == 'calendar') {
-                        prm = previous_view.set_default_date(
-                            record, selected_date);
+                        previous_view.set_default_date(record, selected_date);
                     }
-                    prm.then(function() {
-                        this.display().done(function() {
-                            this.set_cursor(true, true);
-                        }.bind(this));
+                    this.display().done(function() {
+                        this.set_cursor(true, true);
                     }.bind(this));
                     return record;
                 }.bind(this));
             }.bind(this));
         },
-        new_model_position: function() {
-            var position = -1;
-            if (this.current_view && (this.current_view.view_type == 'tree') &&
-                    (this.current_view.attributes.editable == 'top')) {
-                position = 0;
+        get new_position() {
+            if (this.order) {
+                for (var j = 0; j < this.order.length; j++) {
+                    var oexpr = this.order[j][0],
+                        otype = this.order[j][1];
+                    if ((oexpr == 'id') && otype) {
+                        if (otype.startsWith('DESC')) {
+                            return 0;
+                        } else if (otype.startsWith('ASC')) {
+                            return -1;
+                        }
+                    }
+                }
             }
-            return position;
+            if (this.group.parent) {
+                return -1;
+            } else {
+                return 0;
+            }
         },
         set_on_write: function(name) {
             if(name) {
@@ -1426,9 +1458,8 @@
                 this.current_record.cancel();
                 if (this.current_record.id < 0) {
                     if (initial_value) {
-                        prms.push(
-                            this.current_record.reset(initial_value).then(
-                                this.display.bind(this)));
+                        this.current_record.reset(initial_value);
+                        this.display();
                     } else {
                         prms.push(this.remove(
                             false, false, false, [this.current_record]));
@@ -1507,7 +1538,9 @@
                     return true;
                 }
             }
-            // TODO test view modified
+            if (this.current_view.modified) {
+                return true;
+            }
             return false;
         },
         unremove: function() {
@@ -1656,14 +1689,10 @@
             // Add common fields
             [
                 ['id', Sao.i18n.gettext('ID'), 'integer'],
-                ['create_uid', Sao.i18n.gettext('Creation User'),
-                    'many2one'],
-                ['create_date', Sao.i18n.gettext('Creation Date'),
-                    'datetime'],
-                ['write_uid', Sao.i18n.gettext('Modification User'),
-                     'many2one'],
-                ['write_date', Sao.i18n.gettext('Modification Date'),
-                     'datetime']
+                ['create_uid', Sao.i18n.gettext('Created by'), 'many2one'],
+                ['create_date', Sao.i18n.gettext('Created at'), 'datetime'],
+                ['write_uid', Sao.i18n.gettext('Modified by'), 'many2one'],
+                ['write_date', Sao.i18n.gettext('Modified at'), 'datetime']
                     ] .forEach(function(e) {
                         var name = e[0];
                         var string = e[1];
@@ -1733,20 +1762,21 @@
                     if ((invalid == 'required') ||
                             (Sao.common.compare(invalid,
                                                 [[field, '!=', null]]))) {
-                        fields.push(Sao.i18n.gettext('"%1" is required', string));
+                        fields.push(Sao.i18n.gettext(
+                                '"%1" is required.', string));
                     } else if (invalid == 'domain') {
                         fields.push(Sao.i18n.gettext(
-                                    '"%1" is not valid according to its domain',
-                                    string));
+                                '"%1" is not valid according to its domain.',
+                            string));
                     } else if (invalid == 'children') {
                         fields.push(Sao.i18n.gettext(
-                                'The values of "%1" are not valid', string));
+                                'The values of "%1" are not valid.', string));
                     } else {
                         if (domain_parser.stringable(invalid)) {
                             fields.push(domain_parser.string(invalid));
                         } else {
                             fields.push(Sao.i18n.gettext(
-                                    '"%1" is not valid according to its domain'),
+                                    '"%1" is not valid according to its domain.'),
                                 string);
                         }
                     }
@@ -1805,20 +1835,19 @@
         button: function(attributes) {
             var ids;
             var process_action = function(action) {
-                // [Coog specific]
-                // JMO: report https://github.com/coopengo/tryton/pull/13
-                var action_id;
-                if (action && typeof action != 'string' &&
-                  action.length && action.length === 2) {
-                  action_id = action[0];
-                  action = action[1];
-                } else if (typeof action == 'number') {
-                  action_id = action;
-                  action = undefined;
-                }
-                // end
-
                 return this.reload(ids, true).then(function() {
+                    // [Coog specific]
+                    // JMO: report https://github.com/coopengo/tryton/pull/13
+                    var action_id;
+                    if (action && typeof action != 'string' &&
+                      action.length && action.length === 2) {
+                      action_id = action[0];
+                      action = action[1];
+                    } else if (typeof action == 'number') {
+                      action_id = action;
+                      action = undefined;
+                    }
+                    // end
                     if (typeof action == 'string') {
                         this.client_action(action);
                     }
@@ -1894,7 +1923,11 @@
                                 ids.push(record.id);
                             }
                             return record.model.execute(attributes.name,
-                                [ids], context).then(process_action.bind(this));
+                                [ids], context)
+                                .then(process_action.bind(this))
+                                .fail(function() {
+                                    return this.reload(ids, true);
+                                }.bind(this));
                         }.bind(this));
                     }
                 }.bind(this));
@@ -1966,7 +1999,7 @@
             if (name) {
                 query_string.push(['name', dumps(name)]);
             }
-            if (this.attributes.tab_domain) {
+            if (!jQuery.isEmptyObject(this.attributes.tab_domain)) {
                 query_string.push([
                     'tab_domain', dumps(this.attributes.tab_domain)]);
             }

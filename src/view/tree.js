@@ -3,6 +3,18 @@
 (function() {
     'use strict';
 
+    if ('IntersectionObserver' in window) {
+        var moreObserver = new IntersectionObserver(function(entries, observer) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    jQuery(entry.target).trigger('click');
+                }
+            });
+        }, {
+            rootMargin: '0px 0px 50px 0px',
+        });
+    }
+
     Sao.View.TreeXMLViewParser = Sao.class_(Sao.View.XMLViewParser, {
         _parse_tree: function(node, attributes) {
             [].forEach.call(node.childNodes, function(child) {
@@ -60,7 +72,7 @@
                 var sum = jQuery('<label/>', {
                     'text': label,
                 });
-                var aggregate = jQuery('<span/>', {
+                var aggregate = jQuery('<label/>', {
                     'class': 'value',
                 });
                 this.view.sum_widgets[name] = [sum, aggregate];
@@ -76,16 +88,32 @@
     Sao.View.Tree = Sao.class_(Sao.View, {
         view_type: 'tree',
         xml_parser: Sao.View.TreeXMLViewParser,
+        draggable: false,
+        display_size: Sao.config.display_size,
         init: function(view_id, screen, xml, children_field, children_definitions) {
             this.children_field = children_field;
             this.sum_widgets = {};
             this.columns = [];
             this.selection_mode = (screen.attributes.selection_mode ||
                 Sao.common.SELECTION_MULTIPLE);
-            this.el = jQuery('<div/>', {
+            this.el = jQuery('<div/>');
+            this.scrollbar = jQuery('<div/>')
+                .appendTo(jQuery('<div/>', {
+                    'class': 'scrollbar responsive',
+                }).appendTo(this.el));
+            this.treeview = jQuery('<div/>', {
                 'class': 'treeview responsive'
-            });
-            this.expanded = {};
+            }).appendTo(this.el);
+
+            // Synchronize both scrollbars
+            this.treeview.scroll(function() {
+                this.scrollbar.parent().scrollLeft(this.treeview.scrollLeft());
+            }.bind(this));
+            this.scrollbar.parent().scroll(function() {
+                this.treeview.scrollLeft(this.scrollbar.parent().scrollLeft());
+            }.bind(this));
+
+            this.expanded = new Set();
 
             Sao.View.Tree._super.init.call(this, view_id, screen, xml);
             //
@@ -105,11 +133,11 @@
             if (this.editable) {
                 this.table.addClass('table-bordered');
             }
-            this.el.append(this.table);
-            var colgroup = jQuery('<colgroup/>').appendTo(this.table);
+            this.treeview.append(this.table);
+            this.colgroup = jQuery('<colgroup/>').appendTo(this.table);
             var col = jQuery('<col/>', {
                 'class': 'selection-state',
-            }).appendTo(colgroup);
+            }).appendTo(this.colgroup);
             if (this.selection_mode == Sao.common.SELECTION_NONE) {
                 col.css('width', 0);
             }
@@ -130,7 +158,7 @@
             var sum_row;
             if (!jQuery.isEmptyObject(this.sum_widgets)) {
                 sum_row = jQuery('<tr/>');
-                sum_row.append(jQuery('<td/>'));
+                sum_row.append(jQuery('<th/>'));
                 this.tfoot = jQuery('<tfoot/>');
                 this.tfoot.append(sum_row);
                 this.table.append(this.tfoot);
@@ -139,7 +167,7 @@
             this.columns.forEach(function(column) {
                 col = jQuery('<col/>', {
                     'class': column.attributes.widget,
-                }).appendTo(colgroup);
+                }).appendTo(this.colgroup);
                 th = jQuery('<th/>', {
                     'class': column.attributes.widget,
                 });
@@ -173,7 +201,7 @@
                 column.footers = [];
                 if (!jQuery.isEmptyObject(this.sum_widgets)) {
                     var field_name = column.attributes.name;
-                    var total_cell = jQuery('<td/>', {
+                    var total_cell = jQuery('<th/>', {
                         'class': column.class_,
                     });
                     if (field_name in this.sum_widgets) {
@@ -191,10 +219,13 @@
             this.tbody = jQuery('<tbody/>');
             this.table.append(this.tbody);
 
+            this.set_drag_and_drop();
+        },
+        reset: function() {
             this.display_size = Sao.config.display_size;
         },
         get editable() {
-            return (Boolean(this.attributes.editable) &&
+            return (parseInt(this.attributes.editable || 0, 10) &&
                 !this.screen.attributes.readonly);
         },
         sort_model: function(e){
@@ -265,10 +296,12 @@
             if (order && (order.length == 1)) {
                 name = order[0][0];
                 direction = order[0][1];
-                icon = {
-                    'ASC': 'tryton-arrow-down',
-                    'DESC': 'tryton-arrow-up',
-                }[direction];
+                if (direction) {
+                    icon = {
+                        'ASC': 'tryton-arrow-down',
+                        'DESC': 'tryton-arrow-up',
+                    }[direction];
+                }
             }
             this.columns.forEach(function(col) {
                 var arrow = col.arrow;
@@ -285,6 +318,195 @@
                     }
                 }
             });
+        },
+        _add_drag_n_drop: function() {
+            Sortable.create(this.tbody[0], {
+                handle: '.draggable-handle',
+                ghostClass: 'dragged-row'
+            });
+            this.tbody.on('dragstart', this.drag_data_get.bind(this));
+            this.tbody.on('drop', this.drag_data_received.bind(this));
+        },
+        set_drag_and_drop: function() {
+            var dnd = false;
+            var children, parent_name;
+            if (this.children_field) {
+                children = this.screen.model.fields[this.children_field];
+                if (children) {
+                    parent_name = children.description.relation_field;
+                    dnd = Boolean(this.widgets[parent_name]);
+                }
+            } else if (this.attributes.sequence) {
+                dnd = true;
+            }
+            if (this.screen.readonly) {
+                dnd = false;
+            }
+
+            this.draggable = dnd;
+            if (dnd) {
+                this.colgroup.prepend(jQuery('<col/>', {
+                    'class': 'draggable-handle',
+                }));
+                this.thead.children().prepend(jQuery('<th/>', {
+                    'class': 'draggable-handle',
+                }));
+                this._add_drag_n_drop();
+            }
+        },
+        drag_data_get: function(evt) {
+            var row_position = 0;
+            var row_leaves = [];
+            var set_dragged_row = function(row) {
+                if (row.el[0] === evt.target) {
+                    evt.originalEvent.dataTransfer.setData('path', row.path);
+                    evt.originalEvent.dataTransfer.setData(
+                        'position', row_position);
+                }
+                if (row.rows.length === 0) {
+                    row_leaves.push(row);
+                }
+                row_position += 1;
+                row.rows.forEach(set_dragged_row.bind(this));
+            };
+            this.rows.forEach(set_dragged_row.bind(this));
+        },
+        drag_data_received: function(evt) {
+            var dataTransfer = evt.originalEvent.dataTransfer;
+            var origin_path = dataTransfer.getData('path').split('.');
+            if (origin_path.length === 0) {
+                return ;
+            }
+
+            var row = this;
+            while (origin_path.length > 0) {
+                row = row.rows[origin_path[0]];
+                origin_path = origin_path.slice(1);
+            }
+            var record = row.record;
+
+            var parent_row = null;
+            var dest_position;
+            if (evt.ctrlKey && this.children_field) {
+                parent_row = this._find_row(row.el.prev());
+                dest_position = (parent_row || this).rows.length;
+            } else {
+                var sibling_row;
+                if (evt.shiftKey) {
+                    sibling_row = this._find_row(row.el.prev());
+                    if (sibling_row) {
+                        parent_row = sibling_row.parent_;
+                        dest_position = (
+                            (parent_row || this).rows.indexOf(sibling_row) + 1);
+                    } else {
+                        parent_row = null;
+                        dest_position = 0;
+                    }
+                } else {
+                    sibling_row = this._find_row(row.el.next());
+                    if (sibling_row) {
+                        parent_row = sibling_row.parent_;
+                        dest_position = (
+                            (parent_row || this).rows.indexOf(sibling_row));
+                    } else {
+                        parent_row = null;
+                        dest_position = this.rows.length;
+                    }
+                }
+            }
+
+            var current_row = parent_row;
+            while (current_row && (current_row != row)) {
+                current_row = current_row.parent_;
+            }
+            if (current_row) {
+                // There is a recursion cancel the drop
+                // by moving the row at its previous place
+                var original_position = dataTransfer.getData('position');
+                var successor = jQuery(
+                    this.tbody.children()[original_position]);
+                successor.before(row.el);
+                return;
+            }
+
+            var previous_row = row;
+            var move_child = function(child_row) {
+                previous_row.el.after(child_row.el);
+                previous_row = child_row;
+                child_row.rows.forEach(move_child);
+            };
+            row.rows.forEach(move_child);
+
+            var dest_group_prm;
+            var origin_group, origin_position;
+            origin_group = record.group;
+            origin_position = row.group_position;
+            if (parent_row) {
+                dest_group_prm = parent_row.record.children_group(
+                    this.children_field);
+            } else {
+                dest_group_prm = jQuery.Deferred().resolve(this.group);
+            }
+
+            dest_group_prm.then(function(dest_group) {
+                var origin_rows, dest_rows;
+                if (row.parent_) {
+                    origin_rows = row.parent_.rows;
+                } else {
+                    origin_rows = this.rows;
+                }
+                if (parent_row) {
+                    dest_rows = parent_row.rows;
+                } else {
+                    dest_rows = this.rows;
+                }
+
+                if (origin_group === dest_group) {
+                    if (origin_position < dest_position) {
+                        dest_position -= 1;
+                    }
+                    origin_group.splice(origin_position, 1);
+                    origin_group.splice(dest_position, 0, record);
+                    origin_group.changed();
+                } else {
+                    origin_group.remove(record, true, true, true);
+                    // Don't remove record from previous group
+                    // as the new parent will change the parent
+                    // This prevents concurrency conflict
+                    origin_group.record_removed.splice(
+                        origin_group.record_removed.indexOf(record));
+                    dest_group.add(record, dest_position);
+                    if (!record.parent_name) {
+                        record._changed[origin_group.parent_name] = true;
+                        record._values[origin_group.parent_name] = null;
+                    } else {
+                        record._changed[origin_group.parent_name] = true;
+                    }
+                }
+                dest_rows.splice(dest_position, 0, row);
+                origin_rows.splice(origin_position, 1);
+
+                row.parent_ = parent_row;
+                row.record.group = dest_group;
+                dest_rows.slice(dest_position).forEach(function(r) {
+                    r.reset_path();
+                });
+                origin_rows.slice(origin_position).forEach(function(r) {
+                    r.reset_path();
+                });
+
+                var selected = this.get_selected_paths();
+                row.redraw(selected);
+                var child_redraw = function(child_row) {
+                    child_row.redraw(selected);
+                    child_row.rows.forEach(child_redraw);
+                };
+                row.rows.forEach(child_redraw);
+
+                if (this.attributes.sequence) {
+                    row.record.group.set_sequence(this.attributes.sequence);
+                }
+            }.bind(this));
         },
         get_fields: function() {
             return Object.keys(this.widgets);
@@ -323,7 +545,7 @@
                     }
                 }
             }
-            expanded = expanded || [];
+            expanded = expanded || this.get_expanded_paths();
 
             if (this.selection_mode == Sao.common.SELECTION_MULTIPLE) {
                 this.selection.show();
@@ -331,25 +553,51 @@
                 this.selection.hide();
             }
 
-            var row_records = function() {
-                return this.rows.map(function(row) {
-                    return row.record;
-                });
+            var group_records = function(group, root) {
+                var records = [];
+                for (var i = 0; i < group.length; i++) {
+                    var record = group[i];
+                    records.push(record);
+                    var path = root.concat([record.id]);
+                    if (Sao.common.contains(expanded, path)) {
+                        var children = record.field_get_client(
+                            this.children_field);
+                        Array.prototype.push.apply(
+                            records, group_records(children, path));
+                    }
+                }
+                return records;
+            }.bind(this);
+
+            var row_records = function(rows) {
+                var records = [];
+                for (var i = 0; i < rows.length; i++) {
+                    var row = rows[i];
+                    records.push(row.record);
+                    if (row.is_expanded()) {
+                        Array.prototype.push.apply(
+                            records, row_records(row.rows));
+                    }
+                }
+                return records;
             }.bind(this);
             var min_display_size = Math.min(
                     this.group.length, this.display_size);
-            // XXX find better check to keep focus
             if (this.children_field) {
-                this.construct();
+                if (!Sao.common.compare(
+                    group_records(this.group.slice(0, min_display_size), []),
+                    row_records(this.rows))) {
+                    this.construct();
+                }
             } else if ((min_display_size > this.rows.length) &&
                 Sao.common.compare(
                     this.group.slice(0, this.rows.length),
-                    row_records())) {
+                    row_records(this.rows))) {
                 this.construct(true);
             } else if ((min_display_size != this.rows.length) ||
                 !Sao.common.compare(
                     this.group.slice(0, this.rows.length),
-                    row_records())){
+                    row_records(this.rows))){
                 this.construct();
             }
 
@@ -366,6 +614,7 @@
             var inversion = new Sao.common.DomainInversion();
             domain = inversion.simplify(domain);
             var decoder = new Sao.PYSON.Decoder(this.screen.context);
+            var min_width = 0;
             this.columns.forEach(function(column) {
                 visible_columns += 1;
                 var name = column.attributes.name;
@@ -404,29 +653,38 @@
                 if (column.header.hasClass('invisible')) {
                     column.col.css('width', 0);
                     column.col.hide();
-                } else if (!column.col.hasClass('selection-state') &&
+                } else if (!column.col.hasClass('draggable-handle') &&
+                    !column.col.hasClass('selection-state') &&
                     !column.col.hasClass('favorite')) {
-                    var width = {
-                        'integer': 6,
-                        'biginteger': 6,
-                        'float': 8,
-                        'numeric': 8,
-                        'timedelta': 10,
-                        'date': 10,
-                        'datetime': 10,
-                        'time': 10,
-                        'selection': 9,
-                        'char': 10,
-                        'one2many': 5,
-                        'many2many': 5,
-                        'boolean': 2,
-                        'binary': 20,
-                    }[column.attributes.widget] || 10;
-                    width = width * 100 + '%';
-                    column.col.css('width', width);
+                    var width, c_width;
+                    if (column.width) {
+                        width = c_width = column.width;
+                    } else {
+                        width = {
+                            'integer': 6,
+                            'biginteger': 6,
+                            'float': 8,
+                            'numeric': 8,
+                            'selection': 9,
+                            'one2many': 5,
+                            'many2many': 5,
+                            'boolean': 2,
+                            'binary': 20,
+                        }[column.attributes.widget] || 10;
+                        var factor = 1;
+                        if (column.attributes.expand) {
+                            factor += parseInt(column.attributes.expand, 10);
+                        }
+                        c_width = width * 100 * factor  + '%';
+                        width *= 10;
+                    }
+                    column.col.css('width', c_width);
+                    min_width += width;
                     column.col.show();
                 }
             }.bind(this));
+            this.table.css('min-width', min_width + 'px');
+            this.scrollbar.css('min-width', min_width + 'px');
             this.tbody.find('tr.more-row > td').attr(
                 'colspan', visible_columns);
 
@@ -450,6 +708,9 @@
             if (!extend) {
                 this.rows = [];
                 this.tbody = jQuery('<tbody/>');
+                if (this.draggable) {
+                    this._add_drag_n_drop();
+                }
                 this.edited_row = null;
             } else {
                 this.tbody.find('tr.more-row').remove();
@@ -480,7 +741,7 @@
                 var more_button = jQuery('<button/>', {
                     'class': 'btn btn-default',
                     'type': 'button'
-                }).append(Sao.i18n.gettext('More')
+                }).text(Sao.i18n.gettext('More')
                     ).click(function() {
                     this.display_size += Sao.config.display_size;
                     this.display();
@@ -488,6 +749,9 @@
                 more_cell.append(more_button);
                 more_row.append(more_cell);
                 this.tbody.append(more_row);
+                if (moreObserver) {
+                    moreObserver.observe(more_button[0]);
+                }
             }
         },
         redraw: function(selected, expanded) {
@@ -735,7 +999,7 @@
         },
         set_cursor: function(new_, reset_view) {
             var i, root_group, path, row_path, row, column;
-            var row_idx, rest, td;
+            var td, prm;
 
             if (!this.record) {
                 return;
@@ -745,19 +1009,32 @@
                 this.display_size = this.group.length;
                 this.display();
             }
-            row_idx = path[0];
-            rest = path.slice(1);
-            if (rest.length > 0) {
-                this.rows[row_idx].expand_to_path(rest);
+            if (path.length > 1) {
+                prm = this.rows[path[0]].expand_to_path(
+                    path.slice(1),
+                    [this.record.get_path(this.group).map(function(value) {
+                        return value[1];
+                    })]);
             }
-            row = this.find_row(path);
-            column = row.next_column(null, new_);
-            if (column !== null) {
-                td = row._get_column_td(column);
-                if (this.editable && new_) {
-                    td.trigger('click');
+
+            var focus = function() {
+                row = this.find_row(path);
+                if (row) {
+                    column = row.next_column(null, new_);
+                    if (column !== null) {
+                        td = row._get_column_td(column);
+                        if (this.editable && new_) {
+                            td.trigger('click');
+                        }
+                        td.find(':input,[tabindex=0]').focus();
+                    }
                 }
-                td.find(':input,[tabindex=0]').focus();
+            }.bind(this);
+
+            if (prm) {
+                prm.then(focus);
+            } else {
+                focus();
             }
         },
         save_row: function() {
@@ -812,25 +1089,42 @@
                 row.set_editable();
             }
             this.edited_row = row;
+        },
+        _find_row: function(tr) {
+            var row = null;
+            var find_row = function(r) {
+                if (r.el[0] == tr[0]) {
+                    row = r;
+                    return;
+                }
+                r.rows.forEach(find_row);
+            };
+            this.rows.forEach(find_row);
+            return row;
         }
     });
 
     function redraw_async(rows, selected, expanded) {
-        var chunk = Sao.config.display_size;
-        var dfd = jQuery.Deferred();
-        var redraw_rows = function(i) {
-            rows.slice(i, i + chunk).forEach(function(row) {
-                row.redraw(selected, expanded);
-            });
-            i += chunk;
-            if (i < rows.length) {
-                setTimeout(redraw_rows, 0, i);
-            } else {
-                dfd.resolve();
+        var dfd= jQuery.Deferred(),
+            i = 0;
+        var redraw = function() {
+            for (; i < rows.length; i++) {
+                var row = rows[i];
+                var record = row.record,
+                    column = row.tree.columns[0];
+                if (!record.is_loaded(column.attributes.name)) {
+                    // Prefetch the first field to prevent promises in
+                    // Cell.render
+                    record.load(column.attributes.name).done(redraw);
+                    return;
+                } else {
+                    row.redraw(selected, expanded);
+                }
             }
+            dfd.resolve();
         };
-        setTimeout(redraw_rows, 0, 0);
-        return dfd;
+        redraw();
+        return dfd.promise();
     }
 
     Sao.View.Tree.Row = Sao.class_(Object, {
@@ -844,17 +1138,40 @@
             // [Coog specific] multi_mixed_view
             this.children_definitions = tree.children_definitions;
             this.expander = null;
-            var path = [];
-            if (parent) {
-                path = jQuery.extend([], parent.path.split('.'));
-            }
-            path.push(pos);
-            this.path = path.join('.');
+            this._group_position = null;
+            this._path = null;
+            this._drawed_record = null;
             this.el = jQuery('<tr/>');
             this.el.on('click', this.select_row.bind(this));
         },
+        get group_position() {
+            if (this._group_position === null) {
+                this._group_position = this.record.group.indexOf(this.record);
+            }
+            return this._group_position;
+        },
+        get path() {
+            if (!this._path) {
+                var path, position;
+                if (this.parent_) {
+                    path = jQuery.extend([], this.parent_.path.split('.'));
+                } else {
+                    path = [];
+                }
+                path.push(this.group_position);
+                this._path = path.join('.');
+            }
+            return this._path;
+        },
+        reset_path: function() {
+            this._group_position = null;
+            this._path = null;
+            for (var i=0; i < this.rows.length; i++) {
+                this.rows[i].reset_path();
+            }
+        },
         is_expanded: function() {
-            return (this.path in this.tree.expanded);
+            return this.tree.expanded.has(this);
         },
         get_last_child: function() {
             if (!this.children_field || !this.is_expanded() ||
@@ -869,21 +1186,21 @@
             }
             return this.parent_.get_id_path().concat([this.record.id]);
         },
-        build_widgets: function() {
-            var table = jQuery('<table/>');
-            table.css('width', '100%');
-            var row = jQuery('<tr/>');
-            table.append(row);
-            return [table, row];
-        },
         construct: function() {
             var el_node = this.el[0];
             while (el_node.firstChild) {
                 el_node.removeChild(el_node.firstChild);
             }
 
-            var td;
+            var td, drag_img;
             this.tree.el.uniqueId();
+            if (this.tree.draggable) {
+                td = jQuery('<td/>', {
+                    'class': 'draggable-handle'
+                });
+                td.append(Sao.common.ICONFACTORY.get_icon_img('tryton-drag'));
+                this.el.append(td);
+            }
             td = jQuery('<td/>', {
                 'class': 'selection-state',
             }).click(function(event_) {
@@ -901,7 +1218,6 @@
             this.selection.change(this.selection_changed.bind(this));
             td.append(this.selection);
 
-            var depth = this.path.split('.').length;
             var on_click = function(event_) {
                 if (this.expander && !this.is_expanded() &&
                     (this.tree.n_children(this) <= Sao.config.limit)) {
@@ -912,11 +1228,16 @@
 
             for (var i = 0; i < this.tree.columns.length; i++) {
                 var column = this.tree.columns[i];
-                td = jQuery('<td/>', {
-                    'data-title': column.attributes.string + Sao.i18n.gettext(': ')
-                }).append(jQuery('<span/>', { // For responsive min-height
-                    'aria-hidden': true
-                }));
+                if (column instanceof Sao.View.Tree.ButtonColumn) {
+                    td = jQuery('<td>');
+                } else {
+                    td = jQuery('<td/>', {
+                        'data-title': column.attributes.string +
+                        Sao.i18n.gettext(': ')
+                    }).append(jQuery('<span/>', { // For responsive min-height
+                        'aria-hidden': true
+                    }));
+                }
                 td.on('click keypress', {'index': i}, on_click);
                 if (!this.tree.editable) {
                     td.dblclick(this.switch_row.bind(this));
@@ -928,45 +1249,40 @@
                         td.addClass('editable');
                     }
                 }
-                var widgets = this.build_widgets();
-                var table = widgets[0];
-                var row = widgets[1];
-                td.append(table);
+                var cell = jQuery('<div>', {
+                    'class': 'cell',
+                });
+                td.append(cell);
                 if ((i === 0) && this.children_field) {
                     this.expander = jQuery('<img/>', {
                         'tabindex': 0,
                         'class': 'icon',
                     });
                     this.expander.html('&nbsp;');
-                    var margin = 'margin-left';
-                    if (Sao.i18n.rtl) {
-                        margin = 'margin-right';
-                    }
-                    this.expander.css(margin, (depth - 1) + 'em');
                     this.expander.on('click keypress',
                             Sao.common.click_press(this.toggle_row.bind(this)));
-                    row.append(jQuery('<td/>', {
+                    cell.append(jQuery('<span/>', {
                         'class': 'expander'
-                    }).append(this.expander).css('width', 1));
+                    }).append(this.expander));
                 }
                 var j;
                 if (column.prefixes) {
                     for (j = 0; j < column.prefixes.length; j++) {
                         var prefix = column.prefixes[j];
-                        row.append(jQuery('<td/>', {
+                        cell.append(jQuery('<span/>', {
                             'class': 'prefix'
-                        }).css('width', 1));
+                        }));
                     }
                 }
-                row.append(jQuery('<td/>', {
+                cell.append(jQuery('<span/>', {
                     'class': 'widget'
                 }));
                 if (column.suffixes) {
                     for (j = 0; j < column.suffixes.length; j++) {
                         var suffix = column.suffixes[j];
-                        row.append(jQuery('<td/>', {
+                        cell.append(jQuery('<span/>', {
                             'class': 'suffix'
-                        }).css('width', 1));
+                        }));
                     }
                 }
 
@@ -981,7 +1297,11 @@
         },
         _get_column_td: function(column_index, row) {
             row = row || this.el;
-            return jQuery(row.children()[column_index + 1]);
+            var offset = 1;  // take into account the selection column
+            if (this.tree.draggable) {
+                offset += 1;
+            }
+            return jQuery(row.children()[column_index + offset]);
         },
 
         // [Coog specific)
@@ -993,7 +1313,7 @@
         redraw: function(selected, expanded) {
             selected = selected || [];
             expanded = expanded || [];
-            var update_expander = function() {
+            var coog_update_expander = function() {
                 // [Coog Specific]  needed for multi_mixed_view
                 // MAB: not sure we still need this
                 if (this.is_leaf()  || !this.record.field_get_client(
@@ -1017,73 +1337,97 @@
                     break;
             }
 
+            function apply_visual(el, visual) {
+                ['muted', 'success', 'warning', 'danger'].forEach(
+                    function(name) {
+                        var klass = name == 'muted' ? 'text-muted' : name;
+                        if (name == visual) {
+                            el.addClass(klass);
+                        } else {
+                            el.removeClass(klass);
+                        }
+                    });
+            }
 
-            for (var i = 0; i < this.tree.columns.length; i++) {
-                if ((i === 0) && this.children_field) {
-                    // [Coog Specific]  needed for multi_mixed_view
-                    // MAB: not sure we still need this
-                    if (!this.is_leaf())
-                        this.record.load(this.children_field).done(
-                            update_expander.bind(this));
-                    else
-                        this.record.load('*').done(
-                            update_expander.bind(this));
-                }
-                var column = this.tree.columns[i];
-                var td = this._get_column_td(i);
-                var tr = td.find('tr');
-                var cell;
-                if (column.prefixes) {
-                    for (var j = 0; j < column.prefixes.length; j++) {
-                        var prefix = column.prefixes[j];
-                        var prefix_el = jQuery(tr.children('.prefix')[j]);
-                        cell = prefix_el.children();
-                        if (cell.length) {
-                            prefix.render(this.record, cell);
-                        } else {
-                            prefix_el.html(prefix.render(this.record));
+            if (this._drawed_record !== this.record.identity) {
+                for (var i = 0; i < this.tree.columns.length; i++) {
+                    if ((i === 0) && this.children_field) {
+                        // [Coog Specific]  needed for multi_mixed_view
+                        // MAB: not sure we still need this
+                        if (!this.is_leaf())
+                            this.record.load(this.children_field).done(
+                                coog_update_expander.bind(this));
+                        else
+                            this.record.load('*').done(
+                                coog_update_expander.bind(this));
+                    }
+                    var column = this.tree.columns[i];
+                    var td = this._get_column_td(i);
+                    var cell = td.find('.cell');
+                    var item;
+                    if (column.prefixes) {
+                        for (var j = 0; j < column.prefixes.length; j++) {
+                            var prefix = column.prefixes[j];
+                            var prefix_el = jQuery(cell.children('.prefix')[j]);
+                            item = prefix_el.children();
+                            if (item.length) {
+                                prefix.render(this.record, item);
+                            } else {
+                                prefix_el.empty().append(prefix.render(this.record));
+                            }
                         }
                     }
-                }
-                var widget = tr.children('.widget');
-                cell = widget.children();
-                if (cell.length) {
-                    column.render(this.record, cell);
-                } else {
-                    widget.html(column.render(this.record));
-                }
-                if (column.suffixes) {
-                    for (var k = 0; k < column.suffixes.length; k++) {
-                        var suffix = column.suffixes[k];
-                        var suffix_el = jQuery(tr.children('.suffix')[k]);
-                        cell = suffix_el.children();
-                        if (cell.length) {
-                            suffix.render(this.record, cell);
-                        } else {
-                            suffix_el.html(suffix.render(this.record));
+                    var widget = cell.children('.widget');
+                    item = widget.children();
+                    if (item.length) {
+                        column.render(this.record, item);
+                    } else {
+                        widget.empty().append(column.render(this.record));
+                    }
+                    if (column.suffixes) {
+                        for (var k = 0; k < column.suffixes.length; k++) {
+                            var suffix = column.suffixes[k];
+                            var suffix_el = jQuery(cell.children('.suffix')[k]);
+                            item = suffix_el.children();
+                            if (item.length) {
+                                suffix.render(this.record, item);
+                            } else {
+                                suffix_el.empty().append(suffix.render(this.record));
+                            }
                         }
                     }
-                }
-                if ((column.header.is(':hidden') && thead_visible) ||
+                    apply_visual(
+                        td, this.record.expr_eval(column.attributes.visual));
+                    if ((column.header.is(':hidden') && thead_visible) ||
                         column.header.css('display') == 'none') {
-                    td.hide();
-                    td.addClass('invisible');
-                } else {
-                    td.show();
-                    td.removeClass('invisible');
+                        td.hide();
+                        td.addClass('invisible');
+                    } else {
+                        td.show();
+                        td.removeClass('invisible');
+                    }
                 }
             }
+            this._drawed_record = this.record.identity;
+
             var row_id_path = this.get_id_path();
             this.set_selection(Sao.common.contains(selected, row_id_path));
             if (this.children_field) {
-                this.record.load(this.children_field).done(function() {
+                var depth = this.path.split('.').length;
+                var margin = 'margin-left';
+                if (Sao.i18n.rtl) {
+                    margin = 'margin-right';
+                }
+                this.expander.css(margin, (depth - 1) + 'em');
+
+                var update_expander = function() {
                     var length = this.record.field_get_client(
                         this.children_field).length;
                     if (length && (
                         this.is_expanded() ||
                         Sao.common.contains(expanded, row_id_path))) {
                         this.expander.css('visibility', 'visible');
-                        this.tree.expanded[this.path] = this;
+                        this.tree.expanded.add(this);
                         this.expand_children(selected, expanded);
                         this.update_expander(true);
                     } else {
@@ -1091,8 +1435,15 @@
                             length ? 'visible' : 'hidden');
                         this.update_expander(false);
                     }
-                }.bind(this));
+                }.bind(this);
+                if (!this.record.is_loaded(this.children_field)) {
+                    this.record.load(this.children_field).done(update_expander);
+                } else {
+                    update_expander();
+                }
             }
+            apply_visual(
+                this.el, this.record.expr_eval(this.tree.attributes.visual));
             if (this.record.deleted || this.record.removed) {
                 this.el.css('text-decoration', 'line-through');
             } else {
@@ -1102,7 +1453,7 @@
         toggle_row: function() {
             if (this.is_expanded()) {
                 this.update_expander(false);
-                delete this.tree.expanded[this.path];
+                this.tree.expanded.delete(this);
                 this.collapse_children();
             } else {
                 if (this.tree.n_children(this) > Sao.config.limit) {
@@ -1110,7 +1461,7 @@
                     this.tree.screen.switch_view('form');
                 } else {
                     this.update_expander(true);
-                    this.tree.expanded[this.path] = this;
+                    this.tree.expanded.add(this);
                     this.expand_children();
                 }
             }
@@ -1240,13 +1591,14 @@
             }
             this.tree.update_selection();
         },
-        expand_to_path: function(path) {
-            var row_idx, rest;
-            row_idx = path[0];
-            rest = path.slice(1);
-            if (rest.length > 0) {
-                this.rows[row_idx].expand_children().done(function() {
-                    this.rows[row_idx].expand_to_path(rest);
+        expand_to_path: function(path, selected) {
+            if (path.length &&
+                this.record.field_get_client(this.children_field).length) {
+                this.expander.css('visibility', 'visible');
+                this.tree.expanded.add(this);
+                this.update_expander(true);
+                return this.expand_children(selected).done(function() {
+                    return this.rows[path[0]].expand_to_path(path.slice(1), selected);
                 }.bind(this));
             }
         },
@@ -1279,8 +1631,11 @@
                     invisible = true;
                 }
                 if (editable) {
+                    var EditableBuilder = Sao.View.EditableTree.WIDGETS[
+                        column.attributes.widget];
                     readonly = (column.attributes.readonly ||
-                            state_attrs.readonly);
+                        state_attrs.readonly ||
+                        !EditableBuilder);
                 } else {
                     readonly = false;
                 }
@@ -1305,7 +1660,7 @@
             }.bind(this));
         },
         redraw: function(selected, expanded) {
-            var i, tr, td, widget;
+            var i, cell, widget;
             var field;
 
             Sao.View.Tree.RowEditable._super.redraw.call(this, selected,
@@ -1322,12 +1677,15 @@
             // call it when redrawing the row
             for (i = 0; i < this.tree.columns.length; i++) {
                 var column = this.tree.columns[i];
-                td = this._get_column_td(i);
-                tr = td.find('tr');
-                widget = jQuery(tr.children('.widget-editable')).data('widget');
+                cell = this._get_column_td(i).children('.cell');
+                widget = jQuery(cell.children('.widget-editable')).data('widget');
                 if (widget) {
-                    this.record.load(column.attributes.name).done(
-                        display_callback(widget));
+                    var callback = display_callback(widget);
+                    if (!this.record.is_loaded(column.attributes.name)) {
+                        this.record.load(column.attributes.name).done(callback);
+                    } else {
+                        callback();
+                    }
                 }
             }
         },
@@ -1339,6 +1697,13 @@
             event_.stopPropagation();
             if (this.tree.edited_row &&
                     (event_.currentTarget == this.tree.edited_row.el[0])) {
+                return;
+            }
+
+            var current_record = this.tree.screen.current_record;
+            if ((this.record != current_record) &&
+                !current_record.validate(
+                    this.tree.get_fields(), false, false, true)) {
                 return;
             }
 
@@ -1376,10 +1741,11 @@
             this.tree.columns.forEach(function(col, idx) {
                 var td = this._get_column_td(idx);
                 var static_el = this.get_static_el(td);
-                static_el.html(col.render(this.record)).show();
+                static_el.empty().append(col.render(this.record)).show();
                 this.get_editable_el(td)
                     .empty()
                     .data('widget', null)
+                    .hide()
                     .parents('.treeview td').addBack().removeClass('edited');
             }.bind(this));
         },
@@ -1428,7 +1794,7 @@
             td = td || this.get_active_td();
             var editable = td.find('.widget-editable');
             if (!editable.length) {
-                editable = jQuery('<td/>', {
+                editable = jQuery('<span/>', {
                         'class': 'widget-editable'
                     }).insertAfter(td.find('.widget'));
             }
@@ -1438,7 +1804,7 @@
             return this._get_column_td(this.edited_column);
         },
         key_press: function(event_) {
-            var current_td, selector, next_column, next_idx, i, next_row;
+            var current_td, selector, next_column, next_idx, i;
             var states;
 
             if (((event_.which != Sao.common.TAB_KEYCODE) &&
@@ -1470,17 +1836,12 @@
                         widget.focus();
                     }
                 } else if (event_.which == Sao.common.UP_KEYCODE ||
-                    event_.which == Sao.common.DOWN_KEYCODE) {
-                    if (event_.which == Sao.common.UP_KEYCODE) {
-                        next_row = this.el.prev('tr');
-                    } else {
-                        next_row = this.el.next('tr');
-                    }
+                    event_.which == Sao.common.DOWN_KEYCODE ||
+                    event_.which == Sao.common.RETURN_KEYCODE) {
                     next_column = this.edited_column;
                     this.record.validate(this.tree.get_fields())
                         .then(function(validate) {
                             if (!validate) {
-                                next_row = null;
                                 var invalid_fields =
                                     this.record.invalid_fields();
                                 for (i = 0; i < this.tree.columns.length; i++) {
@@ -1490,68 +1851,67 @@
                                         break;
                                     }
                                 }
+                                this._get_column_td(next_column)
+                                    .find(':input,[tabindex=0]').focus();
                             } else {
-                                var prm;
+                                var prm = jQuery.when();
                                 if (!this.tree.screen.group.parent) {
                                     prm = this.record.save();
                                 } else if (this.tree.screen.attributes.pre_validate) {
                                     prm = this.record.pre_validate();
                                 }
-                                if (prm) {
-                                    return prm.fail(function() {
-                                        widget.focus();
-                                    });
+                                prm.fail(function() {
+                                    widget.focus();
+                                });
+                                var next_row;
+                                if (event_.which == Sao.common.UP_KEYCODE) {
+                                    next_row = this.el.prev('tr');
+                                } else if (event_.which == Sao.common.DOWN_KEYCODE) {
+                                    next_row = this.el.next('tr');
+                                } else {
+                                    if (this.tree.screen.new_position == -1) {
+                                        next_row = this.el.next('tr');
+                                    } else {
+                                        next_row = this.el.prev('tr');
+                                    }
+                                }
+                                if (!next_row.length &&
+                                    ((event_.which == Sao.common.RETURN_KEYCODE) ||
+                                        ((event_.which == Sao.common.UP_KEYCODE) &&
+                                            (this.tree.screen.new_position == 0)) ||
+                                        ((event_.which == Sao.common.DOWN_KEYCODE) &&
+                                            (this.tree.screen.new_position == -1)))) {
+                                    var model = this.tree.screen.group;
+                                    var access = Sao.common.MODELACCESS.get(
+                                        this.tree.screen.model_name);
+                                    var limit = ((this.tree.screen.size_limit !== null) &&
+                                        (model.length >= this.tree.screen.size_limit));
+                                    if (access.create && !limit) {
+                                        prm.then(function() {
+                                            return this.tree.screen.new_();
+                                        }.bind(this))
+                                            .then(function(record) {
+                                                var sequence = this.tree.attributes.sequence;
+                                                if (sequence) {
+                                                    record.group.set_sequence(sequence);
+                                                }
+                                            }.bind(this));
+                                    }
+                                } else {
+                                    this._get_column_td(next_column, next_row)
+                                        .trigger('click')
+                                        .find(':input,[tabindex=0]').focus();
                                 }
                             }
-                        }.bind(this)).then(function() {
-                            window.setTimeout(function() {
-                                this._get_column_td(next_column, next_row)
-                                    .trigger('click');
-                            }.bind(this), 0);
                         }.bind(this));
                 } else if (event_.which == Sao.common.ESC_KEYCODE) {
                     this.tree.edit_row(null);
                     this.get_static_el().show().find('[tabindex=0]').focus();
-                } else if (event_.which == Sao.common.RETURN_KEYCODE) {
-                    var focus_cell = function(row) {
-                        this._get_column_td(this.edited_column, row)
-                            .trigger('click');
-                    }.bind(this);
-                    if (this.tree.attributes.editable == 'bottom') {
-                        next_row = this.el.next('tr');
-                    } else {
-                        next_row = this.el.prev('tr');
-                    }
-                    if (next_row.length) {
-                        focus_cell(next_row);
-                    } else {
-                        var model = this.tree.screen.group;
-                        var access = Sao.common.MODELACCESS.get(
-                                this.tree.screen.model_name);
-                        var limit = ((this.tree.screen.size_limit !== null) &&
-                                (model.length >= this.tree.screen.size_limit));
-                        var prm;
-                        if (!access.create || limit) {
-                            prm = jQuery.when();
-                        } else {
-                            prm = this.tree.screen.new_();
-                        }
-                        prm.done(function() {
-                            var new_row;
-                            var rows = this.tree.tbody.children('tr');
-                            if (this.tree.attributes.editable == 'bottom') {
-                                new_row = rows.last();
-                            } else {
-                                new_row = rows.first();
-                            }
-                            focus_cell(new_row);
-                        }.bind(this));
-                    }
                 }
-                event_.preventDefault();
             } else {
                 widget.display(this.record, column.field);
             }
+            event_.preventDefault();
         }
     });
 
@@ -1586,7 +1946,7 @@
             if (!cell) {
                 cell = this.get_cell();
             }
-            record.load(this.attributes.name).done(function() {
+            var render = function() {
                 var value;
                 var field = record.model.fields[this.attributes.name];
                 var invisible = field.get_state_attrs(record).invisible;
@@ -1620,18 +1980,20 @@
                     else {
                         value = this.icon;
                     }
-                    if (value) {
-                        Sao.common.ICONFACTORY.get_icon_url(value)
-                            .done(function(url) {
-                                var img_tag;
-                                if (cell.children('img').length) {
-                                    img_tag = cell.children('img');
-                                } else {
-                                    img_tag = cell;
-                                }
-                                img_tag.attr('src', url || '');
-                            }.bind(this));
-                    }
+                    Sao.common.ICONFACTORY.get_icon_url(value)
+                        .done(function(url) {
+                            var img_tag;
+                            if (cell.children('img').length) {
+                                img_tag = cell.children('img');
+                            } else {
+                                img_tag = cell;
+                            }
+                            if (url) {
+                                img_tag.attr('src', url);
+                            } else {
+                                img_tag.removeAttr('src');
+                            }
+                        }.bind(this));
                 } else {
                     value = this.attributes.string || '';
                     if (!value) {
@@ -1639,7 +2001,12 @@
                     }
                     cell.text(value);
                 }
-            }.bind(this));
+            }.bind(this);
+            if (!record.is_loaded(this.attributes.name)) {
+                record.load(this.attributes.name).done(render);
+            } else {
+                render();
+            }
             return cell;
         },
         clicked: function(event) {
@@ -1680,7 +2047,7 @@
             if (!cell) {
                 cell = this.get_cell();
             }
-            record.load(this.attributes.name).done(function() {
+            var render = function() {
                 this.update_text(cell, record);
                 this.field.set_state(record);
                 var state_attrs = this.field.get_state_attrs(record);
@@ -1689,7 +2056,12 @@
                 } else {
                     cell.show();
                 }
-            }.bind(this));
+            }.bind(this);
+            if (!record.is_loaded(this.attributes.name)) {
+                record.load(this.attributes.name).done(render);
+            } else {
+                render();
+            }
             return cell;
         }
     });
@@ -1805,6 +2177,37 @@
         }
     });
 
+    Sao.View.Tree.MultiSelectionColumn = Sao.class_(Sao.View.Tree.CharColumn, {
+        class_: 'column-multiselection',
+        init: function(model, attributes) {
+            Sao.View.Tree.MultiSelectionColumn._super.init.call(
+                this, model, attributes);
+            Sao.common.selection_mixin.init.call(this);
+            this.init_selection();
+        },
+        init_selection: function(key) {
+            Sao.common.selection_mixin.init_selection.call(this, key);
+        },
+        update_selection: function(record, callback) {
+            Sao.common.selection_mixin.update_selection.call(this, record,
+                this.field, callback);
+        },
+        update_text: function(cell, record) {
+            this.update_selection(record, function() {
+                var values = this.field.get_eval(record).map(function(value) {
+                    for (var i = 0; i < this.selection.length; i++) {
+                        if (this.selection[i][0] === value) {
+                            return this.selection[i][1];
+                        }
+                    }
+                    return '';
+                }.bind(this));
+                var text_value = values.join(';');
+                cell.text(text_value).attr('title', text_value);
+            }.bind(this));
+        },
+    });
+
     Sao.View.Tree.ReferenceColumn = Sao.class_(Sao.View.Tree.CharColumn, {
         class_: 'column-reference',
         init: function(model, attributes) {
@@ -1845,6 +2248,14 @@
                 cell.text(text).attr('title', text);
             }.bind(this));
         }
+    });
+
+    Sao.View.Tree.DictColumn = Sao.class_(Sao.View.Tree.CharColumn, {
+        class_: 'column-dict',
+        update_text: function(cell, record) {
+            var text = '(' + Object.keys(this.field.get_client(record)).length + ')';
+            cell.text(text).attr('title', text);
+        },
     });
 
     Sao.View.Tree.DateColumn = Sao.class_(Sao.View.Tree.CharColumn, {
@@ -1946,28 +2357,23 @@
         class_: 'column-image',
         get_cell: function() {
             var cell = jQuery('<img/>', {
-                'class': this.class_,
+                'class': this.class_ + ' center-block',
                 'tabindex': 0
             });
-            cell.css('width', '100%');
+            this.height = parseInt(this.attributes.height || 100, 10);
+            this.width = parseInt(this.attributes.width || 300, 10);
+            cell.css('max-height', this.height);
+            cell.css('max-width', this.width);
+            cell.css('height', 'auto');
+            cell.css('width', 'auto');
             return cell;
         },
         render: function(record, cell) {
             if (!cell) {
                 cell = this.get_cell();
             }
-            record.load(this.attributes.name).done(function() {
-                var value = this.field.get_client(record);
-                if (value) {
-                    if (value > Sao.common.BIG_IMAGE_SIZE) {
-                        value = jQuery.when(null);
-                    } else {
-                        value = this.field.get_data(record);
-                    }
-                } else {
-                    value = jQuery.when(null);
-                }
-                value.done(function(data) {
+            var render = function() {
+                var set_src = function(data) {
                     var img_url, blob;
                     if (!data) {
                         img_url = null;
@@ -1976,8 +2382,24 @@
                         img_url = window.URL.createObjectURL(blob);
                     }
                     cell.attr('src', img_url);
-                }.bind(this));
-            }.bind(this));
+                }.bind(this);
+
+                var value = this.field.get_client(record);
+                if (value) {
+                    if (value > Sao.common.BIG_IMAGE_SIZE) {
+                        set_src(null);
+                    } else {
+                        this.field.get_data(record).done(set_src);
+                    }
+                } else {
+                    set_src(null);
+                }
+            }.bind(this);
+            if (!record.is_loaded(this.attributes.name)) {
+                record.load(this.attributes.name).done(render);
+            } else {
+                render();
+            }
             return cell;
         }
     });
@@ -2034,7 +2456,7 @@
             this.attributes = attributes;
         },
         render: function(record, el) {
-            var button = new Sao.common.Button(this.attributes, el);
+            var button = new Sao.common.Button(this.attributes, el, 'btn-sm');
             if (!el) {
                 button.el.click(
                         [record, button], this.button_clicked.bind(this));
@@ -2048,10 +2470,7 @@
                         return undefined;
                     }
                 });
-            // Wait at least one eager field is loaded before evaluating states
-            record.load(fields[0]).done(function() {
-                button.set_state(record);
-            });
+            button.set_state(record);
             return button.el;
         },
         button_clicked: function(event) {
@@ -2079,6 +2498,7 @@
         'callto': Sao.View.Tree.URLColumn,
         'char': Sao.View.Tree.CharColumn,
         'date': Sao.View.Tree.DateColumn,
+        'dict': Sao.View.Tree.DictColumn,
         'email': Sao.View.Tree.URLColumn,
         'float': Sao.View.Tree.FloatColumn,
         'image': Sao.View.Tree.ImageColumn,
@@ -2091,6 +2511,7 @@
         'progressbar': Sao.View.Tree.ProgressBar,
         'reference': Sao.View.Tree.ReferenceColumn,
         'selection': Sao.View.Tree.SelectionColumn,
+        'multiselection': Sao.View.Tree.MultiSelectionColumn,
         'sip': Sao.View.Tree.URLColumn,
         'text': Sao.View.Tree.TextColum,
         'time': Sao.View.Tree.TimeColumn,
@@ -2191,14 +2612,6 @@
             Sao.View.EditableTree.Many2One._super.init.call(
                 this, view, attributes);
         },
-        key_press: function(event_) {
-            if (event_.which == Sao.common.TAB_KEYCODE) {
-                this.focus_out();
-            } else {
-                Sao.View.EditableTree.Many2One._super.key_press.call(this,
-                    event_);
-            }
-        }
     });
 
     Sao.View.EditableTree.Reference = Sao.class_(Sao.View.Form.Reference, {
@@ -2207,14 +2620,6 @@
             Sao.View.EditableTree.Reference._super.init.call(
                 this, view, attributes);
         },
-        key_press: function(event_) {
-            if (event_.which == Sao.common.TAB_KEYCODE) {
-                this.focus_out();
-            } else {
-                Sao.View.EditableTree.Reference._super.key_press.call(this,
-                    event_);
-            }
-        }
     });
 
     Sao.View.EditableTree.One2One = Sao.class_(Sao.View.Form.One2One, {
@@ -2223,14 +2628,6 @@
             Sao.View.EditableTree.One2One._super.init.call(
                 this, view, attributes);
         },
-        key_press: function(event_) {
-            if (event_.which == Sao.common.TAB_KEYCODE) {
-                this.focus_out();
-            } else {
-                Sao.View.EditableTree.One2One._super.key_press.call(this,
-                    event_);
-            }
-        }
     });
 
     Sao.View.EditableTree.One2Many = Sao.class_(Sao.View.EditableTree.Char, {
@@ -2247,6 +2644,7 @@
             }
         },
         key_press: function(event_) {
+            // TODO: remove when key_press is implemented
             if (event_.which == Sao.common.TAB_KEYCODE) {
                 this.focus_out();
             }

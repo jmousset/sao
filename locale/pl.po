@@ -98,8 +98,11 @@ msgstr "Skróty globalne"
 msgid "Tab shortcuts"
 msgstr "Skróty kart"
 
-msgid "Unable to reach the server"
-msgstr "Brak dostępu do serwera"
+msgid "Unable to reach the server."
+msgstr "Brak dostępu do serwera."
+
+msgid "Too many requests. Try again later."
+msgstr "Za dużo połączeń. Spróbuj później."
 
 msgid "Login"
 msgstr "Login"
@@ -109,9 +112,6 @@ msgstr "Nazwa użytkownika"
 
 msgid "Database"
 msgstr "Baza danych"
-
-msgid "Unable to reach the server."
-msgstr "Brak dostępu do serwera."
 
 msgid "Switch view"
 msgstr "Przełącz widok"
@@ -196,17 +196,17 @@ msgstr "Musisz wybrać jeden rekord."
 msgid "ID:"
 msgstr "ID:"
 
-msgid "Creation User:"
+msgid "Created by:"
 msgstr "Utworzył:"
 
-msgid "Creation Date:"
+msgid "Created at:"
 msgstr "Data utworzenia:"
 
-msgid "Latest Modification by:"
-msgstr "Autor ostatniej modyfikacji:"
+msgid "Edited by:"
+msgstr "Zmodyfikował:"
 
-msgid "Latest Modification Date:"
-msgstr "Data ostatniej modyfikacji:"
+msgid "Edited at:"
+msgstr "Data modyfikacji:"
 
 msgid "Model: "
 msgstr "Model: "
@@ -214,12 +214,11 @@ msgstr "Model: "
 msgid "Add..."
 msgstr "Dodaj..."
 
-#, fuzzy
 msgid "Attachment (%1)"
-msgstr "Załączniki (%1)"
+msgstr "Załącznik (%1)"
 
 msgid "Note (%1/%2)"
-msgstr ""
+msgstr "Notatka (%1/%2)"
 
 msgid " of "
 msgstr " z "
@@ -228,7 +227,7 @@ msgid "Filters"
 msgstr "Filtry"
 
 msgid "Clear Search"
-msgstr ""
+msgstr "Wyczyść wyszukiwanie"
 
 msgid "Bookmarks"
 msgstr "Zakładki"
@@ -240,7 +239,7 @@ msgid "Bookmark this filter"
 msgstr "Dodaj filtr do zakładek"
 
 msgid "Bookmark Name:"
-msgstr "Dodaj do zakładek nazwę:"
+msgstr "Dodaj nazwę zakładek:"
 
 msgid "Show active records"
 msgstr "Pokaż aktywne rekordy"
@@ -269,26 +268,26 @@ msgstr "Otwórz kalendarz"
 msgid "ID"
 msgstr "ID"
 
-msgid "Creation User"
+msgid "Created by"
 msgstr "Utworzył"
 
-msgid "Creation Date"
+msgid "Created at"
 msgstr "Data utworzenia"
 
-msgid "Modification User"
+msgid "Modified by"
 msgstr "Zmodyfikował"
 
-msgid "Modification Date"
+msgid "Modified at"
 msgstr "Data modyfikacji"
 
-msgid "\"%1\" is required"
-msgstr "\"%1\" jest wymagany"
+msgid "\"%1\" is required."
+msgstr "\"%1\" jest wymagany."
 
-msgid "\"%1\" is not valid according to its domain"
-msgstr "\"%1\" jest nieprawidłowy pod względem swojej domeny"
+msgid "\"%1\" is not valid according to its domain."
+msgstr "\"%1\" jest nieprawidłowy pod względem swojej domeny."
 
-msgid "The values of \"%1\" are not valid"
-msgstr "Wartości \"%1\" nie są prawidłowe"
+msgid "The values of \"%1\" are not valid."
+msgstr "Wartości \"%1\" nie są prawidłowe."
 
 msgid "Pre-validation"
 msgstr "Wstępna walidacja"
@@ -329,16 +328,14 @@ msgstr "Czcionka"
 msgid "Size"
 msgstr "Rozmiar"
 
-#, fuzzy
 msgid "Open the record"
-msgstr "Otwórz rekord <F2>"
+msgstr "Otwórz rekord"
 
 msgid "Clear the field"
-msgstr ""
+msgstr "Wyczyść pole"
 
-#, fuzzy
 msgid "Search a record"
-msgstr "Szukaj rekord <F2>"
+msgstr "Szukaj rekord"
 
 msgid "Add"
 msgstr "Dodaj"
@@ -368,7 +365,7 @@ msgid "Clear"
 msgstr "Wyczyść"
 
 msgid "Choose a language"
-msgstr ""
+msgstr "Wybierz język"
 
 msgid "%1%"
 msgstr "%1%"
@@ -389,7 +386,7 @@ msgid "Week"
 msgstr "Tydzień"
 
 msgid "Day"
-msgstr ""
+msgstr "Dzień"
 
 msgid ", "
 msgstr ", "
@@ -467,7 +464,7 @@ msgid "Write Concurrency Warning: "
 msgstr "Ostrzeżenie o równoczesnym zapisie danych: "
 
 msgid "This record has been modified while you were editing it."
-msgstr "Dane zostały zmienione w trakcie twojej pracy nad nimi."
+msgstr "Ten rekord został zmodyfikowany w trakcie twojej edycji."
 
 msgid "Choose:"
 msgstr "Wybierz:"
@@ -483,6 +480,9 @@ msgstr "\"Zapisz\" jeśli chcesz zapisać aktualną wersję danych."
 
 msgid "Compare"
 msgstr "Porównaj"
+
+msgid "Compare: %1"
+msgstr "Porównaj: %1"
 
 msgid "Write Anyway"
 msgstr "Zapisz"
@@ -550,11 +550,11 @@ msgstr "Plik do zaimportowania"
 msgid "Lines to Skip:"
 msgstr "Wiersze do ominięcia:"
 
-msgid "You must select an import file first"
-msgstr "Najpierw wybierz plik do zaimportowania"
+msgid "You must select an import file first."
+msgstr "Wybierz plik do zaimportowania."
 
-msgid "Error occured in loading the file"
-msgstr "Błąd ładowania pliku"
+msgid "An error occured in loading the file."
+msgstr "Błąd ładowania pliku."
 
 msgid "Error processing the file at field %1."
 msgstr "Błąd przetwarzania pliku w polu %1."
@@ -562,11 +562,17 @@ msgstr "Błąd przetwarzania pliku w polu %1."
 msgid "Error"
 msgstr "Błąd"
 
+msgid "Error occured in loading the file"
+msgstr "Błąd ładowania pliku"
+
 msgid "CSV Export: %1"
 msgstr "Eksport do CSV: %1"
 
 msgid "Save Export"
 msgstr "Zapisz eksport"
+
+msgid "URL Export"
+msgstr "Eksportuj URL"
 
 msgid "Delete Export"
 msgstr "Usuń eksport"
@@ -574,8 +580,20 @@ msgstr "Usuń eksport"
 msgid "Predefined Exports"
 msgstr "Predefiniowane eksporty"
 
+msgid "Selected Records"
+msgstr "Wybrane rekordy"
+
+msgid "Listed Records"
+msgstr "Wymienione rekordy"
+
+msgid "Export:"
+msgstr "Eksport:"
+
+msgid "Ignore search limit"
+msgstr "Ignoruj limit wyszukiwań"
+
 msgid "Use locale format"
-msgstr ""
+msgstr "Użyj formatu lokalnego"
 
 msgid "Add Field Names"
 msgstr "Dodaj nazwy pól"
@@ -587,7 +605,7 @@ msgid "%1 (model name)"
 msgstr "%1 (model name)"
 
 msgid "%1 (record name)"
-msgstr "%1 (record name)"
+msgstr "%1  (record name)"
 
 msgid "What is the name of this export?"
 msgstr "Jaka jest nazwa tego eksportu?"
@@ -599,4 +617,4 @@ msgid "Wizard"
 msgstr "Kreator"
 
 msgid "Translate view"
-msgstr ""
+msgstr "Widok tłumaczenia"

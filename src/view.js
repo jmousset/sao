@@ -8,6 +8,7 @@
         el: null,
         mnemonic_widget: null,
         view_id: null,
+        modified: null,
         editable: null,
         children_field: null,
         xml_parser: null,
@@ -33,6 +34,7 @@
                     this, this.screen.exclude_field, field_attrs)
                     .parse(xml.children()[0]);
             }
+            this.reset();
         },
         set_value: function() {
         },
@@ -53,6 +55,8 @@
         },
         get_buttons: function() {
             return [];
+        },
+        reset: function() {
         },
     });
 
@@ -143,7 +147,7 @@
                     'relation_field', 'views', 'invisible', 'add_remove',
                     'sort', 'context', 'size', 'filename', 'autocomplete',
                     'translate', 'create', 'delete', 'selection_change_with',
-                    'schema_model'].forEach(function(name) {
+                    'schema_model', 'required'].forEach(function(name) {
                         if ((name in field) && (!(name in node_attrs))) {
                             node_attrs[name] = field[name];
                         }
