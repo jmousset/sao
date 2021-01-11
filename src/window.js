@@ -449,7 +449,10 @@
             this.attachment_callback = callback;
             var context = jQuery.extend({}, record.get_context());
             var screen = new Sao.Screen('ir.attachment', {
-                domain: [['resource', '=', this.resource]],
+                domain: [
+                  ['resource', '=', this.resource],
+                  ['technical', '=', false]  // Coog Specific: no display of technical attachments
+                ],
                 mode: ['tree', 'form'],
                 context: context,
             });
@@ -516,7 +519,10 @@
             prm = Sao.rpc({
                 'method': 'model.ir.attachment.search_read',
                 'params': [
-                    [['resource', '=', record.model.name + ',' + record.id]],
+                    [
+                      ['resource', '=', record.model.name + ',' + record.id],
+                      ['technical', '=', false]  // Coog Specific: no display of technical attachments
+                    ],
                     0, 20, null, ['rec_name', 'name', 'type', 'link'],
                     context],
             }, record.model.session);
